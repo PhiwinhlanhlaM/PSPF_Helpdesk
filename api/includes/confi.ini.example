@@ -1,0 +1,10 @@
+[database]
+host     = localhost
+database = pspf_helpdesk
+username = root
+password =
+
+[application]
+base_url = http://localhost/pspf_crm/
+debug    = false
+timezone = UTC

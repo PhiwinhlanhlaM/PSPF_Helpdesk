@@ -1,0 +1,211 @@
+ 
+        :root {
+            --primary-blue: #1a6bbc;
+            --secondary-blue: #2c8ae5;
+            --success-green: #28a745;
+            --warning-orange: #fd7e14;
+            --danger-red: #dc3545;
+            --info-cyan: #17a2b8;
+        }
+        
+        .dashboard-header {
+            background: #3D5C80;
+            color: white;
+            padding: 30px 0;
+            margin-bottom: 30px;
+            border-radius: 0 0 20px 20px;
+        }
+        
+        .stat-card {
+            background:  #3D5C80;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            border-top: 4px solid;
+            transition: transform 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+        }
+        
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 5px 0;
+        }
+        
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+        
+        .chart-title {
+            color: #495057;
+            font-weight: 600;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .timeline-container {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .timeline-item {
+            border-left: 3px solid #dee2e6;
+            padding-left: 20px;
+            margin-bottom: 25px;
+            position: relative;
+        }
+        
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -8px;
+            top: 0;
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid;
+        }
+        
+        .timeline-open::before { border-color: var(--info-cyan); }
+        .timeline-progress::before { border-color: var(--primary-blue); }
+        .timeline-resolved::before { border-color: var(--success-green); }
+        .timeline-closed::before { border-color: #6c757d; }
+        .timeline-escalated::before { border-color: var(--danger-red); }
+        
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: 500;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .filter-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+        
+        .duration-badge {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+        }
+        
+        .progress-track {
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+        }
+        
+        .gantt-bar {
+            height: 25px;
+            margin: 5px 0;
+            border-radius: 4px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .gantt-bar:hover {
+            transform: scale(1.02);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+        
+        .gantt-label {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: white;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+        
+        .heatmap-day {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            margin: 2px;
+            cursor: pointer;
+        }
+        
+        .heatmap-day:hover {
+            transform: scale(1.2);
+        }
+        
+        .card-animate {
+            animation: slideUp 0.5s ease;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .sparkline-container {
+            height: 40px;
+            margin-top: 10px;
+        }
+        
+        .ticket-progress-bar {
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 5px 0;
+        }
+        
+        .progress-segment {
+            height: 100%;
+            display: inline-block;
+        }
+    

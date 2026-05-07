@@ -1,0 +1,350 @@
+/* ========== GENERAL RESET & BASE ========== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #f4f6f9;
+  font-family: 'Titillium Web'; 
+  background: linear-gradient(rgba(255,255,255,0.9), rgba(255,255,255,0.9)),  url('grey.jpg') no-repeat center center fixed;
+  background-size: cover;
+  color: #C62E65;
+}
+
+/* ========== TOP NAVIGATION ========== */
+.navbar {
+  background: url('uploads/pspf03.png') no-repeat center center fixed;
+  background-size: cover;
+  color: rgb(239, 239, 240);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  color: white;
+  flex-wrap: wrap;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.nav-left .logo1 {
+  height: 40px;
+  width: auto;
+}
+
+.nav-links {
+  display: flex;
+  gap: 1rem;
+}
+
+.nav-links a {
+  color:  white;
+  text-decoration: none;
+  margin: 0 10px;
+  font-weight: 500;
+  transition: color 0.3s;
+}
+
+.nav-links a:hover {
+  color:  #C62E65;
+}
+
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropbtn {
+  background: transparent;
+  color: white;
+  border: none;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  background: #406997;;
+  min-width: 160px;
+  border-radius: 5px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  z-index: 10;
+}
+
+.dropdown-content a {
+  display: block;
+  padding: 8px 12px;
+  color: white;
+  text-decoration: none;
+}
+
+.dropdown-content a:hover {
+  background-color: #406997;
+}
+
+.dropdown:hover .dropdown-content {
+  display: block;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.welcome-msg {
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+.profile-tab img {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* Hero Section */
+.hero {
+    background: #406997;
+    color: white;
+    text-align: center;
+    padding: 40px 20px;
+}
+.hero h1 {
+    font-size: 2em;
+    margin-bottom: 20px;
+}
+.search-box {
+    display: inline-flex;
+    background: white;
+    border-radius: 5px;
+    overflow: hidden;
+}
+.search-box input {
+    border: none;
+    padding: 10px;
+    width: 300px;
+    outline: none;
+}
+.search-box button {
+    background: #C62E65;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    cursor: pointer;
+}
+
+/* ========== CARD GRID ========== */
+.card-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.card-1 {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  flex: 1 1 calc(33.333% - 1rem);
+  max-width: 300px;
+  text-align: center;
+  padding: 1rem;
+  transition: transform 0.2s ease;
+}
+
+.card-1 img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.card-1 h3 {
+  font-size: 1.2rem;
+  margin-top: 0.8rem;
+}
+
+.card-1 p {
+  font-size: 0.9rem;
+  margin: 0.5rem 0 1rem;
+  color: #666;
+}
+
+.card-1 a {
+  display: inline-block;
+  padding: 0.4rem 1rem;
+  background: #406997;
+  color: white;
+  border-radius: 4px;
+  text-decoration: none;
+}
+
+.card-1 a:hover {
+  background: #406997
+}
+
+.card-1:hover {
+  transform: translateY(-4px);
+}
+
+.card-color {
+    background-color: #3D5C80; /* Custom blue */
+    color: white;
+}
+
+.badge-color {
+    background-color: #C62E65; /* Custom blue */
+}
+
+/* ========== STATUS BADGES ========== */
+.status-button {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: white;
+  display: inline-block;
+}
+
+.status-open { background: #e67e22; }
+.status-in-progress { background: #ffc107; color: #333; }
+.status-closed { background: #2ecc71; }
+.status-escalated { background: #cc2233; }
+.status-default { background: #0d6efd; }
+
+/* ========== TABLES ========== */
+.table th {
+  font-weight: 600;
+}
+
+.table-hover tbody tr:hover {
+  background-color: #f1f1f1;
+}
+
+/* ========== FOOTER ========== */
+
+.footer {
+  background-color:#3D5C80;
+  color: #e49600;
+  padding: 30px 20px;
+  margin-top: 50px;
+}
+
+.footer-container {
+  max-width: 1000px;
+  margin: auto;
+  text-align: center;
+}
+
+.footer-container p {
+  margin-bottom: 15px;
+  font-size: 0.95rem;
+  font-weight: bold;
+}
+
+.social-links a {
+  color: white;
+  margin: 0 10px;
+  font-size: 20px;
+  transition: color 0.3s ease;
+}
+
+.social-links a:hover {
+  color: #e49600;
+}
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 30px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 768px) {
+  .card-grid {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .card-1 {
+    max-width: 90%;
+  }
+
+  .nav-links {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
+/* Loading indicator */
+.loading-indicator {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+/* Skip link for accessibility */
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 6px;
+    background: #000;
+    color: white;
+    padding: 8px;
+    z-index: 10000;
+    text-decoration: none;
+}
+
+.skip-link:focus {
+    top: 6px;
+}
+
+/* Dark theme support */
+.dark-theme {
+    background-color: #1a1a1a;
+    color: #ffffff;
+}
+
+.dark-theme .card {
+    background-color: #2d2d2d;
+    color: #ffffff;
+}
+
+.dark-theme .table {
+    color: #ffffff;
+}
+
+.dark-theme .table-dark {
+    background-color: #343a40;
+}
+
+/* Status colors */
+.status-open { background-color: #dc3545; color: white; }
+.status-in-progress { background-color: #ffc107; color: black; }
+.status-closed { background-color: #198754; color: white; }
+.status-escalated { background-color: #6f42c1; color: white; }
+.status-default { background-color: #6c757d; color: white; }
+
+.status-button {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.875em;
+    font-weight: 500;
+}
