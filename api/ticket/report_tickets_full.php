@@ -5,14 +5,91 @@ require_once __DIR__ . '/../vendor/autoload.php';
 $conn = new mysqli("localhost", "root", "", "pspf_helpdesk");
 if ($conn->connect_error) die("Connection failed: " . $conn->connect_error);
 
-
 $AdminUser = $_SESSION['user']['username'];
+
 // Filter values
-$start = $_GET['start_date'] ?? '';
-$end = $_GET['end_date'] ?? '';
-$date_base = $_GET['date_base'] ?? 'query_date';
-$page = max(1, (int)($_GET['page'] ?? 1));
-$limit = 20;
+$start     = $_GET['start_date'] ?? '';
+$end       = $_GET['end_date']   ?? '';
+$date_base = $_GET['date_base']  ?? 'query_date';
+
+// -------------------------------------------------------
+// PDF EXPORT — run unlimited query and output PDF, then exit
+// -------------------------------------------------------
+if (isset($_GET['export']) && $_GET['export'] === 'pdf') {
+
+    $where  = ["1=1"];
+    $params = [];
+    $types  = "";
+
+    if ($start && $end) {
+        $where[]  = "$date_base BETWEEN ? AND ?";
+        $params[] = $start;
+        $params[] = $end;
+        $types   .= "ss";
+    }
+    $whereSQL = implode(" AND ", $where);
+
+    $sql = "
+        SELECT t.id, t.title, t.query_date, t.created_by, t.status,
+               tc.closed_at, tc.closed_by,
+               (SELECT COUNT(*) FROM ticket_reopens tr   WHERE tr.ticket_id  = t.id) AS reopens,
+               (SELECT COUNT(*) FROM ticket_escalations te WHERE te.ticket_id = t.id) AS escalations,
+               (SELECT MAX(changed_at) FROM ticket_history th WHERE th.ticket_id = t.id) AS last_history
+        FROM tickets t
+        LEFT JOIN ticket_closures tc ON tc.ticket_id = t.id
+        WHERE $whereSQL
+        ORDER BY t.query_date DESC";
+
+    $stmt = $conn->prepare($sql);
+    if ($types) $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+
+    $dateLabel = $start && $end
+        ? htmlspecialchars($start) . ' to ' . htmlspecialchars($end)
+        : 'All dates';
+
+    $html  = '<h2 style="text-align:center;">Ticket Summary Report</h2>';
+    $html .= '<p style="text-align:center;">Date range: ' . $dateLabel . ' &nbsp;|&nbsp; Total: ' . count($rows) . '</p>';
+    $html .= '<table border="1" cellpadding="4" cellspacing="0" width="100%" style="border-collapse:collapse;font-size:11px;">';
+    $html .= '<thead style="background:#343a40;color:#fff;">
+                <tr>
+                  <th>ID</th><th>Title</th><th>Created By</th><th>Status</th>
+                  <th>Query Date</th><th>Closed At</th><th>Closed By</th>
+                  <th>Reopens</th><th>Escalations</th><th>Last History</th>
+                </tr>
+              </thead><tbody>';
+
+    foreach ($rows as $row) {
+        $html .= '<tr>
+            <td>' . 'TCK-' . str_pad($row['id'], 6, '0', STR_PAD_LEFT) . '</td>
+            <td>' . htmlspecialchars($row['title'])      . '</td>
+            <td>' . htmlspecialchars($row['created_by']) . '</td>
+            <td>' . htmlspecialchars($row['status'])     . '</td>
+            <td>' . htmlspecialchars($row['query_date']) . '</td>
+            <td>' . ($row['closed_at']  ?? '-')          . '</td>
+            <td>' . ($row['closed_by']  ?? '-')          . '</td>
+            <td>' . $row['reopens']                      . '</td>
+            <td>' . $row['escalations']                  . '</td>
+            <td>' . ($row['last_history'] ?? '-')        . '</td>
+        </tr>';
+    }
+
+    $html .= '</tbody></table>';
+
+    $mpdf = new \Mpdf\Mpdf(['orientation' => 'L', 'margin_top' => 15]);
+    $mpdf->SetHTMLHeader('<h3 style="text-align:center;">Ticket Summary Report</h3>');
+    $mpdf->WriteHTML($html);
+    $mpdf->Output('ticket_summary.pdf', 'D');
+    exit;
+}
+
+// -------------------------------------------------------
+// Normal paginated display
+// -------------------------------------------------------
+$page   = max(1, (int)($_GET['page'] ?? 1));
+$limit  = 20;
 $offset = ($page - 1) * $limit;
 
 // Filter conditions
@@ -221,20 +298,6 @@ if ($start && $end) {
     </script>
 <?php endif; ?>
 
-<?php
-// Export to PDF
-if (isset($_GET['export']) && $_GET['export'] === 'pdf') {
-    ob_start();
-    include __FILE__; // re-render the page
-    $html = ob_get_clean();
-    $mpdf = new \Mpdf\Mpdf(['orientation' => 'L']);
-    $mpdf->SetHTMLHeader('<h3 style="text-align:center;">Ticket Summary Report</h3>');
-    $mpdf->WriteHTML($html);
-    $mpdf->Output('ticket_summary.pdf', 'D');
-    exit;
-}
-
-$conn->close();
-?>
+<?php $conn->close(); ?>
 </body>
 </html>

@@ -4,6 +4,11 @@ session_start();
 require_once '../includes/auth_helpers.php';
 require_once '../includes/role_switcher.php';
 require_once '../db.php';
+require_once '../../vendor/autoload.php';
+require_once '../includes/xlsx_styles.php';
+
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 enforceActiveUser($conn);
 enforcePasswordPolicy($conn);
@@ -104,31 +109,12 @@ $countStmt->close();
 // ===============================
 // EXPORT LOGIC (PDF or CSV)
 // ===============================
-// ===============================
-// EXPORT EXCEL WITHOUT PHPSPREADSHEET
-// ===============================
 if (isset($_GET['export']) && $_GET['export'] === 'excel') {
-    
-    // Set headers to force download as .xls
-    header("Content-Type: application/vnd.ms-excel");
-    header("Content-Disposition: attachment; filename=Closure_Report_" . date('Y-m-d') . ".xls");
-    header("Cache-Control: max-age=0");
-
-    // Start table
-    echo "<table border='1'>";
-    echo "<tr style='background-color:#002060; color:white;'>
-            <th>Ticket ID</th>
-            <th>Created By</th>
-            <th>Query Date</th>
-            <th>Closed By</th>
-            <th>Closed At</th>
-            <th>Department</th>
-            <th>Status</th>
-          </tr>";
-
-    // Fetch all filtered tickets
+    ob_start();
     $sql_all = "
-        SELECT c.ticket_id, t.created_by, t.query_date, c.closed_by, c.closed_at, ts.department, t.status
+        SELECT c.ticket_id, t.title, t.member_type, t.source, t.priority,
+               t.created_by, t.query_date, c.closed_by, c.closed_at,
+               ts.department, t.status, c.closure_reason, t.description
         FROM ticket_closures c
         JOIN tickets t ON c.ticket_id = t.id
         JOIN ticket_success ts ON t.id = ts.ticket_id
@@ -140,22 +126,50 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel') {
         $stmt_all->bind_param($types, ...$params);
     }
     $stmt_all->execute();
-    $res = $stmt_all->get_result();
+    $exportRows = $stmt_all->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt_all->close();
 
-    // Output rows
-    while ($r = $res->fetch_assoc()) {
-        echo "<tr>";
-        echo "<td>TCK-" . str_pad($r['ticket_id'], 6, '0', STR_PAD_LEFT) . "</td>";
-        echo "<td>" . htmlspecialchars($r['created_by']) . "</td>";
-        echo "<td>" . htmlspecialchars($r['query_date']) . "</td>";
-        echo "<td>" . htmlspecialchars($r['closed_by']) . "</td>";
-        echo "<td>" . htmlspecialchars($r['closed_at']) . "</td>";
-        echo "<td>" . htmlspecialchars($r['department']) . "</td>";
-        echo "<td>" . htmlspecialchars($r['status']) . "</td>";
-        echo "</tr>";
+    $xlsHeaders = [
+        'Ticket ID', 'Title', 'Member Type', 'Source', 'Priority',
+        'Created By', 'Date Submitted', 'Closed By', 'Closed At',
+        'Department', 'Status', 'Closure Reason', 'Description',
+    ];
+
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->setTitle('Closure Report');
+
+    $sheet->fromArray([$xlsHeaders], null, 'A1');
+
+    $rowNum = 2;
+    foreach ($exportRows as $r) {
+        $sheet->fromArray([[
+            'TCK-' . str_pad($r['ticket_id'], 6, '0', STR_PAD_LEFT),
+            $r['title'],
+            $r['member_type']    ?? '',
+            $r['source']         ?? '',
+            $r['priority']       ?? '',
+            $r['created_by'],
+            $r['query_date'],
+            $r['closed_by'],
+            $r['closed_at'],
+            $r['department'],
+            $r['status'],
+            $r['closure_reason'] ?? '',
+            $r['description']    ?? '',
+        ]], null, 'A' . $rowNum);
+        $rowNum++;
     }
 
-    echo "</table>";
+    applyXlsxStyles($sheet, $xlsHeaders, count($exportRows), 'Closure Report');
+
+    ob_end_clean();
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    header('Content-Disposition: attachment; filename="Closure_Report_' . date('Y-m-d') . '.xlsx"');
+    header('Cache-Control: max-age=0');
+
+    $writer = new Xlsx($spreadsheet);
+    $writer->save('php://output');
     exit;
 }
 // ✅ EXPORT PDF
