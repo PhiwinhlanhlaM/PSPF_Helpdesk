@@ -1,100 +1,112 @@
 <?php
+ob_start();
 session_start();
 
 require '../db.php';
+require_once '../../vendor/autoload.php';
+require_once '../includes/xlsx_styles.php';
 
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
-// Collect filters (same logic as report_queries.php)
 $filters = [
     'member_type' => $_GET['member_type'] ?? '',
-    'region' => $_GET['region'] ?? '',
-    'source' => $_GET['source'] ?? '',
-    'query_type' => $_GET['query_type'] ?? '',
-    'priority' => $_GET['priority'] ?? '',
-    'status' => $_GET['status'] ?? '',
-    'start_date' => $_GET['start_date'] ?? '',
-    'end_date' => $_GET['end_date'] ?? ''
+    'region'      => $_GET['region']      ?? '',
+    'source'      => $_GET['source']      ?? '',
+    'query_type'  => $_GET['query_type']  ?? '',
+    'priority'    => $_GET['priority']    ?? '',
+    'status'      => $_GET['status']      ?? '',
+    'start_date'  => $_GET['start_date']  ?? '',
+    'end_date'    => $_GET['end_date']    ?? '',
 ];
 
-// Build WHERE clause dynamically
 $whereClauses = ["1=1"];
 $params = [];
-$types = "";
+$types  = "";
 
 foreach ($filters as $field => $value) {
     if (in_array($field, ['start_date', 'end_date'])) continue;
     if (!empty($value)) {
-        $whereClauses[] = "$field = ?";
+        $whereClauses[] = "t.$field = ?";
         $params[] = $value;
-        $types .= "s";
+        $types   .= "s";
     }
 }
 
-// Handle date range
 if (!empty($filters['start_date']) && !empty($filters['end_date'])) {
-    $whereClauses[] = "query_date BETWEEN ? AND ?";
+    $whereClauses[] = "t.query_date BETWEEN ? AND ?";
     $params[] = $filters['start_date'];
     $params[] = $filters['end_date'];
-    $types .= "ss";
-} else if (!empty($filters['start_date'])) {
-    $whereClauses[] = "query_date >= ?";
+    $types   .= "ss";
+} elseif (!empty($filters['start_date'])) {
+    $whereClauses[] = "t.query_date >= ?";
     $params[] = $filters['start_date'];
-    $types .= "s";
-} else if (!empty($filters['end_date'])) {
-    $whereClauses[] = "query_date <= ?";
+    $types   .= "s";
+} elseif (!empty($filters['end_date'])) {
+    $whereClauses[] = "t.query_date <= ?";
     $params[] = $filters['end_date'];
-    $types .= "s";
+    $types   .= "s";
 }
 
 $whereSql = implode(" AND ", $whereClauses);
 
-// Prepare query
-$sql = "SELECT id, title, query_type, region, source, priority, status, phone_number, query_date FROM tickets WHERE $whereSql ORDER BY query_date DESC";
+$sql = "
+    SELECT t.id, t.title, t.member_type, t.query_type, t.region, t.source,
+           t.priority, t.status, t.phone_number, t.query_date,
+           t.created_by, t.assigned_to, t.description,
+           d.division_name
+    FROM tickets t
+    LEFT JOIN divisions d ON t.division_id = d.id
+    WHERE $whereSql
+    ORDER BY t.query_date DESC
+";
 $stmt = $conn->prepare($sql);
-
 if (!empty($params)) {
     $stmt->bind_param($types, ...$params);
 }
-
 $stmt->execute();
-$result = $stmt->get_result();
-
-// Set headers to force download as Excel
-header("Content-Type: application/vnd.ms-excel");
-header("Content-Disposition: attachment; filename=Helpdesk_Report_" . date('Y-m-d') . ".xls");
-header("Pragma: no-cache");
-header("Expires: 0");
-
-// Output Excel table
-echo "<table border='1'>";
-echo "<tr style='background-color:#198754; color:white; font-weight:bold;'>
-        <th>ID</th>
-        <th>Title</th>
-        <th>Query Type</th>
-        <th>Region</th>
-        <th>Source</th>
-        <th>Priority</th>
-        <th>Status</th>
-        <th>Phone</th>
-        <th>Date</th>
-      </tr>";
-
-while ($row = $result->fetch_assoc()) {
-    echo "<tr>";
-    echo "<td>TCK-" . str_pad($row['id'], 6, '0', STR_PAD_LEFT) . "</td>";
-    echo "<td>" . htmlspecialchars($row['title']) . "</td>";
-    echo "<td>" . htmlspecialchars($row['query_type']) . "</td>";
-    echo "<td>" . htmlspecialchars($row['region']) . "</td>";
-    echo "<td>" . htmlspecialchars($row['source']) . "</td>";
-    echo "<td>" . htmlspecialchars($row['priority']) . "</td>";
-    echo "<td>" . htmlspecialchars($row['status']) . "</td>";
-    echo "<td>" . htmlspecialchars($row['phone_number']) . "</td>";
-    echo "<td>" . htmlspecialchars($row['query_date']) . "</td>";
-    echo "</tr>";
-}
-
-echo "</table>";
-
+$rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 $conn->close();
-?>
+
+$headers = [
+    'Ticket ID', 'Title', 'Member Type', 'Division', 'Branch', 'Source',
+    'Priority', 'Status', 'Phone', 'Created By', 'Assigned To', 'Date Submitted', 'Description',
+];
+
+$spreadsheet = new Spreadsheet();
+$sheet = $spreadsheet->getActiveSheet();
+$sheet->setTitle('Helpdesk Report');
+
+$sheet->fromArray([$headers], null, 'A1');
+
+$rowNum = 2;
+foreach ($rows as $row) {
+    $sheet->fromArray([[
+        'TCK-' . str_pad($row['id'], 6, '0', STR_PAD_LEFT),
+        $row['title'],
+        $row['member_type']   ?? '',
+        $row['division_name'] ?? $row['query_type'],
+        $row['region'],
+        $row['source'],
+        $row['priority'],
+        $row['status'],
+        $row['phone_number']  ?? '',
+        $row['created_by'],
+        $row['assigned_to']   ?? '',
+        $row['query_date'],
+        $row['description']   ?? '',
+    ]], null, 'A' . $rowNum);
+    $rowNum++;
+}
+
+applyXlsxStyles($sheet, $headers, count($rows), 'Helpdesk Report');
+
+$filename = 'Helpdesk_Report_' . date('Y-m-d') . '.xlsx';
+ob_end_clean();
+header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+header('Content-Disposition: attachment; filename="' . $filename . '"');
+header('Cache-Control: max-age=0');
+
+$writer = new Xlsx($spreadsheet);
+$writer->save('php://output');

@@ -217,9 +217,10 @@ $filterDisplay = !empty($filter) ? "Search results for: '" . htmlspecialchars($f
                         
                         <!-- Export buttons -->
                         <div class="mb-0">
-                            <button type="button" class="btn btn-sm btn-light btn-outline-primary" onclick="exportExcel()">
+                            <a href="export_agent_excel.php?filter=<?= urlencode($filter) ?>"
+                               class="btn btn-sm btn-light btn-outline-primary">
                                 Export to Excel
-                            </button>
+                            </a>
                         </div>
                     </div>
                     

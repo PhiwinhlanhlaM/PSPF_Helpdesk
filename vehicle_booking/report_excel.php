@@ -62,42 +62,28 @@ $stmt = $conn->prepare($sql);
 $stmt->execute($params);
 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-header("Content-Type: application/vnd.ms-excel");
-header("Content-Disposition: attachment; filename=transport_report.xls");
+header("Content-Type: text/csv; charset=utf-8");
+header("Content-Disposition: attachment; filename=transport_report.csv");
 
-echo "<table border='1'>
-<tr>
-<th>Date</th>
-<th>Requester</th>
-<th>Department</th>
-<th>Destination</th>
-<th>Vehicle</th>
-<th>Mileage In</th>
-<th>Mileage Out</th>
-<th>Trip Mileage</th>
-</tr>";
+$out = fopen('php://output', 'w');
+fputcsv($out, ['Date', 'Requester', 'Department', 'Destination', 'Vehicle', 'Mileage In', 'Mileage Out', 'Trip Mileage']);
 
 $totalMileage = 0;
 
 foreach ($rows as $r) {
     $trip = max(0, $r['mileage_in'] - $r['mileage_out']);
     $totalMileage += $trip;
-
-    echo "<tr>
-        <td>{$r['created_at']}</td>
-        <td>{$r['requester']}</td>
-        <td>{$r['department']}</td>
-        <td>{$r['destination']}</td>
-        <td>{$r['registration']}</td>
-        <td>{$r['mileage_in']}</td>
-        <td>{$r['mileage_out']}</td>
-        <td>{$trip}</td>
-    </tr>";
+    fputcsv($out, [
+        $r['created_at'],
+        $r['requester'],
+        $r['department'],
+        $r['destination'],
+        $r['registration'],
+        $r['mileage_in'],
+        $r['mileage_out'],
+        $trip,
+    ]);
 }
 
-echo "<tr>
-    <td colspan='7'><strong>Total Mileage</strong></td>
-    <td><strong>{$totalMileage}</strong></td>
-</tr>";
-
-echo "</table>";
+fputcsv($out, ['', '', '', '', '', '', 'Total Mileage', $totalMileage]);
+fclose($out);

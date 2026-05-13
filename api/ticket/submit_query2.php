@@ -33,6 +33,26 @@ $priority     = trim($_POST['queryPriority'] ?? '');
 $phoneNumber  = trim($_POST['queryPhonenumber'] ?? '');
 
 // ---------------------------
+// SERVER-SIDE VALIDATION
+// ---------------------------
+$errors = [];
+
+if ($title === '')       $errors[] = 'Title is required.';
+if ($memberType === '')  $errors[] = 'Member Type is required.';
+if ($region === '')      $errors[] = 'Branch is required.';
+if ($source === '')      $errors[] = 'Source is required.';
+if ($queryType === '')   $errors[] = 'Department (To) is required.';
+if ($priority === '')    $errors[] = 'Priority is required.';
+if ($description === '') $errors[] = 'Description is required.';
+if ($source === 'Phone' && $phoneNumber === '') $errors[] = 'Phone number is required when source is Phone.';
+
+if (!empty($errors)) {
+    $errorParam = urlencode(implode('|', $errors));
+    header("Location: query.php?errors=$errorParam");
+    exit;
+}
+
+// ---------------------------
 // SET division_id
 // ---------------------------
 // queryType contains the division ID from the form select
