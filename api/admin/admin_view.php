@@ -715,13 +715,15 @@ function getPriorityBadgeClass($priority) {
                             </a>
                             <?php endif; ?>
 
-                            <button class="btn btn-sm btn-outline-primary" onclick="exportExcel()">
-                            Export to Excel
-                            </button>
+                            <a href="export_admin_excel.php?filter=<?= urlencode($filter) ?>&department=<?= urlencode($deptFilter) ?>&status=<?= urlencode($statusFilter) ?>&priority=<?= urlencode($priorityFilter) ?>&assigned=<?= $assignedFilter ? 'me' : '' ?>"
+                               class="btn btn-sm btn-outline-primary">
+                                Export to Excel
+                            </a>
 
-                            <button class="btn btn-sm btn-warning btn-outline-light" onclick="exportPDF()">
-                            Export to PDF
-                            </button>
+                            <a href="export_admin_pdf.php?filter=<?= urlencode($filter) ?>&department=<?= urlencode($deptFilter) ?>&status=<?= urlencode($statusFilter) ?>&priority=<?= urlencode($priorityFilter) ?>&assigned=<?= $assignedFilter ? 'me' : '' ?>"
+                               class="btn btn-sm btn-warning btn-outline-light">
+                                Export to PDF
+                            </a>
 
                         </div>
                     </div>

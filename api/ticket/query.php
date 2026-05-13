@@ -92,8 +92,18 @@ if ($result->num_rows > 0) {
         <?php if (isset($_GET['success']) && $_GET['success'] == '1'): ?>
             <div class="alert alert-success text-center">Query successfully submitted!</div>
         <?php endif; ?>
+        <?php if (!empty($_GET['errors'])): ?>
+            <div class="alert alert-danger">
+                <strong>Please fix the following:</strong>
+                <ul class="mb-0 mt-1">
+                    <?php foreach (explode('|', $_GET['errors']) as $err): ?>
+                        <li><?= htmlspecialchars($err) ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        <?php endif; ?>
     <div class="card-body">
-        <form action="submit_query2.php" method="POST" enctype="multipart/form-data" novalidate>
+        <form action="submit_query2.php" method="POST" enctype="multipart/form-data">
             <input type="hidden" name="created_by" value="<?= htmlspecialchars($loggedInUser) ?>">
             <input type="hidden" name="department" value="<?= htmlspecialchars($userDept) ?>">
 

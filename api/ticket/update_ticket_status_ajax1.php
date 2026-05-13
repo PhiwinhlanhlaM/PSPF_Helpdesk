@@ -252,19 +252,9 @@ try {
                 <p><strong>Closure Details:</strong><br>" . nl2br(htmlspecialchars($details)) . "</p>
                 <hr>
                 <h4>Please rate our service</h4>
-                <a href='$feedbackLink'
-                   style='display:inline-block;
-                          padding:12px 20px;
-                          background:#F6AE2D;
-                          color:#fff;
-                          text-decoration:none;
-                          border-radius:6px;
-                          font-weight:bold;'>
-                   ⭐ Leave Feedback
-                </a>
-                <p style='font-size:12px;color:#666;margin-top:10px;'>
-                This link expires in 7 days.
-                </p>
+                <p>We would appreciate your feedback to help us improve our support.</p>
+                <p>You can leave your feedback <a href='$feedbackLink'><strong>HERE</strong></a></p>
+                <p style='font-size:12px;color:#666;'>This link expires in 7 days.</p>
                 <br>--<br>PSPF CRM System
             ";
 

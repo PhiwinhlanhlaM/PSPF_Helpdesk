@@ -298,9 +298,10 @@ $totalPages = (int)ceil($totalRows / $perPage);
                     </button>
                 </div>
             </div>
-      <button type="button" onclick="generatePDF()" class="btn btn-primary">
-      Generate PDF
-    </button>
+      <a href="export_orders_pdf.php?date=<?= urlencode($selected_date) ?>&outlet=<?= urlencode($selected_outlet) ?>&type=<?= urlencode($selected_type) ?>"
+         class="btn btn-primary">
+          <i class="bi bi-file-earmark-pdf"></i> Generate PDF
+      </a>
     </div>
   </div>
 

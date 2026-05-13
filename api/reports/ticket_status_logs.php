@@ -370,9 +370,10 @@ $statusStmt->close();
                                 <button class="btn btn-secondary" onclick="printReport()">
                                     <i class="bi bi-printer"></i> Print
                                 </button>
-                                <button class="btn btn-primary" onclick="exportToExcel()">
+                                <a href="../admin/export_status_logs_excel.php?ticket_id=<?= $ticketId ?>&status=<?= urlencode($statusFilter) ?>&date_from=<?= urlencode($dateFrom) ?>&date_to=<?= urlencode($dateTo) ?>&changed_by=<?= urlencode($changedBy) ?>"
+                                   class="btn btn-primary">
                                     <i class="bi bi-file-earmark-excel"></i> Export
-                                </button>
+                                </a>
                             </div>
                         
                     </form>

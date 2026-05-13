@@ -253,22 +253,8 @@ try {
                 <hr>
                 <h4>Please rate our service</h4>
                 <p>We would appreciate your feedback to help us improve our support.</p>
-                <p style='font-size:14px;color:#555;'>Click the button below to provide your feedback:</p>
-
-                <a href='$feedbackLink'
-                   style='display:inline-block;
-                          padding:12px 20px;
-                          background:#3D5C80;
-                          color:#fff;
-                          text-decoration:none;
-                          border-radius:6px;
-                          font-weight:bold;'>
-                Leave Feedback
-                </a>
-                
-                <p style='font-size:12px;color:#666;margin-top:10px;'>
-                This link expires in 7 days.
-                </p>
+                <p>You can leave your feedback <a href='$feedbackLink'><strong>HERE</strong></a></p>
+                <p style='font-size:12px;color:#666;'>This link expires in 7 days.</p>
                 <br>--<br>PSPF CRM System
             ";
 
