@@ -1,6 +1,9 @@
 <?php
 require '../db.php';
 
+$_config   = parse_ini_file(__DIR__ . '/../includes/confi.ini', true);
+$_base_url = rtrim($_config['application']['base_url'] ?? 'http://localhost/pspf_crm/', '/');
+
 if (!isset($_GET['token']) || empty($_GET['token'])) {
     die("Invalid verification link");
 }
@@ -12,7 +15,7 @@ $stmt->bind_param("s", $token);
 
 if ($stmt->execute() && $stmt->affected_rows > 0) {
     echo "<h2>Email Verified Successfully!</h2>";
-    echo "<p>Your email has been verified. You can now <a href='http://192.168.1.16/pspf_crm/api/signin/index.php'>login</a> to your account.</p>";
+    echo "<p>Your email has been verified. You can now <a href='" . htmlspecialchars($_base_url) . "/api/signin/index.php'>login</a> to your account.</p>";
 } else {
     echo "<h2>Invalid or Expired Link</h2>";
     echo "<p>The verification link is invalid or your email has already been verified.</p>";

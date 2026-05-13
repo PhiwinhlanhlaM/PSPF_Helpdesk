@@ -5,6 +5,9 @@ header('Content-Type: application/json');
 require_once '../db.php';        // mysqli or PDO connection
 require_once '../mail_config.php'; // getMailer()
 
+$_config   = parse_ini_file(__DIR__ . '/../includes/confi.ini', true);
+$_base_url = rtrim($_config['application']['base_url'] ?? 'http://localhost/pspf_crm/', '/');
+
 // Allow only AJAX
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode([
@@ -63,7 +66,7 @@ $update->execute();
 /* ---------------------------------------------------
    4. Send reset email
 --------------------------------------------------- */
-$resetLink = "http://192.168.1.16/pspf_crm/api/signin/resetpassword.php?token=$token";
+$resetLink = $_base_url . "/api/signin/resetpassword.php?token=$token";
 
 try {
     $mail = getMailer();

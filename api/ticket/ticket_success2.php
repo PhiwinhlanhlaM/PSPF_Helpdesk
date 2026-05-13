@@ -7,6 +7,9 @@ require_once '../includes/auth_helpers.php';
 require_once '../includes/role_switcher.php';
 require_once '../db.php';
 
+$_config   = parse_ini_file(__DIR__ . '/../includes/confi.ini', true);
+$_base_url = rtrim($_config['application']['base_url'] ?? 'http://localhost/pspf_crm/', '/');
+
 enforceActiveUser($conn);
 enforcePasswordPolicy($conn);
 
@@ -147,7 +150,7 @@ foreach ($assignedEmails as $email) {
                 <li><strong>To Division:</strong> {$ticket['division_name']}</li>
             </ul>
             <p>
-                <a href='http://192.168.1.16/pspf_crm/api/signin/index.php'>
+                <a href='<?= htmlspecialchars($_base_url) ?>/api/signin/index.php'>
                     View Ticket
                 </a>
             </p>
