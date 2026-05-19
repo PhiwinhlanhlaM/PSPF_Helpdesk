@@ -1,4 +1,13 @@
-﻿<!-- Mobile-Responsive Navigation Bar -->
+﻿<?php
+// Ensure role flags are always defined, regardless of which page includes this topnav.
+$_navRole    = getActiveRole();
+$isSuperAdmin = isset($isSuperAdmin) ? $isSuperAdmin : ($activeRole ?? $_navRole) === 'superadmin';
+$isAdmin      = isset($isAdmin)      ? $isAdmin      : ($activeRole ?? $_navRole) === 'admin';
+$isAgent      = isset($isAgent)      ? $isAgent      : ($activeRole ?? $_navRole) === 'agent';
+$isUser       = isset($isUser)       ? $isUser       : ($activeRole ?? $_navRole) === 'user';
+unset($_navRole);
+?>
+<!-- Mobile-Responsive Navigation Bar -->
 <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(135deg, var(--pspf-primary) 0%, var(--pspf-primary-dark) 100%); padding: 0.5rem 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
     <div class="container-fluid">
         <!-- Logo and Brand -->
@@ -40,7 +49,7 @@
                     <li><hr class="dropdown-divider"></li>
                     <li><h6 class="dropdown-header">Switch Role</h6></li>
                     <?php foreach ($_mobileRoles as $_mobileRole):
-                        $_mobileIcons = ['superadmin'=>'bi-person-gear','admin'=>'bi-shield-fill-check','agent'=>'bi-headset','user'=>'bi-person-fill'];
+                        $_mobileIcons = ['superadmin'=>'bi-person-gear','admin'=>'bi-shield-fill-check','agent'=>'bi-headset','user'=>'bi-person-fill','it_director'=>'bi-person-check-fill'];
                         $_mobileIcon  = $_mobileIcons[$_mobileRole] ?? 'bi-person-fill';
                     ?>
                     <li>
@@ -49,7 +58,7 @@
                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_mobileCSRF) ?>">
                             <button type="submit" class="dropdown-item d-flex align-items-center gap-2<?= $_mobileRole === $_mobileActive ? ' active fw-semibold' : '' ?>">
                                 <i class="bi <?= $_mobileIcon ?>"></i>
-                                <?= htmlspecialchars(ucfirst($_mobileRole)) ?>
+                                <?= htmlspecialchars(roleLabel($_mobileRole)) ?>
                                 <?php if ($_mobileRole === $_mobileActive): ?><i class="bi bi-check2 ms-auto"></i><?php endif ?>
                             </button>
                         </form>
@@ -78,14 +87,26 @@
                     </a>
                 </li>
 
-                <!-- Self Service -->
+                <!-- Self Service (not for directors) -->
+                <?php if (!hasRole('it_director')): ?>
                 <li class="nav-item">
                     <a class="nav-link" href="/pspf_crm/api/Knowledge_base.php">
                         <i class="bi bi-journal-bookmark-fill me-1"></i> Self Service
                     </a>
                 </li>
+                <?php endif; ?>
 
-                <!-- Tickets Dropdown -->
+                <!-- IT Access Form (admins, ICT-dept agents, directors only) -->
+                <?php if (hasRole('admin') || hasRole('superadmin') || isITOfficer() || hasRole('it_director')): ?>
+                <li class="nav-item">
+                    <a class="nav-link" href="/pspf_crm/api/it_access/index.php">
+                        <i class="bi bi-person-badge me-1"></i> IT Access
+                    </a>
+                </li>
+                <?php endif; ?>
+
+                <!-- Tickets Dropdown (not for directors) -->
+                <?php if (!hasRole('it_director')): ?>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="bi bi-ticket-perforated me-1"></i> Tickets
@@ -108,6 +129,7 @@
                         <?php endif; ?>
                     </ul>
                 </li>
+                <?php endif; ?>
 
               <!-- Orders Dropdown
                 <li class="nav-item dropdown">
@@ -148,6 +170,7 @@
                         <?php if($isSuperAdmin): ?>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="/pspf_crm/api/settings/user_management.php"><i class="bi bi-people me-2"></i>User Management</a></li>
+                            <li><a class="dropdown-item" href="/pspf_crm/api/it_access/migrate.php"><i class="bi bi-database-gear me-2"></i>Database Migrations</a></li>
                         <?php endif ?>
                     </ul>
                 </li>
@@ -202,14 +225,14 @@
                 if (count($_desktopRoles) > 1):
                     $_desktopActive = getActiveRole();
                     $_desktopCSRF   = $_SESSION['csrf_token'] ?? '';
-                    $_desktopIcons  = ['superadmin'=>'bi-person-gear','admin'=>'bi-shield-fill-check','agent'=>'bi-headset','user'=>'bi-person-fill'];
+                    $_desktopIcons  = ['superadmin'=>'bi-person-gear','admin'=>'bi-shield-fill-check','agent'=>'bi-headset','user'=>'bi-person-fill','it_director'=>'bi-person-check-fill'];
                 ?>
                 <div class="dropdown">
                     <button class="btn btn-sm d-flex align-items-center gap-1"
                             style="background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; padding: 0.3rem 0.8rem;"
                             data-bs-toggle="dropdown" aria-expanded="false" title="Switch role">
                         <i class="bi bi-arrow-left-right" style="font-size: 0.75rem;"></i>
-                        <span style="font-size: 0.8rem;"><?= htmlspecialchars(ucfirst($_desktopActive)) ?></span>
+                        <span style="font-size: 0.8rem;"><?= htmlspecialchars(roleLabel($_desktopActive)) ?></span>
                         <i class="bi bi-chevron-down" style="font-size: 0.65rem; opacity: 0.8;"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow">
@@ -223,7 +246,7 @@
                                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_desktopCSRF) ?>">
                                 <button type="submit" class="dropdown-item d-flex align-items-center gap-2<?= $_dRole === $_desktopActive ? ' active fw-semibold' : '' ?>">
                                     <i class="bi <?= $_dIcon ?>"></i>
-                                    <?= htmlspecialchars(ucfirst($_dRole)) ?>
+                                    <?= htmlspecialchars(roleLabel($_dRole)) ?>
                                     <?php if ($_dRole === $_desktopActive): ?><i class="bi bi-check2 ms-auto"></i><?php endif ?>
                                 </button>
                             </form>

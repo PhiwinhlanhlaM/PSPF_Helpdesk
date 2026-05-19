@@ -109,7 +109,7 @@ $availableRoles = isLoggedIn() ? requireAnyRole() : [];
                     </div>
                     <div class="col-6">
                         <small class="text-muted d-block">Active Role</small>
-                        <strong class="text-primary"><?= ucfirst($currentRole) ?></strong>
+                        <strong class="text-primary"><?= roleLabel($currentRole) ?></strong>
                     </div>
                 </div>
                 
@@ -119,7 +119,7 @@ $availableRoles = isLoggedIn() ? requireAnyRole() : [];
                     <div class="d-flex flex-wrap gap-1 mt-1">
                         <?php foreach ($availableRoles as $role): ?>
                             <span class="badge bg-<?= $role === $currentRole ? 'primary' : 'secondary' ?>">
-                                <?= ucfirst($role) ?>
+                                <?= roleLabel($role) ?>
                             </span>
                         <?php endforeach; ?>
                     </div>

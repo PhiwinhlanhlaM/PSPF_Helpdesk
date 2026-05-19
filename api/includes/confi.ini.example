@@ -5,6 +5,15 @@ username = root
 password =
 
 [application]
-base_url = http://localhost/pspf_crm/
-debug    = false
-timezone = UTC
+; Switch between environments by changing this one value.
+; "development" uses base_url_dev, "production" uses base_url_prod.
+environment    = development
+base_url_dev   = http://localhost/pspf_crm/
+base_url_prod  = http://192.168.1.16/pspf_crm/
+debug          = false
+timezone       = UTC
+
+[sharepoint]
+; Folder path within SharePoint document library where IT access PDFs are uploaded.
+; Example: IT Access Requests/2025  or  Shared Documents/IT/Access Forms
+folder = IT Access Requests

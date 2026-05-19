@@ -305,6 +305,7 @@ if (isset($_SESSION['error'])) {
     <a href="../vehicle_booking/login.php">Book</a>
   </div>
 
+
 </div>
 
   </div>

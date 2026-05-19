@@ -2,11 +2,11 @@
 session_start();
 header('Content-Type: application/json');
 
-require_once '../db.php';        // mysqli or PDO connection
-require_once '../mail_config.php'; // getMailer()
+require_once '../db.php';
+require_once '../mail_config.php';
+require_once '../includes/auth_helpers.php';
 
-$_config   = parse_ini_file(__DIR__ . '/../includes/confi.ini', true);
-$_base_url = rtrim($_config['application']['base_url'] ?? 'http://localhost/pspf_crm/', '/');
+$_base_url = getBaseUrl();
 
 // Allow only AJAX
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

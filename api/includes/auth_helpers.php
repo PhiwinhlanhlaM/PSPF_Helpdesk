@@ -87,6 +87,21 @@ function getUserRoles() {
 }
 
 /**
+ * BASE URL
+ * Returns the correct base URL based on the environment setting in confi.ini.
+ * Switch environments by changing `environment = development` or `environment = production`.
+ */
+function getBaseUrl(): string {
+    static $url = null;
+    if ($url !== null) return $url;
+    $ini  = @parse_ini_file(__DIR__ . '/confi.ini', true) ?: [];
+    $env  = trim($ini['application']['environment'] ?? 'development');
+    $key  = ($env === 'production') ? 'base_url_prod' : 'base_url_dev';
+    $url  = rtrim($ini['application'][$key] ?? 'http://localhost/pspf_crm/', '/');
+    return $url;
+}
+
+/**
  * CSRF TOKEN
  */
 if (empty($_SESSION['csrf_token'])) {
@@ -162,10 +177,11 @@ function renderRoleSwitcher(): string {
     if (count($roles) < 2) return "";
 
     $roleIcons = [
-        'superadmin' => 'bi-person-gear',
-        'admin'      => 'bi-shield-fill-check',
-        'agent'      => 'bi-headset',
-        'user'       => 'bi-person-fill',
+        'superadmin'  => 'bi-person-gear',
+        'admin'       => 'bi-shield-fill-check',
+        'agent'       => 'bi-headset',
+        'user'        => 'bi-person-fill',
+        'it_director' => 'bi-person-check-fill',
     ];
 
     $csrf = $_SESSION['csrf_token'] ?? '';
@@ -175,7 +191,7 @@ function renderRoleSwitcher(): string {
            . ' id="roleSwitcherDropdown" data-bs-toggle="dropdown" aria-expanded="false"'
            . ' title="Switch role">';
     $html .= '<i class="bi bi-arrow-left-right"></i>';
-    $html .= '<span class="d-none d-lg-inline ms-1">' . htmlspecialchars(ucfirst($active)) . '</span>';
+    $html .= '<span class="d-none d-lg-inline ms-1">' . htmlspecialchars(roleLabel($active)) . '</span>';
     $html .= '</a>';
     $html .= '<ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="roleSwitcherDropdown">';
     $html .= '<li><h6 class="dropdown-header">Switch Role</h6></li>';
@@ -191,7 +207,7 @@ function renderRoleSwitcher(): string {
         $html .= '<button type="submit" class="dropdown-item d-flex align-items-center gap-2'
                . ($isActive ? ' active fw-semibold' : '') . '">';
         $html .= '<i class="bi ' . $icon . '"></i>';
-        $html .= htmlspecialchars(ucfirst($role));
+        $html .= htmlspecialchars(roleLabel($role));
         if ($isActive) {
             $html .= ' <i class="bi bi-check2 ms-auto"></i>';
         }
@@ -206,6 +222,27 @@ function renderRoleSwitcher(): string {
 
 function hasRole($role) {
     return in_array(strtolower($role), getUserRoles(), true);
+}
+
+function roleLabel(string $role): string {
+    $labels = [
+        'superadmin'  => 'Super Admin',
+        'admin'       => 'Admin',
+        'agent'       => 'Agent',
+        'user'        => 'User',
+        'it_director' => 'IT Director',
+    ];
+    return $labels[$role] ?? ucfirst($role);
+}
+
+/**
+ * ICT OFFICER CHECK
+ * An ICT officer is any agent whose department is 'ICT'.
+ * No explicit role assignment needed.
+ */
+function isITOfficer(): bool {
+    return hasRole('agent')
+        && strtoupper(trim($_SESSION['user']['department'] ?? '')) === 'ICT';
 }
 function hasRoleInDepartment(string $role, string $department): bool {
     return hasRole($role)
@@ -230,10 +267,11 @@ function getRoleHomePage($role = null) {
     }
 
     $map = [
-        'user'       => '/pspf_crm/api/user_dashboard.php',
-        'agent'      => '/pspf_crm/api/agent/agent_dashboard.php',
-        'admin'      => '/pspf_crm/api/admin/admin_dashboard.php',
-        'superadmin' => '/pspf_crm/api/admin/admin_dashboard.php'
+        'user'        => '/pspf_crm/api/user_dashboard.php',
+        'agent'       => '/pspf_crm/api/agent/agent_dashboard.php',
+        'admin'       => '/pspf_crm/api/admin/admin_dashboard.php',
+        'superadmin'  => '/pspf_crm/api/admin/admin_dashboard.php',
+        'it_director' => '/pspf_crm/api/director/dashboard.php',
     ];
 
     return $map[$role] ?? '/pspf_crm/api/user_dashboard.php';

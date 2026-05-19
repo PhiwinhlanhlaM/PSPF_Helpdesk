@@ -18,12 +18,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Map roles to Bootstrap Icons
 $roleIcons = [
-    'admin' => 'bi-shield-check',
-    'user' => 'bi-person',
-    'superadmin' => 'bi-person-gear',
-    'agent' => 'bi-headset',
-    // Add more role-icon mappings as needed
+    'admin'       => 'bi-shield-check',
+    'user'        => 'bi-person',
+    'superadmin'  => 'bi-person-gear',
+    'agent'       => 'bi-headset',
+    'it_director' => 'bi-person-check-fill',
 ];
+
+function roleLabel(string $role): string {
+    $labels = [
+        'superadmin'  => 'Super Admin',
+        'admin'       => 'Admin',
+        'agent'       => 'Agent',
+        'user'        => 'User',
+        'it_director' => 'IT Director',
+    ];
+    return $labels[$role] ?? ucfirst($role);
+}
 
 // Function to get icon for role
 function getRoleIcon($role, $roleIcons) {
@@ -375,7 +386,7 @@ function getRoleIcon($role, $roleIcons) {
                         <div class="roles-grid <?= count($roles) > 6 ? 'compact-view' : '' ?>">
                             <?php foreach ($roles as $role): 
                                 $iconClass = getRoleIcon($role, $roleIcons);
-                                $roleDisplay = htmlspecialchars(ucfirst($role));
+                                $roleDisplay = htmlspecialchars(roleLabel($role));
                             ?>
                                 <label class="role-card" for="role_<?= htmlspecialchars($role) ?>">
                                     <input type="radio" 
@@ -404,8 +415,11 @@ function getRoleIcon($role, $roleIcons) {
                                             case 'agent':
                                                 echo 'Customer support';
                                                 break;
+                                            case 'it_director':
+                                                echo 'Director approvals';
+                                                break;
                                             default:
-                                                echo ucfirst($role) . ' access';
+                                                echo roleLabel($role) . ' access';
                                         }
                                         ?>
                                     </div>

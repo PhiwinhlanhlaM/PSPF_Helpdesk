@@ -535,11 +535,11 @@ elseif (isset($_POST['update_profile'])) {
                     </div>
                     <div class="col-md-3">
                         <p><strong><i class="bi bi-person-badge"></i> Roles:</strong><br>
-                        <?= implode(', ', getUserRoles()) ?></p>
+                        <?= implode(', ', array_map('roleLabel', getUserRoles())) ?></p>
                     </div>
                     <div class="col-md-3">
                         <p><strong><i class="bi bi-shield-check"></i> Active Role:</strong><br>
-                        <?= ucfirst(getActiveRole()) ?></p>
+                        <?= roleLabel(getActiveRole()) ?></p>
                     </div>
                 </div>
                 

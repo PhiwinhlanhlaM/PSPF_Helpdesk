@@ -15,6 +15,9 @@ PHPMailer-master/
 # Visual Studio metadata
 .vs/
 
+# Generated uploads (PDFs with personal data — not for version control)
+uploads/
+
 # OS files
 Thumbs.db
 .DS_Store

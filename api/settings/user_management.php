@@ -189,7 +189,7 @@ function getRolesForUser($conn, $userId) {
                                         <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
                                         <input type="hidden" name="role_id" value="<?= $r['id'] ?>">
                                         <button name="remove_role" class="btn btn-sm btn-outline-danger me-1">
-                                            <?= ucfirst($r['name']) ?> ✕
+                                            <?= roleLabel($r['name']) ?> ✕
                                         </button>
                                     </form>
                                 <?php endforeach; ?>
@@ -199,7 +199,7 @@ function getRolesForUser($conn, $userId) {
                                     <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
                                     <select name="role_id" class="form-select form-select-sm">
                                         <?php foreach ($roles as $role): ?>
-                                            <option value="<?= $role['id'] ?>"><?= ucfirst($role['name']) ?></option>
+                                            <option value="<?= $role['id'] ?>"><?= roleLabel($role['name']) ?></option>
                                         <?php endforeach; ?>
                                     </select>
                                     <button name="assign_role" class="btn btn-sm btn-primary" 

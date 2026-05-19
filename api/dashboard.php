@@ -30,7 +30,11 @@ switch ($role) {
         exit;
 
     case 'superadmin':
-        header("Location: /pspf_crm/api/admin/admin_dashboard.php"); 
+        header("Location: /pspf_crm/api/admin/admin_dashboard.php");
+        exit;
+
+    case 'it_director':
+        header("Location: /pspf_crm/api/director/dashboard.php");
         exit;
 
     default:

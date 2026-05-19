@@ -47,6 +47,7 @@ try {
     
     // Include database connection
     require_once '../db.php';
+    require_once '../includes/auth_helpers.php';
     
     // Verify database connection
     if (!isset($conn) || $conn === null || !$conn) {
@@ -128,17 +129,7 @@ try {
     
     // Process attachment URL
     if (!empty($ticket['attachment_path'])) {
-        $configPath = __DIR__ . '/../includes/confi.ini';
-        if (file_exists($configPath)) {
-            $config = parse_ini_file($configPath, true);
-            if ($config && isset($config['application']['base_url'])) {
-                $baseUrl = $config['application']['base_url'];
-            } else {
-                $baseUrl = 'http://localhost/pspf_helpdesk/';
-            }
-        } else {
-            $baseUrl = 'http://localhost/pspf_helpdesk/';
-        }
+        $baseUrl = getBaseUrl();
 	
         $ticket['attachment_url'] = rtrim($baseUrl, '/') . '/api/tickets/' . $ticket['attachment_path'];
     } else {

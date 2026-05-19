@@ -33,7 +33,7 @@
                             elseif ($isAgent) echo '#7FC8F8';
                             else echo '#C62E65';
                         ?>; color: <?= ($isAdmin || $isAgent) ? '#1e293b' : 'white' ?>; font-size: 0.65rem; padding: 0.25rem 0.6rem; border-radius: 20px;">
-                            <?= ucfirst(getActiveRoleString()) ?>
+                            <?= roleLabel(getActiveRoleString()) ?>
                         </span>
                     </div>
 
