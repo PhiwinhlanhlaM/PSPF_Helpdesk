@@ -25,7 +25,7 @@ $stmt->execute([$request_id]);
 $request = $stmt->fetch(PDO::FETCH_ASSOC);
 
 // Available vehicles
-$vehicles = $conn->query("SELECT * FROM vehicles")->fetchAll(PDO::FETCH_ASSOC);
+$vehicles = $conn->query("SELECT * FROM vehicles WHERE status = 'available'")->fetchAll(PDO::FETCH_ASSOC);
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $vehicle_id = $_POST['vehicle_id'];
@@ -76,22 +76,8 @@ $request = $stmt->fetch(PDO::FETCH_ASSOC);
 <body class="bg-light">
 <?php include '../vehicle_booking/navbar.php'; ?>
 <div class="container mt-5">
-
-	<div class="settings-header">   
-          <h1 class="settings-title">Vehicle Assignment</h1>
-          <div class="settings-actions">
-            <!-- Back Button -->
-              <button onclick="goBack()" class="btn btn-outline-secondary back-btn">
-                  <i class="bi bi-arrow-left"></i> Back
-              </button>
-          </div>
-        </div>
-
-    <div class="card shadow p-4">
-      <div class="card-header card-color text-center text-white">
+    <div class="card p-4 shadow">
         <h4>Approve & Assign Vehicle</h4>
-	</div>
-
         <form method="POST">
             <div class="mb-3">
                 <label>Requester</label>
@@ -133,28 +119,6 @@ $request = $stmt->fetch(PDO::FETCH_ASSOC);
         </form>
     </div>
 </div>
-
-<script>
-function goBack() {
-    const previousPages = <?= json_encode($_SESSION['page_history'] ?? []) ?>;
-    
-    if (previousPages.length > 1) {
-        // Remove current page from history
-        previousPages.pop();
-        // Get the previous page
-        const previousPage = previousPages[previousPages.length - 1];
-        window.location.href = previousPage;
-    } else {
-        // Fallback to browser history or default page
-        if (document.referrer && document.referrer.includes(window.location.hostname)) {
-            window.history.back();
-        } else {
-            // If no referrer or from different domain, go to home
-            window.location.href = 'driver_dashboard.php';
-        }
-    }
-}
-</script>
 </body>
 <?php include '../vehicle_booking/footer.php'; ?>
 </html>

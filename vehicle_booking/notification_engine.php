@@ -39,7 +39,6 @@ function formatRequestDetails($request) {
         <strong>Date &amp; Time Required:</strong> {$request['date_required']} {$request['time_required']}<br>
         <strong>Destination:</strong> {$request['destination']}<br>
         <strong>Purpose:</strong> {$request['purpose']}<br>
-	<strong>Passengers:</strong> {$request['passengers']}<br>
         <strong>Department:</strong> {$request['department']}<br>
     ";
 }
@@ -59,7 +58,7 @@ function notifyAllSupervisors($conn, $department, $subject, $message) {
 
 /**
  * Send an email to all active drivers
- */
+ 
 
 function notifyAllDrivers($conn, $subject, $message) {
     $driver_stmt = $conn->prepare("SELECT email FROM users WHERE role = 'driver' AND active = 1");
@@ -70,7 +69,7 @@ function notifyAllDrivers($conn, $subject, $message) {
 
 }
 }
-
+*/
 
 /**
  * Send email notifications based on workflow stage
@@ -110,10 +109,10 @@ function sendRequestEmail($conn, $request_id, $stage) {
         case 'request_submitted':
 
             // Notify driver
-			// sendMailTo(
-              //      $driver['email'],
-            notifyAllDrivers(
-               $conn,
+			sendMailTo(
+                    $driver['email'],
+            //notifyAllDrivers(
+            //   $conn
              
                     "New Vehicle Request – Action Required (#$request_id)",
                     "A new vehicle request has been submitted and requires your availability confirmation.<br><br>" .
@@ -332,7 +331,7 @@ function sendVehicleReturnEmail($conn, $request_id) {
         <hr>
         <h4>Trip Details</h4>
         <strong>Requester:</strong> {$data['requester_name']}<br>
-        // <strong>Driver:</strong> {$data['driver_name']}<br>
+        <strong>Driver:</strong> {$data['driver_name']}<br>
         <strong>Vehicle:</strong> {$data['vehicle_name']} ({$data['registration_number']})<br>
         <strong>Destination:</strong> {$data['destination']}<br>
         <strong>Purpose:</strong> {$data['purpose']}<br>
