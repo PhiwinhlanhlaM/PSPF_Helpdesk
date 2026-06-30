@@ -1,0 +1,130 @@
+/* SignaturePad styles */
+.sigpad {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.sigpad-tabs {
+  display: inline-flex;
+  background: var(--ink-100);
+  padding: 3px;
+  border-radius: var(--r-md);
+  align-self: flex-start;
+  gap: 2px;
+}
+.sigpad-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 550;
+  color: var(--ink-600);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: all 0.15s var(--ease-out);
+}
+.sigpad-tab:hover { color: var(--ink-800); }
+.sigpad-tab.active {
+  background: var(--white);
+  color: var(--ink-900);
+  box-shadow: var(--shadow-xs);
+}
+
+.sigpad-canvas-wrap {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  background: var(--white);
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background-image:
+    linear-gradient(var(--ink-100) 1px, transparent 1px);
+  background-size: 100% 200px;
+  background-position: 0 199px;
+}
+.sigpad-canvas {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  cursor: crosshair;
+  touch-action: none;
+}
+.sigpad-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--ink-400);
+  font-size: 13px;
+  pointer-events: none;
+  letter-spacing: -0.005em;
+}
+.sigpad-baseline {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 36px;
+  height: 1px;
+  background: var(--ink-200);
+  pointer-events: none;
+}
+.sigpad-x {
+  position: absolute;
+  left: 24px;
+  bottom: 30px;
+  color: var(--ink-400);
+  font-size: 18px;
+  pointer-events: none;
+}
+
+.sigpad-upload-wrap { width: 100%; }
+.sigpad-upload-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px 24px;
+  background: var(--ink-50);
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  color: var(--ink-700);
+  transition: all 0.15s var(--ease-out);
+}
+.sigpad-upload-drop:hover { border-color: var(--pspf-600); background: var(--pspf-50); color: var(--pspf-800); }
+.sigpad-upload-preview {
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--white);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-md);
+}
+.sigpad-upload-preview img {
+  max-height: 160px;
+  max-width: 90%;
+  object-fit: contain;
+}
+
+.sigpad-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sigrender {
+  display: block;
+  background: transparent;
+}

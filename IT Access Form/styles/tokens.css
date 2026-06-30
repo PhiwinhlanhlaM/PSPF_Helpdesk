@@ -1,0 +1,307 @@
+/* PSPF IT Access — design tokens */
+:root {
+  /* Brand — sampled from Public Service Pensions Fund logo */
+  --pspf-900: #1f3450;
+  --pspf-800: #2a4868;
+  --pspf-700: #3d5a7e;   /* primary mark */
+  --pspf-600: #4f6f93;
+  --pspf-500: #6b89a8;
+  --pspf-400: #9aafc5;
+  --pspf-300: #c2d1e0;
+  --pspf-200: #dfe7f0;
+  --pspf-100: #eef2f7;
+  --pspf-50:  #f6f8fb;
+
+  /* Accents — kept restrained to feel modern-enterprise */
+  --green-700: #0f7a4a;
+  --green-600: #15915a;
+  --green-100: #e3f5ec;
+  --amber-700: #8a5a00;
+  --amber-600: #b07300;
+  --amber-100: #fcf1d8;
+  --red-700: #a01b1b;
+  --red-600: #c92a2a;
+  --red-100: #fde6e6;
+  --blue-700: #1d4ed8;
+  --blue-600: #2563eb;
+  --blue-100: #e3ecfb;
+
+  /* Neutrals — Linear/Notion-ish warm slate */
+  --ink-900: #0e1726;
+  --ink-800: #1c2839;
+  --ink-700: #344256;
+  --ink-600: #4b5a72;
+  --ink-500: #6c7a92;
+  --ink-400: #8d99ae;
+  --ink-300: #b9c1d0;
+  --ink-200: #dfe3eb;
+  --ink-150: #ebeef3;
+  --ink-100: #f2f4f8;
+  --ink-50:  #f8f9fb;
+  --white:   #ffffff;
+
+  /* Surfaces */
+  --surface-0: var(--white);
+  --surface-1: var(--ink-50);
+  --surface-2: var(--ink-100);
+  --border:    var(--ink-200);
+  --border-strong: var(--ink-300);
+
+  /* Type */
+  --font-sans: "Titillium Web", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-display: "Titillium Web", ui-sans-serif, system-ui, sans-serif;
+
+  /* Radii */
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+  --r-pill: 999px;
+
+  /* Shadows — soft, layered */
+  --shadow-xs: 0 1px 2px rgba(14, 23, 38, 0.04), 0 0 0 1px rgba(14, 23, 38, 0.04);
+  --shadow-sm: 0 1px 2px rgba(14, 23, 38, 0.06), 0 1px 3px rgba(14, 23, 38, 0.05);
+  --shadow-md: 0 4px 8px -2px rgba(14, 23, 38, 0.06), 0 2px 4px -2px rgba(14, 23, 38, 0.04);
+  --shadow-lg: 0 12px 24px -8px rgba(14, 23, 38, 0.12), 0 4px 8px -4px rgba(14, 23, 38, 0.06);
+  --shadow-xl: 0 24px 48px -12px rgba(14, 23, 38, 0.18);
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.7, 0, 0.3, 1);
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-800);
+  background: var(--surface-1);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+button { font-family: inherit; cursor: pointer; }
+input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--r-md);
+  font-size: 13px;
+  font-weight: 550;
+  letter-spacing: -0.005em;
+  border: 1px solid transparent;
+  background: var(--white);
+  color: var(--ink-800);
+  transition: all 0.12s var(--ease-out);
+  white-space: nowrap;
+  user-select: none;
+}
+.btn:hover { transform: translateY(-0.5px); }
+.btn:active { transform: translateY(0); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.btn-primary {
+  background: var(--pspf-700);
+  color: white;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+.btn-primary:hover:not(:disabled) { background: var(--pspf-800); }
+
+.btn-secondary {
+  background: var(--white);
+  color: var(--ink-800);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-xs);
+}
+.btn-secondary:hover:not(:disabled) { background: var(--ink-50); border-color: var(--ink-400); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--ink-700);
+  border-color: transparent;
+}
+.btn-ghost:hover:not(:disabled) { background: var(--ink-100); }
+
+.btn-success {
+  background: var(--green-600);
+  color: white;
+}
+.btn-success:hover:not(:disabled) { background: var(--green-700); }
+
+.btn-danger {
+  background: var(--white);
+  color: var(--red-700);
+  border-color: var(--red-100);
+}
+.btn-danger:hover:not(:disabled) { background: var(--red-100); border-color: #f3c5c5; }
+
+/* Pin button text colour through hover/focus, and for anchor-styled buttons
+   (<a class="btn">). Needed because Bootstrap (loaded in the embedded CRM page)
+   sets its own a / a:hover colour, which made some button labels vanish on hover. */
+a.btn, a.btn:hover, a.btn:focus, a.btn:visited { text-decoration: none; }
+.btn-primary, .btn-primary:hover, .btn-primary:focus,
+a.btn-primary, a.btn-primary:hover, a.btn-primary:focus { color: #fff !important; }
+.btn-success, .btn-success:hover, .btn-success:focus,
+a.btn-success, a.btn-success:hover, a.btn-success:focus { color: #fff !important; }
+.btn-secondary, .btn-secondary:hover, .btn-secondary:focus,
+a.btn-secondary, a.btn-secondary:hover, a.btn-secondary:focus { color: var(--ink-800) !important; }
+.btn-ghost, .btn-ghost:hover, .btn-ghost:focus,
+a.btn-ghost, a.btn-ghost:hover, a.btn-ghost:focus { color: var(--ink-700) !important; }
+.btn-danger, .btn-danger:hover, .btn-danger:focus,
+a.btn-danger, a.btn-danger:hover, a.btn-danger:focus { color: var(--red-700) !important; }
+
+.btn-lg { padding: 11px 18px; font-size: 14px; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-icon { padding: 6px; width: 28px; height: 28px; }
+
+/* ---------- Inputs ---------- */
+.field { display: flex; flex-direction: column; gap: 6px; }
+.label {
+  font-size: 12.5px;
+  font-weight: 550;
+  color: var(--ink-700);
+  letter-spacing: -0.005em;
+}
+.label .req { color: var(--red-600); margin-left: 2px; }
+.help {
+  font-size: 12px;
+  color: var(--ink-500);
+}
+
+.input, .select, .textarea {
+  width: 100%;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 8px 12px;
+  font-size: 13.5px;
+  color: var(--ink-900);
+  transition: all 0.12s var(--ease-out);
+  box-shadow: var(--shadow-xs);
+}
+.input::placeholder, .textarea::placeholder { color: var(--ink-400); }
+.input:hover, .select:hover, .textarea:hover { border-color: var(--border-strong); }
+.input:focus, .select:focus, .textarea:focus {
+  outline: none;
+  border-color: var(--pspf-600);
+  box-shadow: 0 0 0 3px rgba(61, 90, 126, 0.15);
+}
+.textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+
+.input-readonly {
+  background: var(--ink-50);
+  color: var(--ink-600);
+  cursor: not-allowed;
+}
+
+.input-error { border-color: var(--red-600) !important; }
+.error-text { color: var(--red-700); font-size: 12px; }
+
+/* ---------- Badges ---------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  font-size: 11.5px;
+  font-weight: 550;
+  letter-spacing: 0.01em;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.badge .dot { width: 5px; height: 5px; border-radius: 50%; }
+
+.badge-blue   { background: var(--blue-100);  color: var(--blue-700); }
+.badge-blue   .dot { background: var(--blue-600); }
+.badge-amber  { background: var(--amber-100); color: var(--amber-700); }
+.badge-amber  .dot { background: var(--amber-600); }
+.badge-green  { background: var(--green-100); color: var(--green-700); }
+.badge-green  .dot { background: var(--green-600); }
+.badge-red    { background: var(--red-100);   color: var(--red-700); }
+.badge-red    .dot { background: var(--red-600); }
+.badge-gray   { background: var(--ink-100);   color: var(--ink-700); }
+.badge-gray   .dot { background: var(--ink-500); }
+
+/* ---------- Cards ---------- */
+.card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-xs);
+}
+.card-pad { padding: 20px 24px; }
+
+/* ---------- Tables ---------- */
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+.table thead th {
+  text-align: left;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-500);
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--ink-50);
+  position: sticky; top: 0;
+}
+.table tbody td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--ink-150);
+  vertical-align: middle;
+}
+.table tbody tr { transition: background 0.1s var(--ease-out); }
+.table tbody tr:hover { background: var(--ink-50); }
+.table tbody tr.selected { background: var(--pspf-100); }
+
+/* ---------- Animations ---------- */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideInRight { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes scaleIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+.fade-in { animation: fadeIn 0.2s var(--ease-out); }
+.slide-up { animation: slideUp 0.25s var(--ease-out); }
+.scale-in { animation: scaleIn 0.2s var(--ease-out); }
+
+/* ---------- Utility ---------- */
+.row { display: flex; align-items: center; }
+.col { display: flex; flex-direction: column; }
+.gap-1 { gap: 4px; } .gap-2 { gap: 8px; } .gap-3 { gap: 12px; } .gap-4 { gap: 16px; } .gap-6 { gap: 24px; }
+.muted { color: var(--ink-500); }
+.faint { color: var(--ink-400); }
+.mono { font-family: var(--font-mono); }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--ink-200); border-radius: 10px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-300); background-clip: padding-box; border: 2px solid transparent; }

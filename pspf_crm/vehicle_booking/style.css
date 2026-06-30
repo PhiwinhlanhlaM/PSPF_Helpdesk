@@ -1,0 +1,136 @@
+/* Import Google Font */
+@import url('https://fonts.googleapis.com/css2?family=Titillium+Web:wght@300;400;600;700&display=swap');
+
+:root{
+    --primary: #3D5C80;
+    --accent: #7FC8F8;
+    --accent-2: #F6AE2D;
+    --danger: #C62E65;
+    --bg: #f8f9fa;
+    --muted: #6c757d;
+}
+
+/* Global Reset */
+body {
+    font-family: 'Titillium Web', sans-serif;
+    background: linear-gradient(180deg, var(--bg) 0%, #ffffff 100%);
+    color: #111;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing:antialiased;
+}
+
+/* Navbar Styling */
+.navbar {
+    background-color: var(--primary) !important;
+}
+
+.navbar-brand, .navbar-nav .nav-link {
+    color: #fff !important;
+    font-weight: 600;
+    transition: color 0.18s ease, transform 0.18s ease;
+}
+
+.navbar-nav .nav-link:hover {
+    color: var(--accent-2) !important;
+    transform: translateY(-1px);
+}
+
+.nav-icon{ margin-right:8px; color:inherit; }
+
+/* Footer Styling */
+footer {
+    background-color: #000;
+    color: #fff;
+    padding: 15px 0;
+    text-align: center;
+    font-size: 14px;
+}
+
+footer a { color: var(--accent); text-decoration:none }
+footer a:hover { color: var(--accent-2); }
+
+/* Table Styling */
+.table, .table-universal {
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 6px 18px rgba(41,50,60,0.06);
+    background: #fff;
+    transition: box-shadow 0.18s ease, transform 0.12s ease;
+}
+
+.table thead, .table-universal thead {
+    background-color: var(--primary);
+    color: #fff;
+}
+
+.table-universal th, .table-universal td { padding: 10px 14px; border-bottom:1px solid #eef3f7 }
+
+.table-universal tbody tr { transition: background 0.12s ease, transform 0.12s ease; }
+.table-universal tbody tr:hover { background: rgba(61,92,128,0.12); transform: translateY(-2px); }
+
+.table-universal tbody tr:nth-child(odd) { background: rgba(61,92,128,0.04); }
+.table-universal tbody tr:nth-child(even) { background: rgba(127,200,248,0.03); }
+
+.action-icon { color: var(--muted); margin-right:10px; transition: color .12s ease; }
+.action-icon:hover { color: var(--primary); }
+
+/* Buttons */
+.btn { transition: transform 0.12s ease, box-shadow 0.12s ease; }
+.btn:hover{ transform: translateY(-2px); box-shadow:0 8px 20px rgba(61,92,128,0.08); }
+.btn .fa { margin-right:8px }
+
+.btn-primary { background-color:var(--primary); border-color:var(--primary); color:#fff }
+.btn-primary:hover { background-color:#2f4868; border-color:#2f4868 }
+
+.btn-success { background-color:var(--accent); border-color:var(--accent); color:#000 }
+.btn-success:hover { background-color:#5ab2e5 }
+
+.btn-warning { background-color:var(--accent-2); border-color:var(--accent-2); color:#000 }
+.btn-warning:hover { background-color:#d99721 }
+
+.btn-danger { background-color:var(--danger); border-color:var(--danger); }
+.btn-danger:hover { background-color:#a52352 }
+
+/* Card Styling */
+.card { border:none; border-radius:12px; box-shadow:0 6px 20px rgba(41,50,60,0.05) }
+
+/* Headings and Text */
+h1,h2,h3,h4,h5{ color:var(--primary); font-weight:700 }
+a{ color:var(--primary); text-decoration:none }
+
+
+/* Form Elements */
+.form-control, .form-select { transition: box-shadow 0.18s ease, border-color 0.12s ease; }
+.form-control:focus, .form-select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 6px 20px rgba(127,200,248,0.14);
+    outline: none;
+}
+
+/* Custom Badges */
+.badge-status { padding:6px 12px; border-radius:12px; font-weight:600 }
+.badge-pending { background:var(--accent-2); color:#000 }
+.badge-approved { background:var(--accent); color:#000 }
+.badge-rejected { background:var(--danger); color:#fff }
+
+/* Utilities */
+.shadow-light{ box-shadow: 0 6px 20px rgba(41,50,60,0.05) }
+.rounded-xl{ border-radius:16px }
+
+/* PAGINATION */
+.table-pagination{ display:flex; justify-content:center; margin-top:12px }
+.table-pagination button{ border:none; padding:6px 12px; margin:0 6px; border-radius:6px; background:var(--primary); color:#fff; cursor:pointer }
+.table-pagination button.disabled{ background:#bbb; cursor:not-allowed }
+.table-pagination button.active{ background:var(--accent-2); color:#000 }
+
+/* Small helpers */
+.muted { color:var(--muted) }
+.small-icon { font-size:0.95rem }
+
+/* Responsive tweaks */
+@media (max-width:768px){
+    .table-universal th, .table-universal td { padding:8px 10px }
+    .navbar-brand span{ font-size:13px }
+}
+    border-color: #7FC8F8;

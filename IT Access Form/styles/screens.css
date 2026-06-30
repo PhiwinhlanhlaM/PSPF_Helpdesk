@@ -1,0 +1,134 @@
+/* Sign + Director + History screens */
+
+.sign-grid { display: grid; grid-template-columns: minmax(0, 1fr) 440px; gap: 24px; align-items: start; }
+@media (max-width: 1100px) { .sign-grid { grid-template-columns: 1fr; } }
+
+.doc-preview { padding: 24px 28px; position: relative; overflow: hidden; }
+.doc-watermark {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-22deg);
+  font-family: var(--font-display); font-weight: 700; font-size: 96px;
+  color: var(--pspf-100); letter-spacing: 0.1em;
+  pointer-events: none; user-select: none;
+}
+.doc-head { display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 1px solid var(--ink-150); }
+
+.sign-panel .sigpad { margin-top: 8px; }
+.confirm-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px;
+  background: var(--ink-50);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  margin-top: 16px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.confirm-row input { width: 16px; height: 16px; margin-top: 2px; accent-color: var(--pspf-700); }
+.sign-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 16px; }
+
+.info-card { display: flex; gap: 10px; align-items: flex-start; background: var(--blue-100); border-color: #cee0fb; color: var(--blue-700); }
+.info-card .col strong { color: var(--blue-700); }
+.info-card .col .muted { color: #4267b8; }
+
+.spin {
+  width: 12px; height: 12px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+}
+.spin.sm { width: 10px; height: 10px; border-width: 1.5px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.provisioning {
+  margin-top: 20px;
+  padding: 16px;
+  background: var(--ink-50);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+}
+.provisioning > .row { color: var(--pspf-800); margin-bottom: 12px; }
+.provisioning-steps { display: flex; flex-direction: column; gap: 8px; }
+.prov-step {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12.5px; color: var(--ink-500);
+}
+.prov-step.done { color: var(--green-700); }
+.prov-step.running { color: var(--ink-800); }
+.dot-faint { width: 10px; height: 10px; border-radius: 50%; border: 1.5px dashed var(--ink-300); }
+
+/* Director */
+.dir-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.dir-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 18px 20px;
+  cursor: pointer;
+  transition: all 0.15s var(--ease-out);
+  box-shadow: var(--shadow-xs);
+}
+.dir-card:hover { border-color: var(--pspf-400); box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.dir-card-systems { display: flex; flex-wrap: wrap; gap: 4px; margin: 14px 0 16px; }
+.dir-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 12px; border-top: 1px solid var(--ink-150); }
+
+.dir-layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 24px; align-items: start; }
+@media (max-width: 1100px) { .dir-layout { grid-template-columns: 1fr; } }
+.dir-summary-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; padding: 14px 16px; background: var(--ink-50); border-radius: var(--r-md); }
+@media (max-width: 700px) { .dir-summary-grid { grid-template-columns: 1fr; } }
+
+/* History cards */
+.hist-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 16px; }
+.hist-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 18px 20px;
+  display: flex; flex-direction: column;
+  box-shadow: var(--shadow-xs);
+  transition: all 0.15s var(--ease-out);
+}
+.hist-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); }
+.hist-pending { border-left: 3px solid var(--amber-600); }
+.hist-approved { border-left: 3px solid var(--green-600); }
+.hist-rejected { border-left: 3px solid var(--red-600); }
+
+.hist-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.hist-name { font-family: var(--font-display); font-size: 17px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 2px; }
+.hist-systems { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 14px; }
+
+.hist-progress { margin-bottom: 14px; }
+.progress-bar { height: 6px; background: var(--ink-150); border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--pspf-700); border-radius: 3px; transition: width 0.4s var(--ease-out); }
+.hist-mini-chain { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 12px; }
+.mini-step { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+
+.hist-status-row { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: var(--r-sm); font-size: 12.5px; margin-bottom: 14px; line-height: 1.45; }
+.hist-success { background: var(--green-100); color: var(--green-700); }
+.hist-rejected { background: var(--red-100); color: var(--red-700); }
+
+.hist-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--ink-150); }
+
+/* Modal */
+.ita-modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(14, 23, 38, 0.4);
+  z-index: 2000;
+  display: flex; align-items: stretch; justify-content: flex-end;
+}
+.ita-modal {
+  background: var(--white);
+  box-shadow: -8px 0 40px rgba(0, 0, 0, 0.18);
+  width: 100%; max-width: 560px;
+  height: 100%;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  animation: slideInRight 0.22s var(--ease-out);
+}
+@keyframes slideInRight {
+  from { transform: translateX(40px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+.ita-modal-head { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-shrink: 0; }
+.ita-modal-body { padding: 22px 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; flex: 1; }

@@ -1,0 +1,20 @@
+# Composer / PHP dependencies (restore with `composer install`)
+vendor/
+**/vendor/
+
+# IDE / editor
+.vs/
+.idea/
+.vscode/
+*.suo
+*.user
+
+# Generated uploads / user data (not source)
+**/uploads/
+
+# Database dumps
+*.sql
+
+# Logs & temp
+*.log
+**/tmp/
