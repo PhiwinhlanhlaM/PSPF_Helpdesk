@@ -58,45 +58,23 @@ $LogDir     = Join-Path $WorkDir "logs"
 $Stamp      = Get-Date -Format "yyyyMMdd_HHmmss"
 $LogFile    = Join-Path $LogDir "deploy_$Stamp.log"
 
-# Top-level folders this repo manages inside htdocs.
-$ManagedFolders = @("pspf_crm", "IT Access Form")
+# Top-level folders this repo manages inside htdocs. The repo is the source of
+# truth; the deploy pushes every difference in these folders to live (full mirror,
+# minus the excludes/protected paths below). The IT Access React app ("IT Access
+# Form") is a top-level sibling; vehicle_booking is the standalone booking app.
+$ManagedFolders = @("pspf_crm", "IT Access Form", "vehicle_booking")
 
-# ALLOWLIST — the ONLY paths this deploy may create/update on live. Everything
-# else in the repo (vehicle_booking, PHPMailer, other CRM modules) is owned and
-# developed on live and is intentionally OUT OF SCOPE for this pipeline, so the
-# deploy can never regress it. A repo file is eligible only if its relative path
-# starts with one of these prefixes (or equals one exactly).
-#
-# This is the IT Access integration surface: the module, its lookups, the React
-# app, and the specific shared CRM files the integration modifies.
-$AllowPrefixes = @(
-    # New, IT-Access-owned code
-    "pspf_crm/api/it_access/",
-    "pspf_crm/api/departments/",
-    "pspf_crm/api/employees/",
-    "IT Access Form/"
-)
-$AllowExactFiles = @(
-    # Shared CRM files the integration deliberately changes
-    "pspf_crm/api/agent/topnav.php",
-    "pspf_crm/api/includes/auth_helpers.php",
-    "pspf_crm/api/signin/index.php",
-    "pspf_crm/api/signin/select_role.php",
-    "pspf_crm/api/switch_role.php"
-)
-
-function Test-Allowed {
-    param([string] $RelPath)
-    if ($AllowExactFiles -contains $RelPath) { return $true }
-    foreach ($p in $AllowPrefixes) { if ($RelPath.StartsWith($p)) { return $true } }
-    return $false
-}
-
-# Files/paths NEVER overwritten on live (live keeps its own).
+# Files/paths NEVER overwritten on live (live keeps its own — these hold per-
+# environment secrets/config that must not be clobbered by a deploy). Matched
+# case-insensitively against the repo-relative path.
 $ProtectedRelPaths = @(
     "pspf_crm/api/db.php",
     "pspf_crm/api/mail_config.php",
-    "pspf_crm/api/sharepoint_config.php"
+    "pspf_crm/api/sharepoint_config.php",
+    "pspf_crm/vehicle_booking/db.php",
+    "pspf_crm/vehicle_booking/mail_config.php",
+    "vehicle_booking/db.php",
+    "vehicle_booking/mail_config.php"
 )
 
 # Patterns excluded from deployment entirely (build artifacts / data / local-only).
@@ -227,9 +205,6 @@ foreach ($folder in $ManagedFolders) {
         $rel = Get-RelPath $StageBase $_.FullName
         if (Test-Excluded $rel) { return }
 
-        # Scope guard: only IT-Access integration paths are deployable.
-        if (-not (Test-Allowed $rel)) { return }
-
         if ($ProtectedRelPaths -contains $rel) {
             $protectedHit.Add($rel) | Out-Null
             return
@@ -255,8 +230,6 @@ foreach ($folder in $ManagedFolders) {
         Get-ChildItem -LiteralPath $dstBase -Recurse -File | ForEach-Object {
             $rel = Get-RelPath $LiveBase $_.FullName
             if (Test-Excluded $rel) { return }
-            # Only report orphans within the deploy's own scope.
-            if (-not (Test-Allowed $rel)) { return }
             $srcEquiv = Join-Path $StageBase ($rel -replace '/','\')
             if (-not (Test-Path -LiteralPath $srcEquiv)) { $onlyOnLive.Add($rel) | Out-Null }
         }
@@ -299,7 +272,7 @@ Write-Host ""
 Write-Host "==================== DEPLOY PREVIEW ====================" -ForegroundColor Cyan
 Write-Host ("Source : {0} @ {1} ({2})" -f $RepoUrl, $Branch, $DeployedSha)
 Write-Host ("Target : {0}" -f $LiveRoot)
-Write-Host  "Scope  : IT Access integration only (allowlisted paths)"
+Write-Host  "Scope  : full mirror of managed folders (pspf_crm, IT Access Form, vehicle_booking)"
 Write-Host ("Changes: {0} file(s) to add/update" -f $toCopy.Count)
 Write-Host ""
 $toCopy | Sort-Object Status, Rel | ForEach-Object {

@@ -36,32 +36,38 @@ file copies this script performs.
 
 ## Scope — IT Access integration only (allowlist)
 
-This pipeline is deliberately **scoped to the IT Access integration**. It can only
-create/update an explicit allowlist of paths; everything else in the repo is
-ignored, so the deploy **cannot regress live-owned modules** (e.g.
-`vehicle_booking/`, `PHPMailer-master/`, other CRM areas that are developed
-directly on the live server).
+**The Git repo is the source of truth.** The repo has been mirrored from
+production, so it reflects the full live codebase; live is expected to be at or
+behind the repo. The deploy detects every difference between the repo and live
+(within the managed folders) and pushes it.
 
-Allowed paths (`$AllowPrefixes` / `$AllowExactFiles` in `deploy.ps1`):
+Managed folders (`$ManagedFolders` in `deploy.ps1`):
 
-- `pspf_crm/api/it_access/` — the IT Access module
-- `pspf_crm/api/departments/` and `pspf_crm/api/employees/` — its lookups
+- `pspf_crm/` — the CRM (API, includes, modules, IT Access, nested vehicle_booking)
 - `IT Access Form/` — the React app
-- Shared CRM files the integration changes: `api/agent/topnav.php`,
-  `api/includes/auth_helpers.php`, `api/signin/index.php`,
-  `api/signin/select_role.php`, `api/switch_role.php`
+- `vehicle_booking/` — the standalone vehicle booking app
 
-Test-only files (`test_*.php`, e.g. the `test_login_helper.php` session bypass)
-are **never** deployed.
+Within those, **everything is deployable except**:
 
-If the IT Access surface grows, extend the allowlist in `deploy.ps1` — that single
-edit is the audit-visible record of what the pipeline is permitted to touch.
+- **Protected config** (`$ProtectedRelPaths`) — `db.php`, `mail_config.php`,
+  `sharepoint_config.php` for the CRM and both vehicle_booking copies. Live keeps
+  its own (they hold per-environment secrets).
+- **Excluded paths** (`$ExcludeDirRegex` / `$ExcludeFileRegex`) — `vendor/`,
+  `uploads/`, `.vs/`, `.git/`, `node_modules/`, `tmp/`, `*.sql`, `*.log`, and
+  test-only files (`test_*.php`, e.g. the `test_login_helper.php` session bypass).
+
+> Keeping the repo as the source of truth depends on changes flowing
+> repo → live. If someone edits live directly, re-mirror live into the repo before
+> the next deploy so the repo does not push a stale copy over their change.
 
 ## Safety guarantees
 
-- **Scoped by allowlist** — only IT Access paths can be deployed (see above).
+- **Full mirror, minus protected/excluded paths** — see above.
 - **Database is never touched.** Schema/data migrations are **manual**, on purpose
   (see below).
+- **No deletions** — files on live but absent from the repo are *reported*, never
+  deleted (so an out-of-band live file is never silently removed). Retire a file
+  manually if intended.
 - **Line-ending-insensitive diff** — files differing only by CRLF/LF are treated
   as unchanged, so deploys show real changes only.
 - **Live config is never overwritten** — `pspf_crm/api/db.php`,
