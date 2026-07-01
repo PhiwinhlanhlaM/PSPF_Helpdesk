@@ -279,11 +279,19 @@
 
 
 
-<?php 
+<?php
 $daysLeft = getPasswordDaysRemaining($conn, $_SESSION['user']['id']);
 if ($daysLeft <= 7 && $daysLeft > 0): ?>
-    <div class="alert alert-warning">
-        Your password will expire in <?= $daysLeft ?> day(s). Please update it.
+    <div class="container-xl mt-2">
+        <div class="alert alert-warning alert-dismissible fade show d-flex align-items-center py-2 px-3 mb-0 shadow-sm"
+             role="alert" style="border-radius: 8px;">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <div class="flex-grow-1">
+                Your password expires in <strong><?= (int)$daysLeft ?> day<?= $daysLeft == 1 ? '' : 's' ?></strong>.
+                <a href="/pspf_crm/api/settings/profile.php" class="alert-link ms-1">Update it now</a>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Dismiss"></button>
+        </div>
     </div>
 <?php endif; ?>
 
