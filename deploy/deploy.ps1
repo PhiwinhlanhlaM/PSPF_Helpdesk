@@ -61,8 +61,13 @@ $LogFile    = Join-Path $LogDir "deploy_$Stamp.log"
 # Top-level folders this repo manages inside htdocs. The repo is the source of
 # truth; the deploy pushes every difference in these folders to live (full mirror,
 # minus the excludes/protected paths below). The IT Access React app ("IT Access
-# Form") is a top-level sibling; vehicle_booking is the standalone booking app.
-$ManagedFolders = @("pspf_crm", "IT Access Form", "vehicle_booking")
+# Form") is a top-level sibling.
+#
+# vehicle_booking is intentionally NOT managed here. It is an existing production
+# app the CRM team maintains directly on live and we are hands-off; the exclude
+# rule below guarantees the deploy can never create or update any vehicle_booking
+# file, even the nested pspf_crm/vehicle_booking copy.
+$ManagedFolders = @("pspf_crm", "IT Access Form")
 
 # Files/paths NEVER overwritten on live (live keeps its own — these hold per-
 # environment secrets/config that must not be clobbered by a deploy). Matched
@@ -70,15 +75,13 @@ $ManagedFolders = @("pspf_crm", "IT Access Form", "vehicle_booking")
 $ProtectedRelPaths = @(
     "pspf_crm/api/db.php",
     "pspf_crm/api/mail_config.php",
-    "pspf_crm/api/sharepoint_config.php",
-    "pspf_crm/vehicle_booking/db.php",
-    "pspf_crm/vehicle_booking/mail_config.php",
-    "vehicle_booking/db.php",
-    "vehicle_booking/mail_config.php"
+    "pspf_crm/api/sharepoint_config.php"
 )
 
 # Patterns excluded from deployment entirely (build artifacts / data / local-only).
-$ExcludeDirRegex  = '(^|/)(vendor|\.vs|\.git|node_modules|uploads|tmp)(/|$)'
+# NOTE: vehicle_booking is excluded here too, so even though it lives inside the
+# managed pspf_crm folder it is fully hands-off and can never be deployed.
+$ExcludeDirRegex  = '(^|/)(vendor|\.vs|\.git|node_modules|uploads|tmp|vehicle_booking)(/|$)'
 # Excludes: DB dumps, logs, and test-only files (e.g. it_access/test_runner.php,
 # test_login_helper.php — the latter is a session bypass that must never hit prod).
 $ExcludeFileRegex = '(\.(sql|log)$)|((^|/)test_[^/]*\.php$)'
@@ -272,7 +275,7 @@ Write-Host ""
 Write-Host "==================== DEPLOY PREVIEW ====================" -ForegroundColor Cyan
 Write-Host ("Source : {0} @ {1} ({2})" -f $RepoUrl, $Branch, $DeployedSha)
 Write-Host ("Target : {0}" -f $LiveRoot)
-Write-Host  "Scope  : full mirror of managed folders (pspf_crm, IT Access Form, vehicle_booking)"
+Write-Host  "Scope  : full mirror of pspf_crm + IT Access Form (vehicle_booking is excluded/hands-off)"
 Write-Host ("Changes: {0} file(s) to add/update" -f $toCopy.Count)
 Write-Host ""
 $toCopy | Sort-Object Status, Rel | ForEach-Object {

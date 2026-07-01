@@ -43,18 +43,21 @@ behind the repo. The deploy detects every difference between the repo and live
 
 Managed folders (`$ManagedFolders` in `deploy.ps1`):
 
-- `pspf_crm/` — the CRM (API, includes, modules, IT Access, nested vehicle_booking)
+- `pspf_crm/` — the CRM (API, includes, modules, IT Access)
 - `IT Access Form/` — the React app
-- `vehicle_booking/` — the standalone vehicle booking app
 
 Within those, **everything is deployable except**:
 
+- **vehicle_booking (hands-off)** — the vehicle booking app (the live copy is
+  `pspf_crm/vehicle_booking/`) is maintained directly on live by the CRM team and
+  is **fully excluded** from the deploy. The exclude rule covers any path
+  containing `vehicle_booking/`, so the pipeline can never create or update it.
 - **Protected config** (`$ProtectedRelPaths`) — `db.php`, `mail_config.php`,
-  `sharepoint_config.php` for the CRM and both vehicle_booking copies. Live keeps
-  its own (they hold per-environment secrets).
+  `sharepoint_config.php` for the CRM. Live keeps its own (per-environment secrets).
 - **Excluded paths** (`$ExcludeDirRegex` / `$ExcludeFileRegex`) — `vendor/`,
-  `uploads/`, `.vs/`, `.git/`, `node_modules/`, `tmp/`, `*.sql`, `*.log`, and
-  test-only files (`test_*.php`, e.g. the `test_login_helper.php` session bypass).
+  `uploads/`, `.vs/`, `.git/`, `node_modules/`, `tmp/`, `vehicle_booking/`,
+  `*.sql`, `*.log`, and test-only files (`test_*.php`, e.g. the
+  `test_login_helper.php` session bypass).
 
 > Keeping the repo as the source of truth depends on changes flowing
 > repo → live. If someone edits live directly, re-mirror live into the repo before
