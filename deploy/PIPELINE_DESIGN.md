@@ -1,6 +1,7 @@
 # PSPF Helpdesk — Continuous Delivery Pipeline (Design & Runbook)
 
-**Status:** DRAFT for team review — no code beyond this document yet.
+**Status:** BUILT — implemented per §11. This doc is the design of record; the
+operator/auditor guide is [`PIPELINE_RUNBOOK.md`](PIPELINE_RUNBOOK.md).
 **Audience:** CRM/IT team + auditors.
 **Scope:** Controlled, reviewable deployment of the GitHub repo to the live CRM
 server (`\\192.168.1.16\xampp\htdocs`), driven from a CRM approval dashboard.
@@ -180,12 +181,20 @@ Scheduler. One instance at a time (lock file). For each cycle:
 
 ---
 
-## 11. Build order (once this doc is approved)
+## 11. Build order — DONE
 
-1. `deploy_requests` + `deploy_state` tables (migration).
-2. Add `last_deployed_sha` tracking + drift-check to `deploy.ps1`.
-3. `runner.ps1` + scheduled-task install script + lock/health.
-4. CRM dashboard (`api/deploy/`): superadmin-only, check/approve/decline, diff +
-   drift viewer, history.
-5. End-to-end test on a **staging path** before pointing at real `htdocs`.
-6. Runbook for operators + audit notes.
+1. ✅ `deploy_requests` + `deploy_state` tables — `pspf_crm/api/deploy/migrations/001_deploy_pipeline.sql`.
+2. ✅ `last_deployed_sha` tracking + drift-check in `deploy.ps1` (adds
+   `-LastDeployedSha`, `-NonInteractive`, `-AutoApprove`, `-AllowDrift`,
+   `-JsonOut`, `-LiveRoot`).
+3. ✅ `runner.ps1` + `install-runner-task.ps1` (scheduled task, lock, heartbeat).
+4. ✅ CRM dashboard `pspf_crm/api/deploy/index.php` — superadmin-only,
+   check/approve/decline, diff + drift viewer, history, runner-health dot.
+   Nav link added under Settings (superadmin).
+5. ✅ Validated end-to-end on a staging path (`-LiveRoot` / `PSPF_LIVE_ROOT`):
+   check→ready, drift→refuse, clean→deployed, SHA advanced.
+6. ✅ Operator runbook + audit notes — `PIPELINE_RUNBOOK.md`.
+
+Remaining team decisions (not code) are tracked in the runbook §9: enable
+separation-of-duties once ≥2 superadmins, choose the runner service account at
+install time, and optionally add email notifications.

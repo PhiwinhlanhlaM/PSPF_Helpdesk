@@ -32,16 +32,45 @@
 .PARAMETER RepoUrl
     Override the source repo URL.
 
+.PARAMETER LastDeployedSha
+    The commit SHA last successfully deployed to live. When supplied, the script
+    computes a DRIFT REPORT (in-scope live files whose content differs from that
+    commit — i.e. edits made directly on live, outside the pipeline) and, unless
+    -AllowDrift is set, ABORTS the deploy rather than clobbering those edits.
+    The runner passes this from the deploy_state table.
+
+.PARAMETER NonInteractive
+    Never prompt. Used by the automated runner. Without -AutoApprove this only
+    permits the fetch/diff/drift phases (equivalent to a dry run for applying).
+
+.PARAMETER AutoApprove
+    Skip the "type DEPLOY" prompt and apply. Only honoured with -NonInteractive
+    (the runner already carries a recorded human approval from the dashboard).
+
+.PARAMETER JsonOut
+    Write a machine-readable JSON summary (commit, diff, drift, outcome) to this
+    path. The runner reads it back to populate the deploy_requests row.
+
 .EXAMPLE
     .\deploy.ps1 -DryRun
     .\deploy.ps1
     .\deploy.ps1 -Branch hotfix/login
+    # Runner: compute diff+drift only, emit JSON
+    .\deploy.ps1 -DryRun -LastDeployedSha abc123 -NonInteractive -JsonOut out.json
+    # Runner: apply an approved deploy non-interactively
+    .\deploy.ps1 -LastDeployedSha abc123 -NonInteractive -AutoApprove -JsonOut out.json
 #>
 [CmdletBinding()]
 param(
     [string] $Branch  = "main",
     [switch] $DryRun,
-    [string] $RepoUrl = "https://github.com/PhiwinhlanhlaM/PSPF_Helpdesk.git"
+    [string] $RepoUrl = "https://github.com/PhiwinhlanhlaM/PSPF_Helpdesk.git",
+    [string] $LastDeployedSha = "",
+    [switch] $NonInteractive,
+    [switch] $AutoApprove,
+    [switch] $AllowDrift,
+    [string] $JsonOut = "",
+    [string] $LiveRoot = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -49,7 +78,12 @@ $ErrorActionPreference = "Stop"
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-$LiveRoot   = "\\192.168.1.16\xampp\htdocs"          # live web root
+# Live web root. Defaults to the production share; override with -LiveRoot (or
+# the PSPF_LIVE_ROOT env var) to point at a STAGING copy for end-to-end testing
+# without ever touching production (runbook step 5).
+if (-not $LiveRoot) {
+    $LiveRoot = if ($env:PSPF_LIVE_ROOT) { $env:PSPF_LIVE_ROOT } else { "\\192.168.1.16\xampp\htdocs" }
+}
 $PhpExe     = "C:\xampp\php\php.exe"                  # local PHP for linting
 $WorkDir    = Join-Path $env:TEMP "pspf_deploy"       # staging area on workstation
 $StageDir   = Join-Path $WorkDir "repo"
@@ -99,6 +133,9 @@ function Write-Log {
 function Fail {
     param([string] $Message)
     Write-Log $Message "ERROR"
+    $script:Result.outcome = "failed"
+    $script:Result.message = $Message
+    Write-JsonResult
     Write-Host ""
     Write-Host "DEPLOY ABORTED. No changes were made to live." -ForegroundColor Red
     exit 1
@@ -109,6 +146,33 @@ function Test-Excluded {
     if ($RelPath -match $ExcludeDirRegex)  { return $true }
     if ($RelPath -match $ExcludeFileRegex) { return $true }
     return $false
+}
+
+# Machine-readable result for the runner. Written to $JsonOut (if set) at every
+# exit path so the runner can always populate the deploy_requests row, even on
+# failure. Kept as a script-scope hashtable and flushed by Write-JsonResult.
+$script:Result = @{
+    outcome     = "unknown"   # ready | no_change | deployed | failed | dryrun
+    branch      = $Branch
+    commit_sha  = ""          # full SHA
+    commit_short= ""
+    commit_msg  = ""
+    commit_author = ""
+    diff        = @()         # [{ status; path }]
+    drift       = @()         # [ path, ... ] live files changed outside the pipeline
+    applied     = 0
+    message     = ""
+    backup_dir  = ""
+}
+function Write-JsonResult {
+    if (-not $JsonOut) { return }
+    try {
+        $dir = Split-Path $JsonOut
+        if ($dir -and -not (Test-Path $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
+        $script:Result | ConvertTo-Json -Depth 6 | Set-Content -Path $JsonOut -Encoding utf8
+    } catch {
+        Write-Host "WARN: could not write JSON result to $JsonOut : $($_.Exception.Message)"
+    }
 }
 
 # ---------------------------------------------------------------------------
@@ -147,9 +211,16 @@ if ($cloneExit -ne 0 -or -not (Test-Path $StageDir)) {
     Fail "git clone failed. Check the branch name, repo URL, and your GitHub credentials."
 }
 $ErrorActionPreference = "Continue"
-$DeployedSha = (& git -C $StageDir rev-parse --short HEAD 2>&1 | Out-String).Trim()
+$DeployedSha  = (& git -C $StageDir rev-parse --short HEAD 2>&1 | Out-String).Trim()
+$FullSha      = (& git -C $StageDir rev-parse HEAD 2>&1 | Out-String).Trim()
+$CommitMsg    = (& git -C $StageDir log -1 --pretty=%s HEAD 2>&1 | Out-String).Trim()
+$CommitAuthor = (& git -C $StageDir log -1 --pretty=%an HEAD 2>&1 | Out-String).Trim()
 $ErrorActionPreference = $prevEAP
-Write-Log "Fetched commit $DeployedSha"
+Write-Log "Fetched commit $DeployedSha ($CommitMsg)"
+$script:Result.commit_sha    = $FullSha
+$script:Result.commit_short  = $DeployedSha
+$script:Result.commit_msg    = $CommitMsg
+$script:Result.commit_author = $CommitAuthor
 
 # Sanity: managed folders exist in the clone
 foreach ($f in $ManagedFolders) {
@@ -239,9 +310,88 @@ foreach ($folder in $ManagedFolders) {
     }
 }
 
+# Record the computed diff for the runner / JSON consumers.
+$script:Result.diff = @($toCopy | ForEach-Object { @{ status = $_.Status; path = $_.Rel } })
+
 if ($toCopy.Count -eq 0) {
     Write-Log "No differences. Live already matches $Branch ($DeployedSha). Nothing to deploy."
+    $script:Result.outcome = "no_change"
+    $script:Result.message = "Live already matches $Branch ($DeployedSha)."
+    Write-JsonResult
     exit 0
+}
+
+# ---------------------------------------------------------------------------
+# 2b. DRIFT DETECTION — did anyone edit in-scope live files outside the pipeline?
+#     Compare current live against the LAST-DEPLOYED commit's version of each
+#     in-scope file. Any difference = drift: a live edit the repo does not know
+#     about, which this deploy would silently clobber. We refuse (unless
+#     -AllowDrift) so direct-on-live work is never lost — the team reconciles
+#     (re-mirror live -> repo) first. Only runs when a baseline SHA is known.
+# ---------------------------------------------------------------------------
+$drift = New-Object System.Collections.Generic.List[string]
+if ($LastDeployedSha) {
+    Write-Log "Checking live for drift against last-deployed commit $LastDeployedSha ..."
+    $BaseDir = Join-Path $WorkDir "baseline"
+    if (Test-Path $BaseDir) { Remove-Item -LiteralPath $BaseDir -Recurse -Force }
+    New-Item -ItemType Directory -Force -Path $BaseDir | Out-Null
+
+    # Materialize the baseline commit's tree. The shallow clone above may not
+    # contain the older baseline object, so fetch it explicitly, then archive
+    # the in-scope folders out of it into $BaseDir.
+    $prevEAP = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    & git -C $StageDir fetch --depth 1 origin $LastDeployedSha 2>&1 | Out-Null
+    $baseOk = ($LASTEXITCODE -eq 0)
+    if ($baseOk) {
+        # git archive streams a tar of the baseline tree; extract in-scope folders.
+        foreach ($folder in $ManagedFolders) {
+            $tar = Join-Path $WorkDir "baseline.tar"
+            & git -C $StageDir archive --format=tar -o $tar $LastDeployedSha -- $folder 2>&1 | Out-Null
+            if ($LASTEXITCODE -eq 0 -and (Test-Path $tar)) {
+                & tar -x -f $tar -C $BaseDir 2>&1 | Out-Null
+                Remove-Item -LiteralPath $tar -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
+    $ErrorActionPreference = $prevEAP
+
+    if (-not $baseOk) {
+        Write-Log "Could not fetch baseline commit $LastDeployedSha; drift check skipped." "WARN"
+    }
+    else {
+        $BaseBase = (Get-Item -LiteralPath $BaseDir).FullName.TrimEnd('\')
+        foreach ($folder in $ManagedFolders) {
+            $liveFolder = Join-Path $LiveBase $folder
+            if (-not (Test-Path -LiteralPath $liveFolder)) { continue }
+            Get-ChildItem -LiteralPath $liveFolder -Recurse -File | ForEach-Object {
+                $rel = Get-RelPath $LiveBase $_.FullName
+                if (Test-Excluded $rel) { return }
+                if ($ProtectedRelPaths -contains $rel) { return }   # config: expected to differ
+                $baseEquiv = Join-Path $BaseBase ($rel -replace '/','\')
+                if (-not (Test-Path -LiteralPath $baseEquiv)) {
+                    # File on live not in the baseline tree. If the incoming repo
+                    # also lacks it, it's an out-of-band live addition -> drift.
+                    $repoEquiv = Join-Path $StageBase ($rel -replace '/','\')
+                    if (-not (Test-Path -LiteralPath $repoEquiv)) { $drift.Add($rel) | Out-Null }
+                    return
+                }
+                $liveHash = Get-ContentHash $_.FullName  $rel
+                $baseHash = Get-ContentHash $baseEquiv    $rel
+                if ($liveHash -ne $baseHash) { $drift.Add($rel) | Out-Null }
+            }
+        }
+    }
+    $script:Result.drift = @($drift)
+    if ($drift.Count -gt 0) {
+        Write-Log "DRIFT DETECTED: $($drift.Count) in-scope live file(s) differ from the last-deployed commit." "WARN"
+        $drift | Select-Object -First 30 | ForEach-Object { Write-Log "  [DRIFT] $_" "WARN" }
+    } else {
+        Write-Log "No drift: live matches the last-deployed commit for all in-scope files."
+    }
+}
+else {
+    Write-Log "No baseline SHA supplied; skipping drift check (first deploy or manual run)." "INFO"
 }
 
 # ---------------------------------------------------------------------------
@@ -293,18 +443,46 @@ if ($onlyOnLive.Count -gt 0) {
     $onlyOnLive | Select-Object -First 20 | ForEach-Object { Write-Host "  [LIVE   ] $_" -ForegroundColor DarkGray }
     if ($onlyOnLive.Count -gt 20) { Write-Host ("  ... and {0} more" -f ($onlyOnLive.Count - 20)) -ForegroundColor DarkGray }
 }
+if ($drift.Count -gt 0) {
+    Write-Host ""
+    Write-Host ("DRIFT - live edited outside the pipeline ({0}) - would be OVERWRITTEN:" -f $drift.Count) -ForegroundColor Red
+    $drift | Select-Object -First 30 | ForEach-Object { Write-Host "  [DRIFT  ] $_" -ForegroundColor Red }
+    if ($drift.Count -gt 30) { Write-Host ("  ... and {0} more" -f ($drift.Count - 30)) -ForegroundColor Red }
+}
 Write-Host "=======================================================" -ForegroundColor Cyan
 Write-Host ""
 
+# DryRun / runner "check": stop after computing everything. Emit JSON as "ready"
+# (there are changes to review) so the runner can present them for approval.
 if ($DryRun) {
     Write-Log "DryRun: stopping before any backup/write. $($toCopy.Count) file(s) would change."
+    $script:Result.outcome = "ready"
+    $script:Result.message = "$($toCopy.Count) file(s) would change; $($drift.Count) drift file(s)."
+    Write-JsonResult
     Write-Host "DRY RUN complete - no changes made to live." -ForegroundColor Green
     exit 0
 }
 
-$confirm = Read-Host "Type DEPLOY to back up live and apply these $($toCopy.Count) change(s)"
-if ($confirm -ne "DEPLOY") {
-    Fail "Approval not given (you typed '$confirm'). Nothing was changed."
+# DRIFT GUARD — never clobber direct-on-live edits. Abort unless explicitly
+# overridden. (The runner never passes -AllowDrift; reconcile first.)
+if ($drift.Count -gt 0 -and -not $AllowDrift) {
+    Fail ("Refusing to deploy: {0} in-scope live file(s) were edited outside the pipeline (drift). Re-mirror live into the repo, then retry. Override with -AllowDrift only if the live edits are known-disposable." -f $drift.Count)
+}
+
+# Approval gate. Interactive operators type DEPLOY. The runner supplies
+# -NonInteractive -AutoApprove, carrying the human approval recorded in the
+# dashboard (deploy_requests.decided_by), so it must not block on a prompt.
+if ($NonInteractive) {
+    if (-not $AutoApprove) {
+        Fail "Non-interactive run without -AutoApprove: nothing applied (check-only mode)."
+    }
+    Write-Log "Non-interactive auto-approved deploy (approval recorded upstream)."
+}
+else {
+    $confirm = Read-Host "Type DEPLOY to back up live and apply these $($toCopy.Count) change(s)"
+    if ($confirm -ne "DEPLOY") {
+        Fail "Approval not given (you typed '$confirm'). Nothing was changed."
+    }
 }
 
 # ---------------------------------------------------------------------------
@@ -315,6 +493,7 @@ if ($confirm -ne "DEPLOY") {
 $BackupDir = Join-Path $BackupRoot "backup_$Stamp"
 Write-Log "Backing up affected live files to $BackupDir"
 New-Item -ItemType Directory -Force -Path $BackupDir | Out-Null
+$script:Result.backup_dir = $BackupDir
 
 # 5a. Back up the prior version of every CHANGED file BEFORE touching anything.
 #     NEW files have no prior version; we record them so rollback can delete them.
@@ -379,6 +558,9 @@ catch {
     Write-Log ("Apply FAILED at file {0}/{1}: {2}" -f ($done.Count + 1), $toCopy.Count, $_.Exception.Message) "ERROR"
     Invoke-AutoRollback -Done $done
     Copy-Item -LiteralPath $LogFile -Destination (Join-Path $BackupDir "deploy.log") -Force -ErrorAction SilentlyContinue
+    $script:Result.outcome = "failed"
+    $script:Result.message = "Apply failed and was auto-rolled-back: $($_.Exception.Message)"
+    Write-JsonResult
     Write-Host ""
     Write-Host "DEPLOY FAILED and was AUTOMATICALLY ROLLED BACK." -ForegroundColor Red
     Write-Host "Live has been restored to its pre-deploy state." -ForegroundColor Red
@@ -406,6 +588,9 @@ if ($PhpExe) {
         Write-Log "Post-deploy verification FAILED for: $($verifyFails -join ', ')" "ERROR"
         Invoke-AutoRollback -Done $done
         Copy-Item -LiteralPath $LogFile -Destination (Join-Path $BackupDir "deploy.log") -Force -ErrorAction SilentlyContinue
+        $script:Result.outcome = "failed"
+        $script:Result.message = "Post-deploy verification failed (broken PHP on live); auto-rolled-back: $($verifyFails -join ', ')"
+        Write-JsonResult
         Write-Host ""
         Write-Host "POST-DEPLOY VERIFICATION FAILED - deploy AUTOMATICALLY ROLLED BACK." -ForegroundColor Red
         Write-Host "Live has been restored to its pre-deploy state." -ForegroundColor Red
@@ -422,6 +607,10 @@ Copy-Item -LiteralPath $LogFile -Destination (Join-Path $BackupDir "deploy.log")
 Write-Host ""
 Write-Host "DEPLOY COMPLETE: $applied file(s) applied from $Branch ($DeployedSha)." -ForegroundColor Green
 Write-Log  "Deploy complete: $applied file(s)."
+$script:Result.outcome = "deployed"
+$script:Result.applied = $applied
+$script:Result.message = "Deployed $applied file(s) from $Branch ($DeployedSha)."
+Write-JsonResult
 
 # Surface any migration files in the deployed set so DB steps are never missed.
 $migrations = $toCopy | Where-Object { $_.Rel -match 'migrations/.*\.sql$' -or $_.Rel -match 'migrations/' }
