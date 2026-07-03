@@ -32,7 +32,7 @@
 #>
 [CmdletBinding()]
 param(
-    [int]    $IntervalMinutes = 1,
+    [int]    $IntervalMinutes = 5,
     [string] $User = "",
     [switch] $RunOnlyWhenLoggedOn,   # current-user only: fire only while logged on (no password prompt)
     [switch] $Remove
@@ -61,11 +61,16 @@ $action = New-ScheduledTaskAction `
     -Execute "powershell.exe" `
     -Argument ("-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"{0}`" -Once" -f $RunnerPs1)
 
-# Trigger: at startup + repeat every N minutes indefinitely.
-$trigger = New-ScheduledTaskTrigger -AtStartup
-$trigger.Repetition = (New-ScheduledTaskTrigger -Once -At (Get-Date) `
+# Triggers:
+#   (a) a one-time trigger starting now that REPEATS every N minutes for a long
+#       (but valid) duration. Task Scheduler rejects TimeSpan::MaxValue as the
+#       repetition duration ("out of range"), so use a defined 10-year span.
+#   (b) an at-startup trigger so the runner also comes back after a reboot.
+$repeatTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) `
     -RepetitionInterval (New-TimeSpan -Minutes $IntervalMinutes) `
-    -RepetitionDuration ([TimeSpan]::MaxValue)).Repetition
+    -RepetitionDuration (New-TimeSpan -Days 3650)
+$startupTrigger = New-ScheduledTaskTrigger -AtStartup
+$trigger = @($repeatTrigger, $startupTrigger)
 
 $settings = New-ScheduledTaskSettingsSet `
     -MultipleInstances IgnoreNew `
@@ -100,6 +105,13 @@ if ($User -eq "") {
         -User $cred.UserName -Password $cred.GetNetworkCredential().Password -RunLevel Limited -Force | Out-Null
 }
 
+# Confirm the task actually registered — Register-ScheduledTask can emit a
+# non-terminating error and still fall through, so verify before claiming success.
+$registered = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+if (-not $registered) {
+    Write-Host "FAILED: scheduled task '$TaskName' was NOT registered (see the error above)." -ForegroundColor Red
+    exit 1
+}
 Write-Host "Installed scheduled task '$TaskName' (every $IntervalMinutes min)." -ForegroundColor Green
 Write-Host "Verify:  Get-ScheduledTask -TaskName '$TaskName'"
 Write-Host "Logs:    $env:TEMP\pspf_deploy\runner_logs\"
