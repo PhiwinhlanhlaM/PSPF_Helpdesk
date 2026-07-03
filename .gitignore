@@ -12,8 +12,9 @@ vendor/
 # Generated uploads / user data (not source)
 **/uploads/
 
-# Database dumps
+# Database dumps (but DO track versioned migration SQL — it is source, not data)
 *.sql
+!**/migrations/*.sql
 
 # Logs & temp
 *.log
