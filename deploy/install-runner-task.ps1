@@ -34,6 +34,7 @@
 param(
     [int]    $IntervalMinutes = 1,
     [string] $User = "",
+    [switch] $RunOnlyWhenLoggedOn,   # current-user only: fire only while logged on (no password prompt)
     [switch] $Remove
 )
 
@@ -73,10 +74,26 @@ $settings = New-ScheduledTaskSettingsSet `
     -ExecutionTimeLimit (New-TimeSpan -Minutes 30)
 
 if ($User -eq "") {
-    Write-Host "WARNING: no -User given. Installing to run as the CURRENT user." -ForegroundColor Yellow
-    Write-Host "For production use a dedicated service account (see -User)."       -ForegroundColor Yellow
-    $principal = New-ScheduledTaskPrincipal -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -RunLevel Limited
-    Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Force | Out-Null
+    # No -User: run as the CURRENT account. This is the "for now" testing setup;
+    # switching to a dedicated service account later is a ONE-LINE change:
+    #     .\install-runner-task.ps1 -User "DOMAIN\svc_deploy" -IntervalMinutes 1
+    # (re-registering with -Force replaces this task in place).
+    $me = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+    Write-Host "Installing to run as the CURRENT account: $me" -ForegroundColor Yellow
+    Write-Host "Switch to a service account later with:  .\install-runner-task.ps1 -User <account>" -ForegroundColor Yellow
+    if ($RunOnlyWhenLoggedOn) {
+        # Interactive token — the task only fires while $me is logged on. No
+        # password needed. Fine for hands-on testing at the console.
+        $principal = New-ScheduledTaskPrincipal -UserId $me -LogonType Interactive -RunLevel Limited
+        Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Force | Out-Null
+        Write-Host "NOTE: runs only while '$me' is logged on (interactive)." -ForegroundColor Yellow
+    } else {
+        # Stored credentials — the task runs whether or not you are logged on, so
+        # the runner keeps polling like a real service. Prompts for your password.
+        $cred = Get-Credential -UserName $me -Message "Password for '$me' (so the runner can poll whether or not you are logged on)"
+        Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings `
+            -User $cred.UserName -Password $cred.GetNetworkCredential().Password -RunLevel Limited -Force | Out-Null
+    }
 } else {
     $cred = Get-Credential -UserName $User -Message "Password for the deploy runner service account ($User)"
     Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings `
