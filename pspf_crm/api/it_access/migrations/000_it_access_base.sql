@@ -28,14 +28,22 @@
 --    it_director — signs off provisioning
 --    These are PERMISSION roles (never the active persona). Assign them to
 --    the relevant users afterwards via Settings → User Management.
+--
+--    NOTE: the live `roles.id` column is NOT AUTO_INCREMENT, so we compute the
+--    next id explicitly (MAX(id)+1) rather than relying on auto-assignment
+--    (which would default to 0 and collide with an existing row). Guarded with
+--    NOT EXISTS so it is idempotent and won't duplicate a role that already
+--    exists (e.g. live already has it_officer).
 -- ---------------------------------------------------------------------
-INSERT INTO `roles` (`name`, `description`)
-SELECT 'it_officer', 'ICT officer — claims and actions IT access requests'
-WHERE NOT EXISTS (SELECT 1 FROM `roles` WHERE `name` = 'it_officer');
+INSERT INTO `roles` (`id`, `name`, `description`)
+SELECT (SELECT COALESCE(MAX(`id`), -1) + 1 FROM `roles`),
+       'it_officer', 'ICT officer — claims and actions IT access requests'
+WHERE NOT EXISTS (SELECT 1 FROM `roles` r WHERE r.`name` = 'it_officer');
 
-INSERT INTO `roles` (`name`, `description`)
-SELECT 'it_director', 'IT Director — reviews and signs off IT access provisioning'
-WHERE NOT EXISTS (SELECT 1 FROM `roles` WHERE `name` = 'it_director');
+INSERT INTO `roles` (`id`, `name`, `description`)
+SELECT (SELECT COALESCE(MAX(`id`), -1) + 1 FROM `roles`),
+       'it_director', 'IT Director — reviews and signs off IT access provisioning'
+WHERE NOT EXISTS (SELECT 1 FROM `roles` r WHERE r.`name` = 'it_director');
 
 -- ---------------------------------------------------------------------
 -- 2. users.full_name — captured once via the IT Access form prompt; read by
