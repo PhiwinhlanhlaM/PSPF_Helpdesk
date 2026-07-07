@@ -84,7 +84,7 @@
 
 		 <!-- Vehicle Booking Tab-->
                 <li class="nav-item">
-                    <a class="nav-link" href="../../pspf_crm/vehicle_booking/login.php">
+                    <a class="nav-link" href="/pspf_crm/vehicle_booking/login.php">
                         <i class="bi bi-journal-bookmark-fill me-1"></i> Vehicle Booking
                     </a>
                 </li>
