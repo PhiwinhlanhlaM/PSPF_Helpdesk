@@ -438,7 +438,7 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : htmlspecialchars($userDept);
 </head>
 
 <body>
-    <?php include '../agent/topnav.php'; ?>
+    <?php include '../agent/topnav_agent.php'; ?>
 
     <div class="container-xl mt-5 mb-4">
         <!-- Header -->

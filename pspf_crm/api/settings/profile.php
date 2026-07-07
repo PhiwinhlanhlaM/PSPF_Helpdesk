@@ -479,7 +479,7 @@ elseif (isset($_POST['update_profile'])) {
 <body>
 
 <!-- Top Navigation Bar -->
-<?php include '../agent/topnav.php'; ?>
+<?php include '../agent/topnav_agent.php'; ?>
 
 <!-- Loading indicator -->
 <div id="loading" class="loading-indicator" style="display: none;">

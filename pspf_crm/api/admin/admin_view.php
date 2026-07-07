@@ -656,7 +656,7 @@ function getPriorityBadgeClass($priority) {
 </head>
 
 <body data-bs-theme="light">
-<?php include '../agent/topnav.php'; ?>
+<?php include '../agent/topnav_agent.php'; ?>
 
 
 <div class="container mt-4">
