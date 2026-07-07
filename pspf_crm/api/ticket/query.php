@@ -41,6 +41,31 @@ $roleIcons = [
 
 $iconClass = $roleIcons[$role] ?? 'bi-person-fill';
 
+// ---------------------------------------------------------------------------
+// Anti-duplicate + CSRF tokens
+// ---------------------------------------------------------------------------
+// One-time submission token (synchronizer token): embedded in the form and
+// consumed exactly once by the handler. A double-click, back-button re-POST, or
+// refresh-before-redirect replays the SAME token, which the handler then
+// recognises as already-used and treats as a duplicate (no second ticket).
+$formToken = bin2hex(random_bytes(16));
+$_SESSION['ticket_form_tokens'][$formToken] = time();
+// Bound the store so it can't grow unbounded across a long session: keep the
+// 20 most recent tokens (also drop any older than 2 hours).
+if (!empty($_SESSION['ticket_form_tokens'])) {
+    $cutoff = time() - 7200;
+    $_SESSION['ticket_form_tokens'] = array_filter(
+        $_SESSION['ticket_form_tokens'],
+        static fn($ts) => $ts >= $cutoff
+    );
+    if (count($_SESSION['ticket_form_tokens']) > 20) {
+        $_SESSION['ticket_form_tokens'] =
+            array_slice($_SESSION['ticket_form_tokens'], -20, null, true);
+    }
+}
+// CSRF token (reuse the CRM-wide session token created by auth_helpers.php).
+$CSRF = $_SESSION['csrf_token'] ?? '';
+
 // Fetch all departments dynamically
 $departments = [];
 $sql = "SELECT  division_name FROM divisions";
@@ -103,9 +128,11 @@ if ($result->num_rows > 0) {
             </div>
         <?php endif; ?>
     <div class="card-body">
-        <form action="submit_query2.php" method="POST" enctype="multipart/form-data">
+        <form action="submit_query2.php" method="POST" enctype="multipart/form-data" id="ticketForm">
             <input type="hidden" name="created_by" value="<?= htmlspecialchars($loggedInUser) ?>">
             <input type="hidden" name="department" value="<?= htmlspecialchars($userDept) ?>">
+            <input type="hidden" name="form_token" value="<?= htmlspecialchars($formToken) ?>">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($CSRF) ?>">
 
             <div class="row g-3">
                 <div class="col-md-6">
@@ -245,8 +272,11 @@ function goBack() {
             phoneErrorMessage.style.display = 'none';
         });
 
-        // Form submission validation
+        // Form submission validation + double-submit guard
         if (queryForm) {
+            const submitBtn = queryForm.querySelector('button[type="submit"]');
+            const originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+
             queryForm.addEventListener('submit', function (e) {
                 const source = querySource.value;
                 const phoneNumber = phoneNumberField.value.trim();
@@ -257,8 +287,21 @@ function goBack() {
                     phoneErrorMessage.style.display = 'block';
                     phoneNumberField.focus();
                     return false;
-                } else {
-                    phoneErrorMessage.style.display = 'none';
+                }
+                phoneErrorMessage.style.display = 'none';
+
+                // Double-submit guard: disable the Submit button immediately so a
+                // rapid second click can't fire a second POST. (The server-side
+                // one-time token is the real guard; this is instant UX feedback.)
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Submitting…';
+                    // Safety net: if the browser blocks navigation for any reason,
+                    // re-enable after a few seconds so the user isn't stuck.
+                    setTimeout(function () {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalBtnHtml;
+                    }, 8000);
                 }
             });
         }

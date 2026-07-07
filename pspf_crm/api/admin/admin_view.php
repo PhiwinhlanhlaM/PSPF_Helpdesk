@@ -351,23 +351,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
         }
         
         // ===== ENFORCE STATUS WORKFLOW RULES =====
+        // Status transitions are free-form: a ticket may move directly between
+        // states (e.g. Open -> Closed) without passing through In Progress first.
+        // The only retained restriction is that a Closed ticket cannot be escalated.
         $oldStatusLower = strtolower($oldStatus);
         $newStatusLower = strtolower($newStatus);
-        
-        // Cannot go directly from Open to Closed
-        if ($oldStatusLower === 'open' && $newStatusLower === 'closed') {
-            $_SESSION['admin_message'] = "Tickets must be moved to 'In Progress' before they can be closed.";
-            header("Location: " . $_SERVER['PHP_SELF']);
-            exit;
-        }
-        
-        // Cannot go directly from Open to Escalated
-        if ($oldStatusLower === 'open' && $newStatusLower === 'escalated') {
-            $_SESSION['admin_message'] = "Tickets must be moved to 'In Progress' before they can be escalated.";
-            header("Location: " . $_SERVER['PHP_SELF']);
-            exit;
-        }
-        
+
         // Closed tickets cannot be escalated
         if ($oldStatusLower === 'closed' && $newStatusLower === 'escalated') {
             $_SESSION['admin_message'] = "Closed tickets cannot be escalated.";
@@ -1684,22 +1673,12 @@ function getPriorityBadgeClass($priority) {
             return;
         }
         
-        // Client-side validation of transition rules
+        // Client-side validation of transition rules.
+        // Transitions are free-form (e.g. Open -> Closed directly); the only
+        // retained restriction is that a Closed ticket cannot be escalated.
         const newStatusLower = newStatus.toLowerCase();
         const currentStatusLower = currentStatus.toLowerCase();
-        
-        // Cannot go directly from Open to Closed
-        if (currentStatusLower === 'open' && newStatusLower === 'closed') {
-            alert('Tickets must be moved to "In Progress" before they can be closed.');
-            return;
-        }
-        
-        // Cannot go directly from Open to Escalated
-        if (currentStatusLower === 'open' && newStatusLower === 'escalated') {
-            alert('Tickets must be moved to "In Progress" before they can be escalated.');
-            return;
-        }
-        
+
         // Closed tickets cannot be escalated
         if (currentStatusLower === 'closed' && newStatusLower === 'escalated') {
             alert('Closed tickets cannot be escalated.');

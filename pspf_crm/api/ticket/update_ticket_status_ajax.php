@@ -78,16 +78,9 @@ $currentLower = strtolower($currentStatus);
 // WORKFLOW RULES
 // =====================================================
 
-if ($currentLower === 'open' && $newLower === 'closed') {
-    echo json_encode(['success' => false, 'message' => 'Move ticket to In Progress before closing.']);
-    exit;
-}
-
-if ($currentLower === 'open' && $newLower === 'escalate') {
-    echo json_encode(['success' => false, 'message' => 'Move ticket to In Progress before escalating.']);
-    exit;
-}
-
+// Status transitions are free-form: a ticket may move directly between states
+// (e.g. Open -> Closed) without passing through In Progress first. The only
+// retained restriction is that a Closed ticket cannot be escalated.
 if ($currentLower === 'closed' && $newLower === 'escalate') {
     echo json_encode(['success' => false, 'message' => 'Closed tickets cannot be escalated.']);
     exit;

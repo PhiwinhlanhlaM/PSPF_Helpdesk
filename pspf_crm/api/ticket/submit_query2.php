@@ -17,6 +17,41 @@ if (!isset($_SESSION['user']['username'])) {
     exit;
 }
 
+// ---------------------------
+// CSRF + duplicate-submit guard  (must run BEFORE any INSERT)
+// ---------------------------
+// 1. CSRF: reject forged cross-site POSTs.
+$postedCsrf = $_POST['csrf_token'] ?? '';
+if (empty($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $postedCsrf)) {
+    header("Location: query.php?errors=" . urlencode('Security check failed. Please try submitting again.'));
+    exit;
+}
+
+// 2. One-time submission token: prevents duplicate tickets from a double-click,
+//    back-button re-POST, or refresh-before-redirect. The form embeds a fresh
+//    token; the FIRST POST consumes it. A replay of the same token means the
+//    ticket was already created — so we DON'T insert again; we silently send the
+//    user to the SAME success page as the original submission.
+$formToken = $_POST['form_token'] ?? '';
+
+// Already-consumed token? -> duplicate. Redirect to the original success page.
+if ($formToken !== '' && isset($_SESSION['ticket_submitted'][$formToken])) {
+    $origId = (int)$_SESSION['ticket_submitted'][$formToken];
+    header("Location: ticket_success2.php?ticket_id={$origId}");
+    exit;
+}
+
+// Unknown / missing token? -> not a valid live form submission (stale form,
+// replay after session token pruning, or a crafted request). Send back safely.
+if ($formToken === '' || !isset($_SESSION['ticket_form_tokens'][$formToken])) {
+    header("Location: query.php?errors=" . urlencode('This form has expired or was already submitted. Please try again.'));
+    exit;
+}
+
+// Valid, first-time token: consume it now so any concurrent/replayed POST that
+// gets past the checks above will fail the "unknown token" test.
+unset($_SESSION['ticket_form_tokens'][$formToken]);
+
 $username = $_SESSION['user']['username'];
 $dateNow  = date("Y-m-d H:i:s");
 
@@ -147,6 +182,15 @@ if (!$stmt->execute()) {
 }
 
 $ticketId = $stmt->insert_id;
+
+// Remember which ticket this one-time token produced, so a duplicate replay of
+// the same token lands on the SAME success page instead of creating a new
+// ticket. Keep this map small (last 20 submissions this session).
+$_SESSION['ticket_submitted'][$formToken] = $ticketId;
+if (count($_SESSION['ticket_submitted']) > 20) {
+    $_SESSION['ticket_submitted'] =
+        array_slice($_SESSION['ticket_submitted'], -20, null, true);
+}
 
 // ---------------------------
 // LOG INITIAL STATUS

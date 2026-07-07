@@ -76,6 +76,21 @@ if (!$ticket) {
 }
 
 /* ---------------------------
+   ONE-TIME NOTIFICATION CLAIM
+   The confirmation/assignment emails must be sent ONCE, not on every load of
+   this page (a refresh, a dedup redirect, or reopening the URL would otherwise
+   re-send them). Atomically claim the notification: only the load whose UPDATE
+   actually flips notified_at from NULL wins the right to send. Concurrent /
+   repeat loads affect 0 rows and skip sending.
+--------------------------- */
+$shouldNotify = false;
+$claim = $conn->prepare("UPDATE tickets SET notified_at = NOW() WHERE id = ? AND notified_at IS NULL");
+$claim->bind_param("i", $ticketId);
+$claim->execute();
+$shouldNotify = ($claim->affected_rows === 1);
+$claim->close();
+
+/* ---------------------------
    FORMAT DATA
 --------------------------- */
 $formattedTicketId = "TCK-" . str_pad($ticket['id'], 6, '0', STR_PAD_LEFT);
@@ -87,6 +102,11 @@ if (!empty($ticket['assigned_to'])) {
         fn($e) => filter_var($e, FILTER_VALIDATE_EMAIL)
     );
 }
+
+/* ---------------------------
+   EMAILS — sent only on the winning one-time claim (see above).
+--------------------------- */
+if ($shouldNotify):
 
 /* ---------------------------
    EMAIL: CREATOR CONFIRMATION
@@ -159,6 +179,8 @@ foreach ($assignedEmails as $email) {
         error_log("Assignment email failed to $email");
     }
 }
+
+endif; // $shouldNotify
 ?>
 
 <!DOCTYPE html>
@@ -200,7 +222,11 @@ foreach ($assignedEmails as $email) {
             
             <p class="mb-2">
                 <i class="bi bi-check-lg me-2"></i>
-                Confirmation emails have been sent to you and the assigned team.
+                <?php if ($shouldNotify): ?>
+                    Confirmation emails have been sent to you and the assigned team.
+                <?php else: ?>
+                    A confirmation email for this ticket was already sent.
+                <?php endif; ?>
             </p>
             
             <div class="info-box">
