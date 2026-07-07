@@ -323,75 +323,59 @@ if ($toCopy.Count -eq 0) {
 
 # ---------------------------------------------------------------------------
 # 2b. DRIFT DETECTION — did anyone edit in-scope live files outside the pipeline?
-#     Compare current live against the LAST-DEPLOYED commit's version of each
-#     in-scope file. Any difference = drift: a live edit the repo does not know
-#     about, which this deploy would silently clobber. We refuse (unless
-#     -AllowDrift) so direct-on-live work is never lost — the team reconciles
-#     (re-mirror live -> repo) first. Only runs when a baseline SHA is known.
+#
+#     Definition: DRIFT = a live file that differs from the repo being deployed
+#     (HEAD) but is NOT part of this deploy's change set. In other words, a live
+#     edit the repo does not know about and this run is not about to update.
+#
+#     Why compare against repo HEAD (not a stored baseline commit): the change
+#     set $toCopy is EXACTLY "repo files whose content != live". So for every
+#     in-scope repo file:
+#         * if it's in $toCopy  -> it's a KNOWN change we're deploying (not drift)
+#         * if it's NOT in $toCopy -> repo == live, so no drift either
+#     That means genuine repo-tracked files never false-flag. Real drift is a
+#     LIVE file with no repo counterpart, or (defensively) a mismatch we didn't
+#     record. This needs no baseline SHA and cannot go stale, which fixes the
+#     bug where an old last_deployed_sha re-flagged already-reconciled files.
+#
+#     We refuse on drift (unless -AllowDrift) so direct-on-live work is never
+#     silently clobbered; the team reconciles (mirror live -> repo) first.
 # ---------------------------------------------------------------------------
 $drift = New-Object System.Collections.Generic.List[string]
-if ($LastDeployedSha) {
-    Write-Log "Checking live for drift against last-deployed commit $LastDeployedSha ..."
-    $BaseDir = Join-Path $WorkDir "baseline"
-    if (Test-Path $BaseDir) { Remove-Item -LiteralPath $BaseDir -Recurse -Force }
-    New-Item -ItemType Directory -Force -Path $BaseDir | Out-Null
+# Fast lookup of the paths this deploy will update.
+$toCopySet = @{}
+foreach ($item in $toCopy) { $toCopySet[$item.Rel] = $true }
 
-    # Materialize the baseline commit's tree. The shallow clone above may not
-    # contain the older baseline object, so fetch it explicitly, then archive
-    # the in-scope folders out of it into $BaseDir.
-    $prevEAP = $ErrorActionPreference
-    $ErrorActionPreference = "Continue"
-    & git -C $StageDir fetch --depth 1 origin $LastDeployedSha 2>&1 | Out-Null
-    $baseOk = ($LASTEXITCODE -eq 0)
-    if ($baseOk) {
-        # git archive streams a tar of the baseline tree; extract in-scope folders.
-        foreach ($folder in $ManagedFolders) {
-            $tar = Join-Path $WorkDir "baseline.tar"
-            & git -C $StageDir archive --format=tar -o $tar $LastDeployedSha -- $folder 2>&1 | Out-Null
-            if ($LASTEXITCODE -eq 0 -and (Test-Path $tar)) {
-                & tar -x -f $tar -C $BaseDir 2>&1 | Out-Null
-                Remove-Item -LiteralPath $tar -Force -ErrorAction SilentlyContinue
-            }
-        }
-    }
-    $ErrorActionPreference = $prevEAP
+foreach ($folder in $ManagedFolders) {
+    $liveFolder = Join-Path $LiveBase $folder
+    if (-not (Test-Path -LiteralPath $liveFolder)) { continue }
+    Get-ChildItem -LiteralPath $liveFolder -Recurse -File | ForEach-Object {
+        $rel = Get-RelPath $LiveBase $_.FullName
+        if (Test-Excluded $rel) { return }
+        if ($ProtectedRelPaths -contains $rel) { return }   # config: expected to differ
+        if ($toCopySet.ContainsKey($rel)) { return }        # known change we're deploying — not drift
 
-    if (-not $baseOk) {
-        Write-Log "Could not fetch baseline commit $LastDeployedSha; drift check skipped." "WARN"
-    }
-    else {
-        $BaseBase = (Get-Item -LiteralPath $BaseDir).FullName.TrimEnd('\')
-        foreach ($folder in $ManagedFolders) {
-            $liveFolder = Join-Path $LiveBase $folder
-            if (-not (Test-Path -LiteralPath $liveFolder)) { continue }
-            Get-ChildItem -LiteralPath $liveFolder -Recurse -File | ForEach-Object {
-                $rel = Get-RelPath $LiveBase $_.FullName
-                if (Test-Excluded $rel) { return }
-                if ($ProtectedRelPaths -contains $rel) { return }   # config: expected to differ
-                $baseEquiv = Join-Path $BaseBase ($rel -replace '/','\')
-                if (-not (Test-Path -LiteralPath $baseEquiv)) {
-                    # File on live not in the baseline tree. If the incoming repo
-                    # also lacks it, it's an out-of-band live addition -> drift.
-                    $repoEquiv = Join-Path $StageBase ($rel -replace '/','\')
-                    if (-not (Test-Path -LiteralPath $repoEquiv)) { $drift.Add($rel) | Out-Null }
-                    return
-                }
-                $liveHash = Get-ContentHash $_.FullName  $rel
-                $baseHash = Get-ContentHash $baseEquiv    $rel
-                if ($liveHash -ne $baseHash) { $drift.Add($rel) | Out-Null }
-            }
+        $repoEquiv = Join-Path $StageBase ($rel -replace '/','\')
+        if (-not (Test-Path -LiteralPath $repoEquiv)) {
+            # Live has a file the repo doesn't track at all. Reported separately
+            # as "on live but not in repo" (never deleted); not counted as drift
+            # since the deploy won't touch it.
+            return
         }
-    }
-    $script:Result.drift = @($drift)
-    if ($drift.Count -gt 0) {
-        Write-Log "DRIFT DETECTED: $($drift.Count) in-scope live file(s) differ from the last-deployed commit." "WARN"
-        $drift | Select-Object -First 30 | ForEach-Object { Write-Log "  [DRIFT] $_" "WARN" }
-    } else {
-        Write-Log "No drift: live matches the last-deployed commit for all in-scope files."
+        # Repo tracks it and it's NOT in the change set, so repo == live is
+        # expected. If they somehow differ, that's genuine unrecorded drift.
+        $liveHash = Get-ContentHash $_.FullName $rel
+        $repoHash = Get-ContentHash $repoEquiv  $rel
+        if ($liveHash -ne $repoHash) { $drift.Add($rel) | Out-Null }
     }
 }
-else {
-    Write-Log "No baseline SHA supplied; skipping drift check (first deploy or manual run)." "INFO"
+
+$script:Result.drift = @($drift)
+if ($drift.Count -gt 0) {
+    Write-Log "DRIFT DETECTED: $($drift.Count) in-scope live file(s) differ from the repo but are not in this deploy." "WARN"
+    $drift | Select-Object -First 30 | ForEach-Object { Write-Log "  [DRIFT] $_" "WARN" }
+} else {
+    Write-Log "No drift: every in-scope live file either matches the repo or is part of this deploy."
 }
 
 # ---------------------------------------------------------------------------
