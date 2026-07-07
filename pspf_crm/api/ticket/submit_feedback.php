@@ -139,6 +139,26 @@ if (!$userExists) {
     $updateToken->execute();
     $updateToken->close();
 
+    // -----------------------------
+    // 8️⃣ Complete the lifecycle: the ticket has now been rated by the requester,
+    //     so move it from 'Pending Feedback' to 'Resolved'. This is the final
+    //     state and is what the dashboards/reports count as "Resolved". Only
+    //     advance a ticket still awaiting feedback so we never overwrite a later
+    //     manual change.
+    //
+    //     NOTE: the status-history log is written automatically by the DB trigger
+    //     `after_ticket_status_update`, so we do NOT insert a log row here (that
+    //     would duplicate it).
+    // -----------------------------
+    $resolveStmt = $conn->prepare("
+        UPDATE tickets
+        SET status = 'Resolved', updated_at = NOW()
+        WHERE id = ? AND status = 'Pending Feedback'
+    ");
+    $resolveStmt->bind_param("i", $ticket_id);
+    $resolveStmt->execute();
+    $resolveStmt->close();
+
     $conn->commit();
 
     echo json_encode([
