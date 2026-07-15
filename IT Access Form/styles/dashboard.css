@@ -15,12 +15,15 @@
 
 .dash-stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  /* Fits the officer dashboard's 3 cards and the director's 4 without either
+     needing its own rule; collapses to 2-up, then 1-up on narrow screens. */
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
   margin-bottom: 20px;
   align-items: stretch;
 }
 @media (max-width: 900px) { .dash-stats { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 520px) { .dash-stats { grid-template-columns: 1fr; } }
 
 .stat-card {
   background: var(--white);
@@ -44,6 +47,25 @@
   font-size: 12px; color: var(--ink-500); line-height: 1.3;
 }
 .stat-subtle .stat-value { color: var(--ink-700); }
+
+/* Severity dot: the `kind` prop encodes what the number means (neutral volume /
+   good / needs-attention / bad) so the row reads at a glance rather than as
+   four identical boxes. Sits inline with the label rather than as an edge
+   stripe, which fought the card's rounded corner and box-shadow. */
+.stat-label::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+  background: var(--ink-300);
+}
+.stat-blue  .stat-label::before { background: var(--blue-600); }
+.stat-green .stat-label::before { background: var(--green-600); }
+.stat-amber .stat-label::before { background: var(--amber-600); }
+.stat-red   .stat-label::before { background: var(--red-600); }
 
 .dash-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); padding: 4px 8px 0; background: var(--white); }
 .dash-tab {

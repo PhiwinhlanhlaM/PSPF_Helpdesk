@@ -263,7 +263,7 @@ function buildNotifications(requests, role, me) {
         items.push({ id: r.id + "-sign", kind: "amber", title: "Awaiting your signature", body: `${r.employee.name} · ${r.id}`, at: r.submittedAt, requestId: r.id, route: "officer-sign" });
     }
     if (role === "director" && r.status === "awaiting-director")
-      items.push({ id: r.id + "-ddir", kind: "amber", title: "Awaiting your action", body: `${r.employee.name} · ${r.id}`, at: r.submittedAt, requestId: r.id, route: "director-sign" });
+      items.push({ id: r.id + "-ddir", kind: "amber", title: "Awaiting your review", body: `${r.employee.name} · ${r.id}`, at: r.submittedAt, requestId: r.id, route: "director-sign" });
   }
   // Sort newest first, cap at 15
   return items.sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, 15);
@@ -364,7 +364,7 @@ function TopBar() {
         { name: "officer-dashboard", label: "Dashboard" },
       ]
     : [
-        { name: "director-dashboard", label: "Pending action" },
+        { name: "director-dashboard", label: "Pending review" },
       ];
 
   // Current role-relevant notifications, and the unread badge = those not yet seen.

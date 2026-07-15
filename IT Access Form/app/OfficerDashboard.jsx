@@ -459,3 +459,5 @@ function ApprovalTimeline({ request }) {
 
 window.OfficerDashboard = OfficerDashboard;
 window.ApprovalTimeline = ApprovalTimeline;
+// Shared with the director dashboard, which renders the same stat cards.
+window.StatCard = StatCard;

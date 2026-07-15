@@ -19,3 +19,50 @@ vendor/
 # Logs & temp
 *.log
 **/tmp/
+
+# =====================================================================
+# The working tree is the XAMPP htdocs folder, so that deploy.ps1 finds
+# `pspf_crm/` and `IT Access Form/` at the repository root. htdocs also
+# contains XAMPP's own files, live secrets and ad-hoc backups; none of
+# that is application source, and none of it belongs in the repository.
+# =====================================================================
+
+# Live secrets and per-environment config. The deploy pipeline treats
+# these as protected and never overwrites them — each environment keeps
+# its own copy. .env.example IS tracked as the committed template.
+.env
+!.env.example
+pspf_crm/api/db.php
+pspf_crm/api/mail_config.php
+pspf_crm/api/sharepoint_config.php
+
+# XAMPP's own web root — not part of this application.
+xampp/
+dashboard/
+webalizer/
+img/
+mysql_data/
+applications.html
+bitnami.css
+favicon.ico
+/index.php
+
+# Ad-hoc backups, staging copies and archives taken during development.
+*_backup_*/
+_it_access_stage_*/
+*.zip
+
+# Local Docker / orchestration scaffolding (not deployed).
+docker-compose.yml
+Dockerfile
+DOCKER_README.md
+init-db/
+nginx/
+pdf-tool-php/
+pspf_helpdesk/
+logs/
+mail/
+
+# OS noise
+Thumbs.db
+desktop.ini
