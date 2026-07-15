@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}New Ticket — PSPF Helpdesk{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-body p-4">
+        <h4 class="mb-3">Log a Query</h4>
+        {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="row g-3">
+            <div class="col-md-8">
+              <label class="form-label">Title</label>
+              {{ form.title }}
+              {% if form.title.errors %}<div class="text-danger small">{{ form.title.errors|striptags }}</div>{% endif %}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Priority</label>
+              {{ form.priority }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Member Type</label>
+              {{ form.member_type }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Branch</label>
+              {{ form.region }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Source</label>
+              {{ form.source }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Department (To)</label>
+              {{ form.query_type }}
+              {% if form.query_type.errors %}<div class="text-danger small">{{ form.query_type.errors|striptags }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Phone number</label>
+              {{ form.phone_number }}
+              {% if form.phone_number.errors %}<div class="text-danger small">{{ form.phone_number.errors|striptags }}</div>{% endif %}
+            </div>
+            <div class="col-12">
+              <label class="form-label">Description</label>
+              {{ form.description }}
+              {% if form.description.errors %}<div class="text-danger small">{{ form.description.errors|striptags }}</div>{% endif %}
+            </div>
+            <div class="col-12">
+              <label class="form-label">Attachment (optional)</label>
+              {{ form.attachment }}
+            </div>
+          </div>
+          <div class="mt-4">
+            <button class="btn btn-primary" type="submit"><i class="bi bi-send"></i> Submit Ticket</button>
+            <a class="btn btn-link" href="{% url 'tickets:user_dashboard' %}">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>document.querySelectorAll('form input:not([type=file]), form select, form textarea').forEach(e=>e.classList.add('form-control'));</script>
+{% endblock %}

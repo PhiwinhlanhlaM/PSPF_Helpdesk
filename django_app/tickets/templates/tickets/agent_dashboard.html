@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Agent Dashboard — PSPF Helpdesk{% endblock %}
+{% block content %}
+<h3 class="mb-1">Agent Dashboard</h3>
+<p class="text-muted">Division: <strong>{{ division|default:"— not assigned —" }}</strong></p>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4"><div class="card stat-tile"><div class="card-body"><div class="text-muted small">Open</div><div class="display-6 text-primary">{{ open_count }}</div></div></div></div>
+  <div class="col-md-4"><div class="card stat-tile"><div class="card-body"><div class="text-muted small">Resolved / Closed</div><div class="display-6 text-success">{{ resolved_count }}</div></div></div></div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead class="table-light"><tr><th>#</th><th>Title</th><th>Priority</th><th>Status</th><th>Logged by</th><th>Update</th></tr></thead>
+      <tbody>
+        {% for t in tickets %}
+        <tr>
+          <td><a href="{% url 'tickets:detail' t.id %}">{{ t.id }}</a></td>
+          <td>{{ t.title }}</td>
+          <td>{{ t.priority }}</td>
+          <td>{% include "tickets/_status_badge.html" with status=t.status %}</td>
+          <td>{{ t.created_by }}</td>
+          <td>
+            <form method="post" action="{% url 'tickets:change_status' t.id %}" class="d-flex gap-1">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{% url 'tickets:agent_dashboard' %}">
+              <select name="status" class="form-select form-select-sm" style="width:auto">
+                {% for value, label in t.STATUS_CHOICES %}
+                <option value="{{ value }}" {% if value == t.status %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              <button class="btn btn-sm btn-primary" type="submit">Save</button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center text-muted py-4">No tickets in your division.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

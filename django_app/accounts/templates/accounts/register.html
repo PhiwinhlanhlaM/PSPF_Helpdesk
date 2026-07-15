@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Register — PSPF Helpdesk{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card mt-4">
+      <div class="card-body p-4">
+        <h4 class="mb-3">Create an account</h4>
+        <form method="post">
+          {% csrf_token %}
+          {% for field in form %}
+          <div class="mb-3">
+            <label class="form-label">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}<div class="text-danger small">{{ field.errors|striptags }}</div>{% endif %}
+          </div>
+          {% endfor %}
+          <button class="btn btn-primary" type="submit">Register</button>
+          <a class="btn btn-link" href="{% url 'accounts:login' %}">Back to sign in</a>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>document.querySelectorAll('form input, form select').forEach(e=>e.classList.add('form-control'));</script>
+{% endblock %}

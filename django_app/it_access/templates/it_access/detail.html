@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}{{ req.ref_number }} — PSPF Helpdesk{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="mb-0">{{ req.ref_number }}</h3>
+  <span class="badge bg-secondary fs-6">{{ req.get_status_display }}</span>
+</div>
+
+<div class="row">
+  <div class="col-lg-7">
+    <div class="card mb-3">
+      <div class="card-body">
+        <dl class="row small mb-0">
+          <dt class="col-sm-4">Employee</dt><dd class="col-sm-8">{{ req.employee_name }} ({{ req.employee_id|default:"—" }})</dd>
+          <dt class="col-sm-4">Department</dt><dd class="col-sm-8">{{ req.department }} / {{ req.division|default:"—" }}</dd>
+          <dt class="col-sm-4">Job title</dt><dd class="col-sm-8">{{ req.job_title }}</dd>
+          <dt class="col-sm-4">Start date</dt><dd class="col-sm-8">{{ req.start_date }}</dd>
+          <dt class="col-sm-4">Type</dt><dd class="col-sm-8">{{ req.get_request_type_display }}</dd>
+          <dt class="col-sm-4">Submitted by</dt><dd class="col-sm-8">{{ req.submitted_by }} on {{ req.submitted_at|date:"Y-m-d H:i" }}</dd>
+        </dl>
+        <hr>
+        <h6>Justification</h6>
+        <p style="white-space:pre-wrap">{{ req.justification }}</p>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header bg-white"><strong>Systems requested</strong></div>
+      <ul class="list-group list-group-flush">
+        {% for s in systems %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <span>{{ s.system_id }} {% if s.role %}<span class="text-muted small">({{ s.role }})</span>{% endif %}</span>
+          <span>
+            <span class="badge bg-light text-dark">{{ s.get_status_display }}</span>
+            {% if can_claim and s.status == 'claimed' %}
+            <form method="post" action="{% url 'it_access:action_system' s.id %}" class="d-inline">
+              {% csrf_token %}
+              <button class="btn btn-sm btn-outline-success">Mark actioned</button>
+            </form>
+            {% endif %}
+          </span>
+        </li>
+        {% empty %}<li class="list-group-item text-muted">No systems listed.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card mb-3">
+      <div class="card-header bg-white"><strong>Approval trail</strong></div>
+      <ul class="list-group list-group-flush">
+        {% for a in approvals %}
+        <li class="list-group-item">
+          <strong>{{ a.get_step_role_display }}</strong> — {{ a.get_action_display }}
+          <div class="text-muted small">{{ a.approver }} · {{ a.acted_at|date:"Y-m-d H:i" }}</div>
+          {% if a.reason %}<div class="small">{{ a.reason }}</div>{% endif %}
+        </li>
+        {% empty %}<li class="list-group-item text-muted">No approvals yet.</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    {% if can_claim and req.status == 'new' %}
+    <form method="post" action="{% url 'it_access:claim' req.id %}" class="mb-3">
+      {% csrf_token %}
+      <button class="btn btn-primary w-100"><i class="bi bi-hand-index"></i> Claim this request</button>
+    </form>
+    {% endif %}
+
+    {% if can_direct and req.status == 'awaiting-director' %}
+    <div class="card">
+      <div class="card-body">
+        <h6>Director sign-off</h6>
+        <form method="post" action="{% url 'it_access:approve' req.id %}">
+          {% csrf_token %}
+          <select name="action" class="form-select mb-2">
+            <option value="approved">Approve (provision)</option>
+            <option value="rejected">Reject</option>
+          </select>
+          <textarea name="reason" class="form-control mb-2" rows="2" placeholder="Reason (optional)"></textarea>
+          <textarea name="signature" class="form-control mb-2" rows="2" placeholder="Signature"></textarea>
+          <button class="btn btn-success w-100">Submit decision</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

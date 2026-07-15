@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Track Ticket — PSPF Helpdesk{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="card mb-4">
+      <div class="card-body">
+        <h4 class="mb-3">Track a Ticket</h4>
+        <form method="get" class="row g-2">
+          <div class="col">
+            <input type="number" name="ticket_id" class="form-control" placeholder="Enter ticket number" value="{{ request.GET.ticket_id }}">
+          </div>
+          <div class="col-auto"><button class="btn btn-primary" type="submit">Track</button></div>
+        </form>
+      </div>
+    </div>
+
+    {% if ticket %}
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <h5>#{{ ticket.id }} — {{ ticket.title }}</h5>
+          {% include "tickets/_status_badge.html" with status=ticket.status %}
+        </div>
+        <p class="text-muted small mb-3">Logged {{ ticket.query_date|date:"Y-m-d H:i" }} by {{ ticket.created_by }}</p>
+        <h6>Status history</h6>
+        <ul class="list-group">
+          {% for log in logs %}
+          <li class="list-group-item d-flex justify-content-between">
+            <span>{{ log.old_status|default:"—" }} → <strong>{{ log.new_status }}</strong> <span class="text-muted small">by {{ log.changed_by }}</span></span>
+            <span class="text-muted small">{{ log.changed_at|date:"Y-m-d H:i" }}</span>
+          </li>
+          {% empty %}
+          <li class="list-group-item text-muted">No status changes recorded.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

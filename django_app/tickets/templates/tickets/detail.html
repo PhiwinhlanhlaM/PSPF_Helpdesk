@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Ticket #{{ ticket.id }} — PSPF Helpdesk{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-lg-8">
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <h4>#{{ ticket.id }} — {{ ticket.title }}</h4>
+          {% include "tickets/_status_badge.html" with status=ticket.status %}
+        </div>
+        <p class="text-muted small">Logged {{ ticket.query_date|date:"Y-m-d H:i" }} by {{ ticket.created_by }}</p>
+        <dl class="row small">
+          <dt class="col-sm-3">Priority</dt><dd class="col-sm-9">{{ ticket.priority }}</dd>
+          <dt class="col-sm-3">Member Type</dt><dd class="col-sm-9">{{ ticket.member_type|default:"—" }}</dd>
+          <dt class="col-sm-3">Branch</dt><dd class="col-sm-9">{{ ticket.region|default:"—" }}</dd>
+          <dt class="col-sm-3">Source</dt><dd class="col-sm-9">{{ ticket.source|default:"—" }}</dd>
+          <dt class="col-sm-3">Division</dt><dd class="col-sm-9">{{ ticket.division|default:"—" }}</dd>
+          <dt class="col-sm-3">Assigned to</dt><dd class="col-sm-9">{{ ticket.assigned_to|default:"—" }}</dd>
+        </dl>
+        <h6>Description</h6>
+        <p style="white-space:pre-wrap">{{ ticket.description }}</p>
+        {% if ticket.attachment_path %}<a href="{{ ticket.attachment_path }}">View attachment</a>{% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card mb-3">
+      <div class="card-body">
+        <h6>Status history</h6>
+        <ul class="list-group list-group-flush">
+          {% for log in logs %}
+          <li class="list-group-item px-0">{{ log.old_status|default:"—" }} → <strong>{{ log.new_status }}</strong><br><span class="text-muted small">{{ log.changed_at|date:"Y-m-d H:i" }} · {{ log.changed_by }}</span></li>
+          {% empty %}<li class="list-group-item px-0 text-muted">No changes.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+    {% if active_role in "agent,admin,superadmin" and active_role %}
+    <div class="card">
+      <div class="card-body">
+        <h6>Update status</h6>
+        <form method="post" action="{% url 'tickets:change_status' ticket.id %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{% url 'tickets:detail' ticket.id %}">
+          <select name="status" class="form-select mb-2">
+            {% for value, label in ticket.STATUS_CHOICES %}
+            <option value="{{ value }}" {% if value == ticket.status %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <button class="btn btn-primary btn-sm w-100" type="submit">Save</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

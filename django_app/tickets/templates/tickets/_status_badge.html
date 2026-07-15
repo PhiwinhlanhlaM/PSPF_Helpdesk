@@ -1,0 +1,8 @@
+{% comment %}Reusable status badge — include with `with status=ticket.status`.{% endcomment %}
+{% if status == 'Open' %}<span class="badge bg-primary">{{ status }}</span>
+{% elif status == 'In Progress' %}<span class="badge bg-info text-dark">{{ status }}</span>
+{% elif status == 'On Hold' %}<span class="badge bg-secondary">{{ status }}</span>
+{% elif status == 'Escalated' %}<span class="badge bg-danger">{{ status }}</span>
+{% elif status == 'Resolved' %}<span class="badge bg-success">{{ status }}</span>
+{% elif status == 'Closed' %}<span class="badge bg-dark">{{ status }}</span>
+{% else %}<span class="badge bg-light text-dark">{{ status }}</span>{% endif %}

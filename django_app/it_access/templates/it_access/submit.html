@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}New IT Access Request — PSPF Helpdesk{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-body p-4">
+        <h4 class="mb-3">New IT Access Request</h4>
+        <form method="post">
+          {% csrf_token %}
+          {% for field in form %}
+          <div class="mb-3">
+            <label class="form-label">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+            {% if field.errors %}<div class="text-danger small">{{ field.errors|striptags }}</div>{% endif %}
+          </div>
+          {% endfor %}
+          <button class="btn btn-primary" type="submit">Submit Request</button>
+          <a class="btn btn-link" href="{% url 'it_access:index' %}">Cancel</a>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>document.querySelectorAll('form input, form select, form textarea').forEach(e=>e.classList.add('form-control'));</script>
+{% endblock %}

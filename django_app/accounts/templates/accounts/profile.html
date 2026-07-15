@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Profile — PSPF Helpdesk{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    {% if expired %}
+    <div class="alert alert-warning">Your password has expired. Please set a new one to continue.</div>
+    {% endif %}
+    <div class="card">
+      <div class="card-body p-4">
+        <h4 class="mb-1">{{ user.full_name|default:user.username }}</h4>
+        <p class="text-muted small">{{ user.email }} · {{ user.department }}</p>
+        <hr>
+        <h6 class="mb-3">Change password</h6>
+        <form method="post">
+          {% csrf_token %}
+          {% for field in form %}
+          <div class="mb-3">
+            <label class="form-label">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}<div class="text-danger small">{{ field.errors|striptags }}</div>{% endif %}
+          </div>
+          {% endfor %}
+          <button class="btn btn-primary" type="submit">Update password</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>document.querySelectorAll('form input').forEach(e=>e.classList.add('form-control'));</script>
+{% endblock %}
