@@ -100,10 +100,16 @@ if (in_array($newLower, ['in progress', 'closed', 'escalate']) && empty($details
 // =====================================================
 
 $feedbackLink = null;
+$isClosure = false;
 
 if ($newLower === 'closed') {
-    $newStatus = 'Pending Feedback';
-    $newLower  = 'pending feedback';
+    // Closing a ticket now resolves it immediately. We still invite the
+    // requester to rate the service (feedback stays optional via the emailed
+    // link), but the ticket no longer waits in a "Pending Feedback" limbo for
+    // a rating that may never come.
+    $newStatus = 'Resolved';
+    $newLower  = 'resolved';
+    $isClosure = true;
 }
 
 // =====================================================
@@ -130,9 +136,9 @@ try {
     $updateStmt->close();
 
     // =====================================================
-    // HANDLE PENDING FEEDBACK (CLOSURE LOG + TOKEN)
+    // HANDLE CLOSURE (CLOSURE LOG + FEEDBACK-INVITE TOKEN)
     // =====================================================
-    if ($newLower === 'pending feedback') {
+    if ($isClosure) {
 
         // Insert closure record
         $closureStmt = $conn->prepare("
@@ -234,7 +240,7 @@ try {
         $mail = getMailer();
         $mail->addAddress($ticketInfo['email']);
 
-        if ($newLower === 'pending feedback') {
+        if ($isClosure) {
 
             $mail->isHTML(true);
             $mail->Subject = "Ticket #$ticketId - Awaiting Your Feedback";
