@@ -10,14 +10,27 @@ access to the app — only to a machine that can reach `hpkprd`.
 
 ## What it checks
 
-| Test | Needs a test account? | What it proves |
+| Test | Needs | What it proves |
 |------|:---:|----------------|
-| Sign-in page loads and renders the form | No | App is up; PHP isn't fatal-erroring |
-| Invalid login shows an error | No | Auth path is alive and rejects bad creds |
-| Valid account reaches the dashboard | Yes | End-to-end login actually works |
+| Sign-in page loads and renders the form | nothing | App is up; PHP isn't fatal-erroring |
+| Invalid login shows an error | nothing | Auth path is alive and rejects bad creds |
+| Valid account lands on its role dashboard | account | End-to-end login + role routing works |
+| Ticket-logging form loads with its fields | account | The core "Log Ticket" page is intact |
+| Submitting the form creates a ticket | account + opt-in | The full create-ticket flow works end to end |
 
-The first two run with no configuration. The third runs only when you provide a
-test account (see below); otherwise it is skipped.
+The first two run with no configuration. The next two run when you provide a
+test account. The last is **opt-in** — see the warning below.
+
+### ⚠️ The create-ticket test writes data and sends email
+
+`create-ticket.spec.ts` submits a real ticket, which inserts a DB row **and
+sends confirmation/assignment emails**. It runs only when both a test account is
+set **and** `RUN_WRITE_TESTS=1`. Leave `RUN_WRITE_TESTS` unset for daily
+production runs unless you genuinely want a ticket + emails every morning. The
+ticket it creates is titled `[UI-TEST] …` so it's easy to spot and auto-close.
+
+The recommended daily setup: set `TEST_EMAIL` / `TEST_PASSWORD` (read-only
+coverage) and leave `RUN_WRITE_TESTS` blank.
 
 ## One-time setup
 
@@ -37,7 +50,10 @@ Run these from the `ui-tests` folder on a machine that can reach the app.
    Edit `.env`:
    - `BASE_URL` — the app's base URL (default `http://hpkprd`).
    - `TEST_EMAIL` / `TEST_PASSWORD` — optional; a **throwaway** test account to
-     exercise the real login. Leave blank to skip that test.
+     exercise the real login and read-only pages. Leave blank to skip them.
+   - `TEST_ROLE` — optional; which role to pick if the account has several.
+   - `RUN_WRITE_TESTS` — optional; `1` enables the create-ticket flow. See the
+     warning above before turning this on.
 
    `.env` is gitignored — never commit real credentials.
 
