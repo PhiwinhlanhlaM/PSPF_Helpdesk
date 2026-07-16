@@ -388,7 +388,7 @@ function ManagerForm() {
             {errors.systems && <div className="error-text" style={{ marginTop: 6 }}>{errors.systems}</div>}
 
             <div className="systems-list">
-              {SYSTEM_CATALOG.map(sys => {
+              {getSystemCatalog().map(sys => {
                 const sel = form.systems[sys.id];
                 const subOptsList = sys.subOptions
                   ? (Array.isArray(sys.subOptions) ? sys.subOptions : [sys.subOptions])

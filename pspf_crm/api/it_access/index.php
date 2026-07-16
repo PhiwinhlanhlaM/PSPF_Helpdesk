@@ -101,12 +101,12 @@ $initials = strtoupper(
     <link rel="stylesheet" href="/pspf_crm/api/agent/agent_style.css">
 
     <!-- IT Access Form design system -->
-    <link rel="stylesheet" href="/IT%20Access%20Form/styles/tokens.css?v=11">
-    <link rel="stylesheet" href="/IT%20Access%20Form/styles/shell.css?v=11">
-    <link rel="stylesheet" href="/IT%20Access%20Form/styles/form.css?v=11">
-    <link rel="stylesheet" href="/IT%20Access%20Form/styles/dashboard.css?v=11">
-    <link rel="stylesheet" href="/IT%20Access%20Form/styles/sigpad.css?v=11">
-    <link rel="stylesheet" href="/IT%20Access%20Form/styles/screens.css?v=11">
+    <link rel="stylesheet" href="/IT%20Access%20Form/styles/tokens.css?v=20">
+    <link rel="stylesheet" href="/IT%20Access%20Form/styles/shell.css?v=20">
+    <link rel="stylesheet" href="/IT%20Access%20Form/styles/form.css?v=20">
+    <link rel="stylesheet" href="/IT%20Access%20Form/styles/dashboard.css?v=20">
+    <link rel="stylesheet" href="/IT%20Access%20Form/styles/sigpad.css?v=20">
+    <link rel="stylesheet" href="/IT%20Access%20Form/styles/screens.css?v=20">
 
     <style>
         /* Push React app content below the CRM topnav */
@@ -150,17 +150,17 @@ window.__REACT_INITIAL_ROLE__ = "<?= htmlspecialchars($reactRole, ENT_QUOTES) ?>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
 
 <!-- IT Access Form JSX files (load order matches standalone HTML) -->
-<script type="text/babel" src="/IT%20Access%20Form/app/crm-client.jsx?v=19"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/data.jsx?v=19"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/Icon.jsx?v=19"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/SignaturePad.jsx?v=19"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/AppShell.jsx?v=19"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/ManagerForm.jsx?v=19"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/OfficerDashboard.jsx?v=19"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/OfficerSign.jsx?v=19"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/Director.jsx?v=19"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/ManagerHistory.jsx?v=19"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/main.jsx?v=19"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/crm-client.jsx?v=20"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/data.jsx?v=20"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/Icon.jsx?v=20"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/SignaturePad.jsx?v=20"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/AppShell.jsx?v=20"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/ManagerForm.jsx?v=20"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/OfficerDashboard.jsx?v=20"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/OfficerSign.jsx?v=20"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/Director.jsx?v=20"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/ManagerHistory.jsx?v=20"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/main.jsx?v=20"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

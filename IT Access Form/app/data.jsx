@@ -1,6 +1,14 @@
 // Shared data, constants, helpers, and state context for the PSPF IT Access prototype.
 
-const SYSTEM_CATALOG = [
+// The system catalog is managed by a superadmin and served by
+// /pspf_crm/api/it_access/catalog.php. AppShell fetches it on mount and calls
+// setSystemCatalog(), so the list here is only a fallback for the brief moment
+// before that resolves (and for rendering standalone, outside the CRM).
+//
+// Consumers must go through getSystem() / getSystemCatalog() rather than
+// closing over SYSTEM_CATALOG directly, or they will pin the fallback and
+// never see the real catalog.
+let SYSTEM_CATALOG = [
   {
     id: "inpensions",
     name: "INPENSIONS",
@@ -144,8 +152,27 @@ function getPerson(personId) {
   return [...PEOPLE.managers, ...PEOPLE.officers].find(p => p.id === personId) || null;
 }
 
+// Replace the catalog with the server's copy. Called once by AppShell after
+// catalog.php responds. Ignores an empty/failed response so the fallback above
+// keeps the form usable rather than rendering an empty system list.
+function setSystemCatalog(systems) {
+  if (Array.isArray(systems) && systems.length > 0) {
+    SYSTEM_CATALOG = systems;
+    window.SYSTEM_CATALOG = systems;
+  }
+}
+
+// Always read the catalog through this, never via a captured SYSTEM_CATALOG
+// reference — the binding is reassigned when the server copy arrives.
+function getSystemCatalog() {
+  return SYSTEM_CATALOG;
+}
+
 function getSystem(systemId) {
-  return SYSTEM_CATALOG.find(s => s.id === systemId);
+  // Fall back to a stub for a system that has since been deleted outright, so
+  // a historical request still renders its id instead of crashing on undefined.
+  return SYSTEM_CATALOG.find(s => s.id === systemId)
+      || { id: systemId, name: systemId, desc: '', icon: 'archive' };
 }
 
 function statusMeta(status) {
@@ -214,6 +241,7 @@ function nextStep(req) {
 // Make these globals available to other JSX files.
 Object.assign(window, {
   SYSTEM_CATALOG, DEPARTMENTS, PEOPLE,
+  setSystemCatalog, getSystemCatalog,
   buildSeedRequests, fmtDateTime, fmtDate, fmtRelative,
   getPerson, getSystem, statusMeta, chainSteps, nextStep, submitterName,
   sysStatus, claimableSystems, systemsToAction, canOfficerClaim, canOfficerSign,

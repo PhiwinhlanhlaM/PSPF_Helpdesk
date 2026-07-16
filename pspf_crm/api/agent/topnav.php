@@ -170,6 +170,7 @@
                         <?php if($isSuperAdmin): ?>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="/pspf_crm/api/settings/user_management.php"><i class="bi bi-people me-2"></i>User Management</a></li>
+                            <li><a class="dropdown-item" href="/pspf_crm/api/settings/system_catalog.php"><i class="bi bi-hdd-stack me-2"></i>System Catalog</a></li>
                             <li><a class="dropdown-item" href="/pspf_crm/api/deploy/index.php"><i class="bi bi-rocket-takeoff me-2"></i>Deployments</a></li>
                         <?php endif ?>
                     </ul>

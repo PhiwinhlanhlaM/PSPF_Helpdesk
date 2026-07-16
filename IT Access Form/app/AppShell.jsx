@@ -91,6 +91,11 @@ function appReducer(state, action) {
       return { ...state, requests: action.requests };
     case "load-departments":
       return { ...state, departments: action.departments };
+    // The catalog itself lives in a module binding (see data.jsx), not in
+    // state — this counter exists purely to trigger a re-render once the
+    // server copy has replaced the fallback.
+    case "catalog-loaded":
+      return { ...state, catalogVersion: state.catalogVersion + 1 };
     case "mark-notifs-seen": {
       // Mark the given notification ids as seen so the unread badge clears,
       // and persist so it survives a page reload.
@@ -113,6 +118,7 @@ function makeInitialState() {
     routeParams: {},
     requests: buildSeedRequests(),
     departments: DEPARTMENTS.map(name => ({ id: null, name, divisions: [] })),  // fallback until API responds
+    catalogVersion: 0,             // bumped when the server catalog replaces the fallback
     seenNotifs: loadSeenNotifs(),  // restored from localStorage so reads persist across reloads
   };
 }
@@ -176,6 +182,20 @@ function AppProvider({ children, initialRole }) {
         }
       })
       .catch(() => {}); // fallback to DEPARTMENTS constant when running standalone
+
+    // The system catalog is superadmin-managed and served from the DB. Replace
+    // the fallback constant with the live copy, then bump catalogVersion so
+    // views re-render — setSystemCatalog mutates a module binding, which React
+    // cannot see on its own.
+    fetch("/pspf_crm/api/it_access/catalog.php", { credentials: "include" })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => {
+        if (Array.isArray(data.systems) && data.systems.length > 0) {
+          setSystemCatalog(data.systems);
+          dispatch({ type: "catalog-loaded" });
+        }
+      })
+      .catch(() => {}); // fallback to the SYSTEM_CATALOG constant when standalone
   }, []);
 
   // When role changes, jump to that role's default landing route
