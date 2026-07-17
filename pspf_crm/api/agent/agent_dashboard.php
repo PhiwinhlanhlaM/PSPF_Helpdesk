@@ -16,6 +16,7 @@ require_once '../db.php';
 require_once '../includes/auth_helpers.php';
 require_once '../includes/division_helpers.php';
 require_once '../includes/role_switcher.php';
+require_once '../includes/metrics_helpers.php';
 
 enforceActiveUser($conn);
 enforcePasswordPolicy($conn);
@@ -128,21 +129,20 @@ $feedbackStmt->close();
 // PERFORMANCE DATA
 // ---------------------------
 $performanceSql = "
-    SELECT 
+    SELECT
         COUNT(*) AS resolved_count,
         ROUND(
             AVG(
                 TIMESTAMPDIFF(
                     MINUTE,
-                    query_date,
-                    updated_at
+                    t.query_date,
+                    " . RESOLVED_AT_SQL . "
                 )
             ), 2
         ) AS avg_resolution_time
-    FROM tickets
-    WHERE FIND_IN_SET(?, assigned_to)
-      AND status = 'Pending Feedback'
-      AND updated_at IS NOT NULL
+    FROM tickets t
+    WHERE FIND_IN_SET(?, t.assigned_to)
+      AND t.status IN ('Resolved', 'Closed')
 ";
                    
 $perfStmt = $conn->prepare($performanceSql);
@@ -163,7 +163,7 @@ $statsSql = "
         SUM(status = 'Pending Feedback') AS pending_feedback,
         SUM(status = 'Resolved') AS resolved,
         SUM(status = 'Escalated') AS escalated,
-        SUM(status != 'Closed' 
+        SUM(status NOT IN (" . TERMINAL_TICKET_STATUSES . ")
             AND query_date < DATE_SUB(NOW(), INTERVAL 3 DAY)
             ) AS overdue,
         SUM(status = 'Open' AND DATE(query_date) = CURDATE()) AS new_today
@@ -343,8 +343,8 @@ if (($ratings['total_rated'] ?? 0) > 0) {
             <div class="stat-icon info">
                 <i class="bi bi-clock-history"></i>
             </div>
-            <div class="stat-value"><?= isset($performance['avg_resolution_time']) ? round($performance['avg_resolution_time']) : 0 ?>m</div>
-            <div class="stat-label">Avg Response</div>
+            <div class="stat-value"><?= formatDuration($performance['avg_resolution_time'] ?? null) ?></div>
+            <div class="stat-label">Avg Resolution</div>
         </div>
 
         <div class="stat-card">
