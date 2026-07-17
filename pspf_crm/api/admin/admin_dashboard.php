@@ -6,6 +6,7 @@ require_once '../includes/auth_helpers.php';
 require_once '../includes/division_helpers.php';
 require_once '../includes/role_switcher.php';
 require_once '../includes/log_activity.php';
+require_once '../includes/metrics_helpers.php';
 
 enforceActiveUser($conn);
 enforcePasswordPolicy($conn);
@@ -77,10 +78,10 @@ try {
                 d.division_name as department,
                 COUNT(DISTINCT t.id) as total_assigned,
                 SUM(CASE WHEN t.status = 'Resolved' THEN 1 ELSE 0 END) as resolved,
-                ROUND(AVG(CASE 
-                    WHEN t.status = 'Resolved' AND t.updated_at IS NOT NULL 
-                    THEN TIMESTAMPDIFF(MINUTE, t.query_date, t.updated_at) 
-                    ELSE NULL 
+                ROUND(AVG(CASE
+                    WHEN t.status IN ('Resolved', 'Closed')
+                    THEN TIMESTAMPDIFF(MINUTE, t.query_date, " . RESOLVED_AT_SQL . ")
+                    ELSE NULL
                 END), 0) as avg_time,
                 ROUND(AVG(f.rating), 1) as avg_rating,
                 SUM(CASE WHEN t.status = 'Escalated' THEN 1 ELSE 0 END) as escalated,
@@ -113,10 +114,10 @@ try {
                 GROUP_CONCAT(DISTINCT r.name) as roles,
                 COUNT(DISTINCT t.id) as total_assigned,
                 SUM(CASE WHEN t.status = 'Resolved' THEN 1 ELSE 0 END) as resolved,
-                ROUND(AVG(CASE 
-                    WHEN t.status = 'Resolved' AND t.updated_at IS NOT NULL 
-                    THEN TIMESTAMPDIFF(MINUTE, t.query_date, t.updated_at) 
-                    ELSE NULL 
+                ROUND(AVG(CASE
+                    WHEN t.status IN ('Resolved', 'Closed')
+                    THEN TIMESTAMPDIFF(MINUTE, t.query_date, " . RESOLVED_AT_SQL . ")
+                    ELSE NULL
                 END), 0) as avg_time,
                 ROUND(AVG(f.rating), 1) as avg_rating,
                 SUM(CASE WHEN t.status = 'Escalated' THEN 1 ELSE 0 END) as escalated,
@@ -244,14 +245,14 @@ $feedbackStmt->close();
 // DEPARTMENT PERFORMANCE METRICS
 // ---------------------------
 $perfSql = "
-    SELECT 
+    SELECT
         COUNT(*) AS resolved_count,
-        ROUND(AVG(TIMESTAMPDIFF(MINUTE, t.query_date, t.updated_at)), 2) AS avg_resolution_time,
+        ROUND(AVG(TIMESTAMPDIFF(MINUTE, t.query_date, " . RESOLVED_AT_SQL . ")), 2) AS avg_resolution_time,
         ROUND(AVG(f.rating), 2) AS avg_rating
     FROM tickets t
     LEFT JOIN ticket_feedback f ON t.id = f.ticket_id
     WHERE $scopeCondition
-      AND t.status = 'Resolved'
+      AND t.status IN ('Resolved', 'Closed')
 ";
 
 $perfStmt = $conn->prepare($perfSql);
@@ -276,7 +277,7 @@ $statsSql = "
         SUM(t.status = 'Pending Feedback') AS pending_feedback,
         SUM(t.status = 'Resolved') AS resolved,
         SUM(t.status = 'Escalated') AS escalated,
-        SUM(t.status != 'Resolved' 
+        SUM(t.status NOT IN (" . TERMINAL_TICKET_STATUSES . ")
             AND t.query_date < DATE_SUB(NOW(), INTERVAL 3 DAY)
             ) AS overdue,
         SUM(t.status = 'Open' AND DATE(t.query_date) = CURDATE()) AS new_today
@@ -502,7 +503,7 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : htmlspecialchars($userDept);
 
             <div class="stat-card">
                 <div class="stat-icon"><i class="bi bi-clock-history"></i></div>
-                <div class="stat-value"><?= isset($performance['avg_resolution_time']) ? round($performance['avg_resolution_time']) : 0 ?>m</div>
+                <div class="stat-value"><?= formatDuration($performance['avg_resolution_time'] ?? null) ?></div>
                 <div class="stat-label">Avg Resolution</div>
             </div>
 
@@ -692,7 +693,7 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : htmlspecialchars($userDept);
                             
                             <span class="text-info" title="Avg Resolution Time">
                                 <i class="bi bi-clock-history"></i> 
-                                <?= ($agent['avg_time'] ?? 0) > 0 ? $agent['avg_time'] . 'm' : '0m' ?>
+                                <?= formatDuration($agent['avg_time'] ?? null) ?>
                             </span>
                             
                             <span class="agent-rating" title="Average Rating">
