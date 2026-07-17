@@ -71,3 +71,24 @@ if (!defined('RESOLVED_AT_SQL')) {
         " WHERE l.ticket_id = t.id AND l.new_status IN ('Resolved', 'Closed'))"
     );
 }
+
+// Rolling window for the "Avg Resolution" KPI. Only tickets completed within
+// this many days count, so the number reflects current performance instead of
+// being dragged around by the entire ticket history.
+if (!defined('RESOLUTION_WINDOW_DAYS')) {
+    define('RESOLUTION_WINDOW_DAYS', 30);
+}
+
+// SQL boolean: did ticket "t" actually reach a completed state TODAY? Counts
+// work finished today (throughput) using the status log, and includes both
+// Resolved and Closed transitions -- unlike a plain updated_at check, which is
+// bumped by any edit and misses closes.
+//
+// Assumes the tickets table is aliased "t" in the surrounding query.
+if (!defined('COMPLETED_TODAY_SQL')) {
+    define('COMPLETED_TODAY_SQL',
+        "EXISTS(SELECT 1 FROM ticket_status_logs l " .
+        " WHERE l.ticket_id = t.id AND l.new_status IN ('Resolved', 'Closed') " .
+        "   AND DATE(l.change_date) = CURDATE())"
+    );
+}

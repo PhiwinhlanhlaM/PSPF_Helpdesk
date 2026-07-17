@@ -158,8 +158,8 @@ try {
 // ---------------------------
 $today = date('Y-m-d');
 $todayActivitySql = "
-    SELECT 
-        SUM(t.status = 'Resolved' AND DATE(t.updated_at) = ?) as resolved_today,
+    SELECT
+        SUM(" . COMPLETED_TODAY_SQL . ") as resolved_today,
         SUM(DATE(t.query_date) = ?) as actions_today,
         SUM(t.status = 'Escalated' AND DATE(t.updated_at) = ?) as escalated_today,
         SUM(t.status = 'Open' AND DATE(t.query_date) = ?) as new_today
@@ -169,9 +169,9 @@ $todayActivitySql = "
 
 $todayStmt = $conn->prepare($todayActivitySql);
 if ($isSuperAdmin) {
-    $todayStmt->bind_param("ssss", $today, $today, $today, $today);
+    $todayStmt->bind_param("sss", $today, $today, $today);
 } else {
-    $todayStmt->bind_param("ssssi", $today, $today, $today, $today, $UserDivisionId);
+    $todayStmt->bind_param("sssi", $today, $today, $today, $UserDivisionId);
 }
 $todayStmt->execute();
 $todayResult = $todayStmt->get_result();
@@ -253,6 +253,7 @@ $perfSql = "
     LEFT JOIN ticket_feedback f ON t.id = f.ticket_id
     WHERE $scopeCondition
       AND t.status IN ('Resolved', 'Closed')
+      AND " . RESOLVED_AT_SQL . " >= DATE_SUB(NOW(), INTERVAL " . RESOLUTION_WINDOW_DAYS . " DAY)
 ";
 
 $perfStmt = $conn->prepare($perfSql);
@@ -303,6 +304,7 @@ $deptResolved   = (int)($stats['resolved'] ?? 0);
 $deptEscalated  = (int)($stats['escalated'] ?? 0);
 $deptOverdue    = (int)($stats['overdue'] ?? 0);
 $deptNewToday   = (int)($stats['new_today'] ?? 0);
+$deptResolvedToday = (int)($todayActivity['resolved_today'] ?? 0);
 
 // ---------------------------
 // ACTIVITY LOGS
@@ -489,6 +491,12 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : htmlspecialchars($userDept);
                 <?php endif; ?>
             </div>
 
+            <div class="stat-card">
+                <div class="stat-icon"><i class="bi bi-check2-circle"></i></div>
+                <div class="stat-value"><?= $deptResolvedToday ?></div>
+                <div class="stat-label">Resolved Today</div>
+            </div>
+
             <div class="stat-card <?= $deptOverdue > 0 ? 'urgent' : '' ?>">
                 <div class="stat-icon"><i class="bi bi-exclamation-circle"></i></div>
                 <div class="stat-value"><?= $deptOverdue ?></div>
@@ -504,7 +512,7 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : htmlspecialchars($userDept);
             <div class="stat-card">
                 <div class="stat-icon"><i class="bi bi-clock-history"></i></div>
                 <div class="stat-value"><?= formatDuration($performance['avg_resolution_time'] ?? null) ?></div>
-                <div class="stat-label">Avg Resolution</div>
+                <div class="stat-label">Avg Resolution (30d)</div>
             </div>
 
             <div class="stat-card">
