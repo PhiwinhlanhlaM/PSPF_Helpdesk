@@ -56,17 +56,17 @@ $iconClass = $roleIcons[$role] ?? 'bi-person-fill';
 // ---------------------------
 $today = date('Y-m-d');
 $todayActivitySql = "
-    SELECT 
-        SUM(status = 'Resolved' AND DATE(updated_at) = ?) as resolved_today,
-        SUM(DATE(query_date) = ?) as actions_today,
-        SUM(status = 'Escalated' AND DATE(updated_at) = ?) as escalated_today,
-        SUM(status = 'Open' AND DATE(query_date) = ?) as new_today
-    FROM tickets 
-    WHERE FIND_IN_SET(?, assigned_to)
+    SELECT
+        SUM(" . COMPLETED_TODAY_SQL . ") as resolved_today,
+        SUM(DATE(t.query_date) = ?) as actions_today,
+        SUM(t.status = 'Escalated' AND DATE(t.updated_at) = ?) as escalated_today,
+        SUM(t.status = 'Open' AND DATE(t.query_date) = ?) as new_today
+    FROM tickets t
+    WHERE FIND_IN_SET(?, t.assigned_to)
 ";
 
 $todayStmt = $conn->prepare($todayActivitySql);
-$todayStmt->bind_param("sssss", $today, $today, $today, $today, $UserEmail);
+$todayStmt->bind_param("ssss", $today, $today, $today, $UserEmail);
 $todayStmt->execute();
 $todayResult = $todayStmt->get_result();
 $todayActivity = $todayResult->fetch_assoc();
@@ -143,6 +143,7 @@ $performanceSql = "
     FROM tickets t
     WHERE FIND_IN_SET(?, t.assigned_to)
       AND t.status IN ('Resolved', 'Closed')
+      AND " . RESOLVED_AT_SQL . " >= DATE_SUB(NOW(), INTERVAL " . RESOLUTION_WINDOW_DAYS . " DAY)
 ";
                    
 $perfStmt = $conn->prepare($performanceSql);
@@ -185,6 +186,7 @@ $myResolved   = (int)($stats['resolved'] ?? 0);
 $myEscalated  = (int)($stats['escalated'] ?? 0);
 $myOverdue    = (int)($stats['overdue'] ?? 0);
 $newToday     = (int)($stats['new_today'] ?? 0);
+$resolvedToday = (int)($todayActivity['resolved_today'] ?? 0);
 
 // ---------------------------
 // NEW TICKETS (UNASSIGNED OR NEW)
@@ -323,6 +325,14 @@ if (($ratings['total_rated'] ?? 0) > 0) {
             <?php endif; ?>
         </div>
 
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="bi bi-check2-circle"></i>
+            </div>
+            <div class="stat-value"><?= $resolvedToday ?></div>
+            <div class="stat-label">Resolved Today</div>
+        </div>
+
         <div class="stat-card <?= $myOverdue > 0 ? 'urgent' : '' ?>">
             <div class="stat-icon danger">
                 <i class="bi bi-exclamation-circle"></i>
@@ -344,7 +354,7 @@ if (($ratings['total_rated'] ?? 0) > 0) {
                 <i class="bi bi-clock-history"></i>
             </div>
             <div class="stat-value"><?= formatDuration($performance['avg_resolution_time'] ?? null) ?></div>
-            <div class="stat-label">Avg Resolution</div>
+            <div class="stat-label">Avg Resolution (30d)</div>
         </div>
 
         <div class="stat-card">
