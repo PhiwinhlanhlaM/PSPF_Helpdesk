@@ -1,4 +1,4 @@
-﻿
+
 
 <!-- Mobile-Responsive Navigation Bar -->
 <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(135deg, var(--pspf-primary) 0%, var(--pspf-primary-dark) 100%); padding: 0.5rem 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
@@ -170,7 +170,6 @@
                         <?php if($isSuperAdmin): ?>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="/pspf_crm/api/settings/user_management.php"><i class="bi bi-people me-2"></i>User Management</a></li>
-                            <li><a class="dropdown-item" href="/pspf_crm/api/settings/system_catalog.php"><i class="bi bi-hdd-stack me-2"></i>System Catalog</a></li>
                             <li><a class="dropdown-item" href="/pspf_crm/api/deploy/index.php"><i class="bi bi-rocket-takeoff me-2"></i>Deployments</a></li>
                         <?php endif ?>
                     </ul>
