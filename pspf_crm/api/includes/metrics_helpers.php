@@ -50,17 +50,24 @@ if (!defined('TERMINAL_TICKET_STATUSES')) {
     define('TERMINAL_TICKET_STATUSES', "'Resolved', 'Closed', 'Pending Feedback'");
 }
 
-// SQL that resolves to the moment a ticket actually reached a completed state,
-// taken from the status-change log (the real resolve/close timestamp) rather
-// than tickets.updated_at, which any later edit would bump. Falls back to
-// updated_at for legacy rows with no matching log entry.
+// SQL that resolves to the moment a ticket FIRST reached a completed state,
+// taken from the status-change log (the real resolve/close timestamp).
+//
+// It deliberately does NOT fall back to tickets.updated_at. updated_at is
+// bumped by any later edit or bulk operation, so for a legacy ticket that was
+// resolved long ago (before the status-log trigger existed) but touched
+// recently, query_date -> updated_at is a huge fake span that wrecks the
+// average. When there is no genuine resolution log this expression is NULL, so
+// AVG() simply skips the row instead of inventing a duration for it.
+//
+// MIN (not MAX) gives time-to-first-completion: for a ticket that went
+// Resolved -> Closed, that is the moment work was actually done, not the later
+// administrative close.
 //
 // Assumes the tickets table is aliased "t" in the surrounding query.
 if (!defined('RESOLVED_AT_SQL')) {
     define('RESOLVED_AT_SQL',
-        "COALESCE(" .
-        "(SELECT MAX(l.change_date) FROM ticket_status_logs l " .
-        " WHERE l.ticket_id = t.id AND l.new_status IN ('Resolved', 'Closed')), " .
-        "t.updated_at)"
+        "(SELECT MIN(l.change_date) FROM ticket_status_logs l " .
+        " WHERE l.ticket_id = t.id AND l.new_status IN ('Resolved', 'Closed'))"
     );
 }
