@@ -247,7 +247,6 @@ $feedbackStmt->close();
 $perfSql = "
     SELECT
         COUNT(*) AS resolved_count,
-        ROUND(AVG(TIMESTAMPDIFF(MINUTE, t.query_date, " . RESOLVED_AT_SQL . ")), 2) AS avg_resolution_time,
         ROUND(AVG(f.rating), 2) AS avg_rating
     FROM tickets t
     LEFT JOIN ticket_feedback f ON t.id = f.ticket_id
@@ -266,6 +265,43 @@ if ($isSuperAdmin) {
 $perfResult = $perfStmt->get_result();
 $performance = $perfResult->fetch_assoc();
 $perfStmt->close();
+
+// Admin "Avg Resolution" = the average of each agent's OWN average open->close
+// time (agent-weighted): every agent counts equally regardless of ticket
+// volume. Each agent's average is AVG(closed_time - open_time) over the tickets
+// assigned to them that were completed within the window; those per-agent
+// averages are then averaged together. Tickets with several assignees count
+// toward each of them, matching how the per-agent leaderboard attributes work.
+$agentAvgSql = "
+    SELECT ROUND(AVG(agent_avg), 2) AS avg_resolution_time
+    FROM (
+        SELECT AVG(TIMESTAMPDIFF(MINUTE, t.query_date, " . RESOLVED_AT_SQL . ")) AS agent_avg
+        FROM users u
+        JOIN user_roles ur ON u.id = ur.user_id
+        JOIN roles r ON ur.role_id = r.id
+        JOIN tickets t ON FIND_IN_SET(u.email, t.assigned_to)
+        WHERE r.name IN ('agent', 'admin')
+          AND t.status IN ('Resolved', 'Closed')
+          AND " . RESOLVED_AT_SQL . " >= DATE_SUB(NOW(), INTERVAL " . RESOLUTION_WINDOW_DAYS . " DAY)
+          AND $scopeCondition
+        GROUP BY u.id
+        HAVING agent_avg IS NOT NULL
+    ) agent_avgs
+";
+
+$agentAvgStmt = $conn->prepare($agentAvgSql);
+if ($isSuperAdmin) {
+    $agentAvgStmt->execute();
+} else {
+    $agentAvgStmt->bind_param("i", $UserDivisionId);
+    $agentAvgStmt->execute();
+}
+$agentAvgRow = $agentAvgStmt->get_result()->fetch_assoc();
+$agentAvgStmt->close();
+
+// Feed the agent-weighted value into the card that renders
+// $performance['avg_resolution_time'].
+$performance['avg_resolution_time'] = $agentAvgRow['avg_resolution_time'] ?? null;
 
 // ---------------------------
 // DEPARTMENT TICKET STATS
