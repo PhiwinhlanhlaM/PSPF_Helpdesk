@@ -5,6 +5,7 @@
 require_once '../session_config.php';
 require_once '../db.php';
 require_once '../includes/auth_helpers.php';
+require_once '../includes/ticket_classifier.php';
 //require_once '/../vendor/autoload.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
@@ -146,27 +147,36 @@ if ($divisionId) {
 $assignedTo = implode(', ', $assignedEmails);
 
 // ---------------------------
+// CLASSIFY TICKET
+// ---------------------------
+// Tag the ticket with a coarse subject-matter category (Access & Accounts,
+// Hardware, Network, ...) from its title/description. Stored on the row so the
+// daily department digest and any category reports don't re-classify later.
+$category = classifyTicket($title, $description, $memberType . ' ' . $source);
+
+// ---------------------------
 // INSERT TICKET
 // ---------------------------
 $sql = "
     INSERT INTO tickets
     (
-        title, member_type, region, source, query_type,
+        title, member_type, region, source, query_type, category,
         description, priority, phone_number, query_date,
         created_by, status, attachment_path, assigned_to, division_id
     )
     VALUES
-    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Open', ?, ?, ?)
+    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Open', ?, ?, ?)
 ";
 
 $stmt = $conn->prepare($sql);
 $stmt->bind_param(
-    "ssssssssssssi",
+    "sssssssssssssi",
     $title,
     $memberType,
     $region,
     $source,
     $queryType,
+    $category,
     $description,
     $priority,
     $phoneNumber,
