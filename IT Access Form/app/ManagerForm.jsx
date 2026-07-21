@@ -19,6 +19,22 @@ function ManagerForm() {
   const [managerSignature, setManagerSignature] = useState(null);
   const [confirmedAuth, setConfirmedAuth] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  // Who approves this request first. Defaults to the server's resolution (own
+  // supervisor, else division's) but the requester may pick someone else.
+  const [supervisors, setSupervisors] = useState([]);
+  const [supervisorId, setSupervisorId] = useState("");
+  const [supervisorLoaded, setSupervisorLoaded] = useState(false);
+
+  React.useEffect(() => {
+    fetch("/pspf_crm/api/it_access/supervisors.php", { credentials: "include" })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => {
+        setSupervisors(Array.isArray(data.choices) ? data.choices : []);
+        if (data.defaultId) setSupervisorId(String(data.defaultId));
+        setSupervisorLoaded(true);
+      })
+      .catch(() => setSupervisorLoaded(true)); // standalone / offline: field just stays empty
+  }, []);
   // Inline full-name capture (shown in the "Submitted by" field on first use).
   const [fullNameInput, setFullNameInput] = useState("");
 
@@ -194,6 +210,8 @@ function ManagerForm() {
           })),
           justification: form.justification.trim(),
           startDate:     form.startDate,
+          // Empty means "no supervisor" — the server routes it straight to ICT.
+          supervisorId:  supervisorId ? Number(supervisorId) : null,
           approvals: [{
             role: "manager", personId: me.id,
             at: new Date().toISOString(), action: "approved",
@@ -349,6 +367,30 @@ function ManagerForm() {
                     if (errors.startDate) setErrors(er => ({ ...er, startDate: null }));
                   }}/>
               </Field>
+
+              <div style={{ gridColumn: "span 2" }}>
+                <Field
+                  label="Approving supervisor"
+                  help={
+                    !supervisorLoaded ? "Checking who approves your requests…"
+                    : supervisors.length === 0
+                      ? "No supervisors are set up yet — this request will go straight to the ICT team."
+                      : supervisorId
+                        ? "Your request goes here first. Change it if someone else should approve."
+                        : "No supervisor is assigned to you, so this goes straight to the ICT team. You can pick one if you'd rather it was approved first."
+                  }>
+                  <select className="select" value={supervisorId}
+                    disabled={!supervisorLoaded || supervisors.length === 0}
+                    onChange={e => setSupervisorId(e.target.value)}>
+                    <option value="">
+                      {supervisors.length === 0 ? "— none available —" : "— straight to ICT (no approval) —"}
+                    </option>
+                    {supervisors.map(s => (
+                      <option key={s.id} value={String(s.id)}>{s.name}</option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
 
               <div style={{ gridColumn: "span 2" }}>
                 {needName ? (

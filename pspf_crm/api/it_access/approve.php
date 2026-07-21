@@ -10,6 +10,7 @@ require_once '../session_config.php';
 require_once '../db.php';
 require_once '../includes/auth_helpers.php';
 require_once __DIR__ . '/mailer.php';
+require_once __DIR__ . '/supervisor_helpers.php';
 
 if (!isLoggedIn()) {
     http_response_code(401);
@@ -69,6 +70,22 @@ if ($stepRole === 'director' && !hasRole('it_director')) {
     echo json_encode(['error' => 'it_director role required']);
     exit;
 }
+// The supervisor step is restricted to the person this request was actually
+// routed to — holding the role is not enough, or any supervisor could approve
+// anyone's request. The division delegate (absence cover) and superadmins
+// (documented override for a stuck request) may also act.
+if ($stepRole === 'supervisor') {
+    if (!hasRole('supervisor') && !hasRole('superadmin')) {
+        http_response_code(403);
+        echo json_encode(['error' => 'supervisor role required']);
+        exit;
+    }
+    if (!itaCanActionSupervisorStep($conn, (int)$_SESSION['user']['id'], $requestDbId)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'This request is not awaiting your approval']);
+        exit;
+    }
+}
 
 // Fetch current request status
 $rStmt = $conn->prepare("SELECT status, claimed_by FROM it_access_requests WHERE id = ?");
@@ -89,8 +106,9 @@ $currentStatus = $reqRow['status'];
 // Officers act on a request that is new/claimed; the director acts once it is
 // fully actioned (awaiting-director).
 $validTransitions = [
-    'officer-1' => ['new', 'claimed'],
-    'director'  => ['awaiting-director'],
+    'supervisor' => ['awaiting-supervisor'],
+    'officer-1'  => ['new', 'claimed'],
+    'director'   => ['awaiting-director'],
 ];
 if (!isset($validTransitions[$stepRole]) || !in_array($currentStatus, $validTransitions[$stepRole])) {
     http_response_code(409);
@@ -135,7 +153,11 @@ $provisionedAt = null;
 $allActioned   = false;
 
 if ($action === 'approved') {
-    if ($stepRole === 'officer-1') {
+    if ($stepRole === 'supervisor') {
+        // Supervisor approval releases the request into the ICT queue, which is
+        // exactly what 'new' has always meant to the officer dashboard.
+        $newStatus = 'new';
+    } elseif ($stepRole === 'officer-1') {
         $claimedBy = $approverId;
         // Status is resolved after we mark systems actioned, inside the transaction.
         $newStatus = $currentStatus; // tentative; may become 'awaiting-director'
@@ -226,6 +248,37 @@ try {
     }
 
     $conn->commit();
+
+    // A supervisor has approved: the request has just entered the ICT queue, so
+    // notify the officers now (submit.php deliberately held this back while the
+    // request was still sitting with the supervisor).
+    if ($stepRole === 'supervisor' && $action === 'approved') {
+        $sInfoStmt = $conn->prepare(
+            "SELECT ref_number, employee_name, department FROM it_access_requests WHERE id = ?"
+        );
+        $sInfoStmt->bind_param("i", $requestDbId);
+        $sInfoStmt->execute();
+        $sInfo = $sInfoStmt->get_result()->fetch_assoc();
+        $sInfoStmt->close();
+
+        if ($sInfo) {
+            [$html, $text] = itAccessEmailBody(
+                "New IT Access Request",
+                ["A request has been approved by the requester's supervisor and is now awaiting ICT action."],
+                [
+                    'Reference'  => $sInfo['ref_number'],
+                    'Employee'   => $sInfo['employee_name'],
+                    'Department' => $sInfo['department'],
+                ],
+                ['text' => 'Review & claim request', 'url' => itAccessAppUrl()]
+            );
+            itAccessSendMail(
+                itAccessOfficers($conn),
+                "New IT Access Request - {$sInfo['ref_number']}",
+                $html, $text
+            );
+        }
+    }
 
     // Notify the IT Director when a request advances to their queue (non-blocking)
     if ($newStatus === 'awaiting-director') {

@@ -12,20 +12,10 @@ if (!isLoggedIn()) {
     exit;
 }
 
-// Page access is for those who can do something here: CRM admins (submit
-// requests) and IT officers/directors (review / sign off). Plain users and
-// agents have no IT Access function and are kept out.
-//
-// NOTE: it_officer / it_director are PERMISSION roles that are never the active
-// role (they are hidden from the role switcher), so we must check held roles via
-// hasRole() rather than requireAnyRole(), which only inspects the active role.
-$canUseItAccess = hasRole('admin') || hasRole('superadmin')
-    || hasRole('it_officer') || hasRole('it_director');
-if (!$canUseItAccess) {
-    http_response_code(403);
-    echo "<h3>403 - Forbidden</h3><p>You do not have access to the IT Access module.</p>";
-    exit;
-}
+// The IT Access module is open to every signed-in user: anyone may request
+// access for themselves or their team. The approval chain (supervisor -> ICT
+// -> director) is what gates a request, not who is allowed to open the form.
+// enforceActiveUser() above already blocks disabled accounts.
 
 $activeRole     = getActiveRole();
 $UserId         = (int)$_SESSION['user']['id'];
@@ -68,9 +58,13 @@ $roleIcons = [
 $iconClass = $roleIcons[$role] ?? 'bi-person-fill';
 
 // Map CRM role → React initial role
+// Land the user in the area they are most likely to be here for. Ordered by
+// how far along the chain the role sits, so someone who is both a supervisor
+// and an officer opens on the ICT queue rather than their approvals.
 $reactRole = 'manager';
-if (hasRole('it_director'))    $reactRole = 'director';
-elseif (hasRole('it_officer')) $reactRole = 'officer';
+if (hasRole('it_director'))     $reactRole = 'director';
+elseif (hasRole('it_officer'))  $reactRole = 'officer';
+elseif (hasRole('supervisor'))  $reactRole = 'supervisor';
 
 // All CRM roles this user holds — passed to React so the Acting As panel is accurate
 $allCrmRoles = getUserRoles(); // returns array like ['user','it_officer']
@@ -101,12 +95,12 @@ $initials = strtoupper(
     <link rel="stylesheet" href="/pspf_crm/api/agent/agent_style.css">
 
     <!-- IT Access Form design system -->
-    <link rel="stylesheet" href="/IT%20Access%20Form/styles/tokens.css?v=20">
-    <link rel="stylesheet" href="/IT%20Access%20Form/styles/shell.css?v=20">
-    <link rel="stylesheet" href="/IT%20Access%20Form/styles/form.css?v=20">
-    <link rel="stylesheet" href="/IT%20Access%20Form/styles/dashboard.css?v=20">
-    <link rel="stylesheet" href="/IT%20Access%20Form/styles/sigpad.css?v=20">
-    <link rel="stylesheet" href="/IT%20Access%20Form/styles/screens.css?v=20">
+    <link rel="stylesheet" href="/IT%20Access%20Form/styles/tokens.css?v=21">
+    <link rel="stylesheet" href="/IT%20Access%20Form/styles/shell.css?v=21">
+    <link rel="stylesheet" href="/IT%20Access%20Form/styles/form.css?v=21">
+    <link rel="stylesheet" href="/IT%20Access%20Form/styles/dashboard.css?v=21">
+    <link rel="stylesheet" href="/IT%20Access%20Form/styles/sigpad.css?v=21">
+    <link rel="stylesheet" href="/IT%20Access%20Form/styles/screens.css?v=21">
 
     <style>
         /* Push React app content below the CRM topnav */
@@ -150,17 +144,18 @@ window.__REACT_INITIAL_ROLE__ = "<?= htmlspecialchars($reactRole, ENT_QUOTES) ?>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
 
 <!-- IT Access Form JSX files (load order matches standalone HTML) -->
-<script type="text/babel" src="/IT%20Access%20Form/app/crm-client.jsx?v=20"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/data.jsx?v=20"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/Icon.jsx?v=20"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/SignaturePad.jsx?v=20"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/AppShell.jsx?v=20"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/ManagerForm.jsx?v=20"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/OfficerDashboard.jsx?v=20"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/OfficerSign.jsx?v=20"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/Director.jsx?v=20"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/ManagerHistory.jsx?v=20"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/main.jsx?v=20"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/crm-client.jsx?v=21"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/data.jsx?v=21"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/Icon.jsx?v=21"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/SignaturePad.jsx?v=21"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/AppShell.jsx?v=21"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/ManagerForm.jsx?v=21"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/OfficerDashboard.jsx?v=21"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/OfficerSign.jsx?v=21"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/SupervisorDashboard.jsx?v=21"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/Director.jsx?v=21"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/ManagerHistory.jsx?v=21"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/main.jsx?v=21"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

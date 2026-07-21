@@ -177,6 +177,8 @@ function getSystem(systemId) {
 
 function statusMeta(status) {
   switch (status) {
+    case "awaiting-supervisor":
+                              return { label: "Awaiting supervisor", cls: "badge-amber", dot: true };
     case "new":               return { label: "New",               cls: "badge-blue",  dot: true };
     case "claimed":           return { label: "Under review",      cls: "badge-blue",  dot: true };
     case "awaiting-officer-2":return { label: "Under review",      cls: "badge-blue",  dot: true };
@@ -192,8 +194,15 @@ function statusMeta(status) {
 // the manager step, and the actual approver (from the approval record) for the
 // officer/director steps. No demo seed people are used.
 function chainSteps(req) {
+  // The supervisor step only exists for requests that were actually routed to
+  // one. Requests with nobody assigned go straight to ICT, so showing an empty
+  // supervisor row for them would misrepresent the chain.
+  const hasSupervisor = !!(req.supervisorId || req.approvals.some(a => a.role === "supervisor"));
   return [
-    { key: "manager",   label: "Admin (Requesting)",  person: { name: req.submittedByName || "-" } },
+    { key: "manager",   label: "Requester",           person: { name: req.submittedByName || "-" } },
+    ...(hasSupervisor
+      ? [{ key: "supervisor", label: "Supervisor", person: req.supervisorName ? { name: req.supervisorName } : null }]
+      : []),
     { key: "officer-1", label: "IT Officer (Action)", person: null },
     { key: "director",  label: "Director of ICT",     person: null },
   ].map(step => {
@@ -231,7 +240,13 @@ function canOfficerSign(req, officerId) {
 // What's the next pending step? Single officer sufficient, no officer-2 required.
 function nextStep(req) {
   if (req.status === "rejected" || req.status === "provisioned") return null;
-  const order = ["manager", "officer-1", "director"];
+  // Skip the supervisor step entirely for requests that were never routed to
+  // one — otherwise it would report 'supervisor' forever, since no such
+  // approval will ever be recorded for them.
+  const hasSupervisor = !!(req.supervisorId || req.approvals.some(a => a.role === "supervisor"));
+  const order = hasSupervisor
+    ? ["manager", "supervisor", "officer-1", "director"]
+    : ["manager", "officer-1", "director"];
   for (const k of order) {
     if (!req.approvals.find(a => a.role === k && a.action === "approved")) return k;
   }
