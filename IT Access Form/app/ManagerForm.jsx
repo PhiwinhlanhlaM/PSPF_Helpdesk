@@ -1,8 +1,44 @@
 // Screen 1 - Admin: Access Request Form
 
+// Map a server-shaped request (from list.php) back into the form's local shape,
+// so an appeal opens prefilled with what was submitted before. The requester
+// then edits whatever the rejection flagged.
+function draftFromRequest(req) {
+  const iso = req.startDate || "";                       // 'YYYY-MM-DD'
+  const [yyyy, mm, dd] = iso ? iso.split("-") : ["", "", ""];
+  const systems = {};
+  (req.systems || []).forEach(s => {
+    // subValues came back as a JSON object/array; keep objects, ignore scalars.
+    const sv = (s.subValues && typeof s.subValues === "object" && !Array.isArray(s.subValues))
+      ? s.subValues : {};
+    systems[s.id] = { role: s.role ?? null, subValues: sv, subTexts: {} };
+  });
+  return {
+    requestType:    req.requestType || "new",
+    employeeName:   req.employee?.name || "",
+    employeeId:     req.employee?.id || "",
+    department:     req.employee?.department || "",
+    division:       req.employee?.division || "",
+    title:          req.employee?.title || "",
+    justification:  req.justification || "",
+    startDate:      iso,
+    startDateInput: iso ? `${dd}/${mm}/${yyyy}` : "",
+    systems,
+  };
+}
+
 function ManagerForm() {
   const { state, dispatch, toast, me, departments, needName, onNameSaved } = useApp();
-  const [form, setForm] = useState(() => ({
+
+  // If the user chose to appeal a rejected request, prefill from it. Captured
+  // once on mount and cleared, so it seeds this form only and never bleeds into
+  // a subsequent fresh request.
+  const appeal = state.appealDraft;
+  React.useEffect(() => {
+    if (appeal) dispatch({ type: "clear-appeal-draft" });
+  }, []); // eslint-disable-line
+
+  const [form, setForm] = useState(() => appeal ? draftFromRequest(appeal) : ({
     requestType: "new",        // "new" | "change"
     employeeName: "",
     employeeId: "",
@@ -14,6 +50,9 @@ function ManagerForm() {
     startDateInput: "",
     systems: {}, // { [systemId]: { role?, subValues, subTexts } }
   }));
+  // When set, this submission is an appeal of that request's db id.
+  const [appealOf] = useState(() => appeal ? appeal.db_id : null);
+  const appealRef = appeal ? appeal.id : null;
   const [errors, setErrors] = useState({});
   const [submitted, setSubmitted] = useState(null);
   const [managerSignature, setManagerSignature] = useState(null);
@@ -219,7 +258,14 @@ function ManagerForm() {
           }],
         };
 
-        const res = await fetch("/pspf_crm/api/it_access/submit.php", {
+        // An appeal goes to appeal.php with the original's id; a fresh request
+        // to submit.php. appeal.php creates a new linked request either way.
+        const endpoint = appealOf
+          ? "/pspf_crm/api/it_access/appeal.php"
+          : "/pspf_crm/api/it_access/submit.php";
+        if (appealOf) payload.appealOf = appealOf;
+
+        const res = await fetch(endpoint, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
@@ -273,10 +319,16 @@ function ManagerForm() {
     <div className="page slide-up">
       <div className="page-header">
         <div>
-          <h1 className="page-title">IT Access Request</h1>
-          <p className="page-subtitle">Submit on behalf of an employee. Actions route automatically to IT and the Director.</p>
+          <h1 className="page-title">{appealOf ? "Appeal request" : "IT Access Request"}</h1>
+          <p className="page-subtitle">
+            {appealOf
+              ? `Revising ${appealRef}, which was rejected. Update what was flagged, then resubmit — it goes through the approval chain again.`
+              : "Submit on behalf of an employee. Actions route automatically to IT and the Director."}
+          </p>
         </div>
-        <span className="badge badge-gray"><span className="dot"/>Draft</span>
+        <span className={"badge " + (appealOf ? "badge-amber" : "badge-gray")}>
+          <span className="dot"/>{appealOf ? "Appeal" : "Draft"}
+        </span>
       </div>
 
       <form className="form-grid" onSubmit={submit} noValidate>

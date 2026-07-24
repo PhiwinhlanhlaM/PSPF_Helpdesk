@@ -78,6 +78,9 @@ $sql = "
         r.start_date,
         r.justification,
         r.submitted_by,
+        r.appeal_of,
+        ao.ref_number AS appeal_of_ref,
+        (SELECT COUNT(*) FROM it_access_requests ap WHERE ap.appeal_of = r.id) AS appeal_count,
         r.supervisor_id,
         sv.full_name  AS supervisor_full_name,
         sv.username   AS supervisor_username,
@@ -110,6 +113,7 @@ $sql = "
     FROM it_access_requests r
     LEFT JOIN users                sb ON sb.id = r.submitted_by
     LEFT JOIN users                sv ON sv.id = r.supervisor_id
+    LEFT JOIN it_access_requests   ao ON ao.id = r.appeal_of
     LEFT JOIN it_request_systems   s ON s.request_id = r.id
     LEFT JOIN it_request_approvals a ON a.request_id = r.id
     LEFT JOIN users                ap ON ap.id = a.approver_id
@@ -179,6 +183,15 @@ foreach ($rows as $row) {
             // Who the request was routed to for supervisor approval, so the UI
             // can show the requester where it is sitting. Null when there was no
             // supervisor on file and it went straight to ICT.
+            // Appeal linkage. `appealOf` names the rejected request this one
+            // appeals; `canAppeal` tells the UI whether the "revise & appeal"
+            // action should be offered — true only for a rejected ORIGINAL that
+            // has not already been appealed (one appeal only).
+            'appealOf'       => $row['appeal_of'] ? (int)$row['appeal_of'] : null,
+            'appealOfRef'    => $row['appeal_of_ref'] ?: null,
+            'canAppeal'      => ($row['status'] === 'rejected'
+                                 && $row['appeal_of'] === null
+                                 && (int)$row['appeal_count'] === 0),
             'supervisorId'   => $row['supervisor_id'] ? (int)$row['supervisor_id'] : null,
             'supervisorName' => (function ($full, $uname) {
                 $full = trim((string)$full);

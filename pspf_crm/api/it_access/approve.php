@@ -249,6 +249,54 @@ try {
 
     $conn->commit();
 
+    // A request was rejected — tell the requester, with the reason and a link
+    // back. This is the notification that was previously missing entirely: a
+    // rejected requester had no way to learn of it except by logging in.
+    if ($action === 'rejected') {
+        $rInfoStmt = $conn->prepare(
+            "SELECT ref_number, employee_name, department, submitted_by, appeal_of
+             FROM it_access_requests WHERE id = ?"
+        );
+        $rInfoStmt->bind_param("i", $requestDbId);
+        $rInfoStmt->execute();
+        $rInfo = $rInfoStmt->get_result()->fetch_assoc();
+        $rInfoStmt->close();
+
+        if ($rInfo) {
+            $requestor = itAccessUserById($conn, (int)$rInfo['submitted_by']);
+            if ($requestor) {
+                // A request that is itself an appeal cannot be appealed again —
+                // so the message tells the requester whether this is the end of
+                // the road or whether they may revise and appeal.
+                $isAppeal = $rInfo['appeal_of'] !== null;
+                $intro = [
+                    "Dear {$requestor['name']},",
+                    "Your IT access request has been rejected. The reason is below.",
+                ];
+                $intro[] = $isAppeal
+                    ? "This was an appeal, so the decision is final and no further appeal is possible. If you still need this access, please raise it with the ICT team directly."
+                    : "If you believe this was in error or can address the reason, you may revise and appeal the request once from your request history.";
+
+                [$html, $text] = itAccessEmailBody(
+                    "IT Access Request Rejected",
+                    $intro,
+                    [
+                        'Reference'  => $rInfo['ref_number'],
+                        'Employee'   => $rInfo['employee_name'],
+                        'Department' => $rInfo['department'],
+                        'Reason'     => $reason,
+                    ],
+                    ['text' => 'View request', 'url' => itAccessAppUrl()]
+                );
+                itAccessSendMail(
+                    [$requestor],
+                    "IT Access Request Rejected - {$rInfo['ref_number']}",
+                    $html, $text
+                );
+            }
+        }
+    }
+
     // A supervisor has approved: the request has just entered the ICT queue, so
     // notify the officers now (submit.php deliberately held this back while the
     // request was still sitting with the supervisor).

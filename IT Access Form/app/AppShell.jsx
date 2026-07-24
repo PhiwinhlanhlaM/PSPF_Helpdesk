@@ -91,6 +91,13 @@ function appReducer(state, action) {
       return { ...state, requests: action.requests };
     case "load-departments":
       return { ...state, departments: action.departments };
+    // A rejected request the user chose to appeal. The form reads it on mount to
+    // prefill, and clears it once consumed so it does not leak into a later new
+    // request.
+    case "set-appeal-draft":
+      return { ...state, appealDraft: action.request };
+    case "clear-appeal-draft":
+      return { ...state, appealDraft: null };
     // The catalog itself lives in a module binding (see data.jsx), not in
     // state — this counter exists purely to trigger a re-render once the
     // server copy has replaced the fallback.
@@ -119,6 +126,7 @@ function makeInitialState() {
     requests: buildSeedRequests(),
     departments: DEPARTMENTS.map(name => ({ id: null, name, divisions: [] })),  // fallback until API responds
     catalogVersion: 0,             // bumped when the server catalog replaces the fallback
+    appealDraft: null,             // a rejected request being appealed, prefilled into the form
     seenNotifs: loadSeenNotifs(),  // restored from localStorage so reads persist across reloads
   };
 }

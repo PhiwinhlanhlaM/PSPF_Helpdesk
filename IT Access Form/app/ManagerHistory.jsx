@@ -55,9 +55,12 @@ function ManagerHistory() {
       ) : (
         <div className="hist-grid">
           {visible.map(r => <HistoryCard key={r.id} request={r} onOpen={() => setOpenId(r.id)}
-            onResubmit={() => {
+            onAppeal={(req) => {
+              // Stash the rejected request as a draft the form picks up on mount,
+              // then route there. The form submits it via appeal.php, linked back.
+              dispatch({ type: "set-appeal-draft", request: req });
               dispatch({ type: "set-route", route: { name: "manager-form" } });
-              toast({ kind: "info", title: "Form prefilled", body: "Revise as needed and resubmit." });
+              toast({ kind: "info", title: "Revise your request", body: `Appeal of ${req.id}. Update what was flagged, then submit.` });
             }}/>)}
         </div>
       )}
@@ -67,7 +70,7 @@ function ManagerHistory() {
   );
 }
 
-function HistoryCard({ request, onOpen, onResubmit }) {
+function HistoryCard({ request, onOpen, onAppeal }) {
   const meta = statusMeta(request.status);
   const total = 4; // chain length
   const done = request.approvals.filter(a => a.action === "approved").length;
@@ -136,10 +139,20 @@ function HistoryCard({ request, onOpen, onResubmit }) {
         </div>
       )}
 
+      {request.appealOfRef && (
+        <div className="hist-status-row" style={{ background: "var(--amber-100)", color: "var(--amber-700)" }}>
+          <Icon name="chevron-right" size={14}/>
+          <span>Appeal of {request.appealOfRef}</span>
+        </div>
+      )}
+
       <div className="hist-foot">
         <span className="muted" style={{ fontSize: 11.5 }}>Requested {fmtDate(request.submittedAt)}</span>
         <div className="row gap-2">
-          {isRejected && <button className="btn btn-secondary btn-sm" onClick={onResubmit}>Resubmit</button>}
+          {request.canAppeal && <button className="btn btn-primary btn-sm" onClick={() => onAppeal(request)}>Revise &amp; appeal</button>}
+          {isRejected && !request.canAppeal && request.appealOf && (
+            <span className="muted" style={{ fontSize: 11.5, fontStyle: "italic" }}>Appeal was final</span>
+          )}
           {isProvisioned && <button className="btn btn-secondary btn-sm" onClick={onOpen}><Icon name="file" size={12}/> View signed</button>}
           {!isRejected && !isProvisioned && <button className="btn btn-secondary btn-sm" onClick={onOpen}>View details</button>}
         </div>

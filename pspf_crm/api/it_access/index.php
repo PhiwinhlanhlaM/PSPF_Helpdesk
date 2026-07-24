@@ -144,18 +144,18 @@ window.__REACT_INITIAL_ROLE__ = "<?= htmlspecialchars($reactRole, ENT_QUOTES) ?>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
 
 <!-- IT Access Form JSX files (load order matches standalone HTML) -->
-<script type="text/babel" src="/IT%20Access%20Form/app/crm-client.jsx?v=21"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/data.jsx?v=21"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/Icon.jsx?v=21"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/SignaturePad.jsx?v=21"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/AppShell.jsx?v=21"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/ManagerForm.jsx?v=21"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/OfficerDashboard.jsx?v=21"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/OfficerSign.jsx?v=21"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/SupervisorDashboard.jsx?v=21"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/Director.jsx?v=21"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/ManagerHistory.jsx?v=21"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/main.jsx?v=21"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/crm-client.jsx?v=22"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/data.jsx?v=22"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/Icon.jsx?v=22"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/SignaturePad.jsx?v=22"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/AppShell.jsx?v=22"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/ManagerForm.jsx?v=22"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/OfficerDashboard.jsx?v=22"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/OfficerSign.jsx?v=22"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/SupervisorDashboard.jsx?v=22"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/Director.jsx?v=22"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/ManagerHistory.jsx?v=22"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/main.jsx?v=22"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

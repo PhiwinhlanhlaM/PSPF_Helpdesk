@@ -138,8 +138,48 @@ function itAccessEmailBody(string $heading, array $intro, array $details = [], ?
  *
  * @param array<int, array{email:string, name:string}> $recipients
  */
+// ---------------------------------------------------------------------------
+// TEST-MODE EMAIL ALLOW-LIST
+//
+// While the supervisor/appeal chain is being tested against real staff data,
+// only these accounts should actually receive IT Access mail — everyone else
+// is silently filtered so real users are not emailed about test requests.
+//
+// Matching is by username OR email (case-insensitive). To go live, set
+// ITA_EMAIL_ALLOWLIST to an empty array (or delete this block and the filter
+// call below) so mail reaches its real recipients again.
+// ---------------------------------------------------------------------------
+if (!defined('ITA_EMAIL_ALLOWLIST')) {
+    define('ITA_EMAIL_ALLOWLIST', ['phiwinhlanhlam', 'khulekanin', 'administrator']);
+}
+
+/**
+ * Keep only recipients on the test allow-list. A no-op (returns all) once the
+ * allow-list is emptied for go-live.
+ *
+ * @param array<int, array{email:string, name:string}> $recipients
+ * @return array<int, array{email:string, name:string}>
+ */
+function itAccessAllowlistFilter(array $recipients): array {
+    $allow = array_map('strtolower', ITA_EMAIL_ALLOWLIST);
+    if (!$allow) return $recipients; // allow-list disabled -> send to everyone
+    return array_values(array_filter($recipients, function ($r) use ($allow) {
+        $email = strtolower(trim($r['email'] ?? ''));
+        $local = strpos($email, '@') !== false ? substr($email, 0, strpos($email, '@')) : $email;
+        $name  = strtolower(trim($r['name'] ?? ''));
+        // Match against the email, its local-part, or the display name, so a
+        // recipient built from either a username or an email address is caught.
+        foreach ($allow as $a) {
+            if ($a === $email || $a === $local || $a === $name) return true;
+        }
+        return false;
+    }));
+}
+
 function itAccessSendMail(array $recipients, string $subject, string $body, ?string $text = null): void {
     $recipients = array_values(array_filter($recipients, fn($r) => !empty($r['email'])));
+    // Test guard: restrict to the allow-list until go-live (see above).
+    $recipients = itAccessAllowlistFilter($recipients);
     if (!$recipients) return;
 
     // Prefer the dedicated plain-text body when both are passed; fall back to the
