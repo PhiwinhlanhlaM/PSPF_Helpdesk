@@ -307,6 +307,9 @@ if (($ratings['total_rated'] ?? 0) > 0) {
         <a href="agent_view.php?filter=resolved" class="action-btn" style="color: var(--info);">
             <i class="bi bi-check-lg"></i> Resolved (<?= $myResolved ?>)
         </a>
+        <a href="agent_monthly_report.php" class="action-btn success">
+            <i class="bi bi-calendar-check"></i> Monthly Report
+        </a>
         <a href="/pspf_crm/api/ticket/query.php" class="action-btn primary">
             <i class="bi bi-plus-circle"></i> New Ticket
         </a>
