@@ -136,7 +136,7 @@ $performanceSql = "
                 TIMESTAMPDIFF(
                     MINUTE,
                     t.query_date,
-                    " . RESOLVED_AT_SQL . "
+                    " . WORK_COMPLETED_AT_SQL . "
                 )
             ), 2
         ) AS avg_resolution_time

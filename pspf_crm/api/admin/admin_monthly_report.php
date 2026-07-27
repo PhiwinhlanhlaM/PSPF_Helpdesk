@@ -5,11 +5,10 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// 2. Check if the "user" key is empty or completely missing
+// 2. Bounce anonymous users to the login page.
 if (empty($_SESSION['user'])) {
-    // 3. Redirect to your login page
     header("Location: /pspf_crm/api/signin/index.php");
-    exit; // 4. Stop executing the rest of the script
+    exit;
 }
 
 require_once '../db.php';
@@ -26,18 +25,18 @@ $activeRole = getActiveRole();
 $UserId         = (int)$_SESSION['user']['id'];
 $UserUsername   = $_SESSION['user']['username'];
 $UserEmail      = $_SESSION['user']['email'];
-$UserDept       = $_SESSION['user']['division_name'] ?? '';
 $UserDivisionId = (int)($_SESSION['user']['division_id'] ?? 0);
+$userDept       = $_SESSION['user']['division_name'] ?? 'All Departments';
 
 $isSuperAdmin = ($activeRole === 'superadmin');
 $isAdmin      = ($activeRole === 'admin');
 $isAgent      = ($activeRole === 'agent');
 $isUser       = ($activeRole === 'user');
 
-requireAnyRole(['agent', 'admin', 'superadmin']);
+// This report is a management view: department-wide (admin) or global (superadmin).
+requireAnyRole(['admin', 'superadmin']);
 
 $role = $_SESSION['active_role'] ?? 'user';
-
 $roleIcons = [
     'superadmin' => 'bi-person-gear',
     'admin'      => 'bi-shield-fill-check',
@@ -46,16 +45,17 @@ $roleIcons = [
 ];
 $iconClass = $roleIcons[$role] ?? 'bi-person-fill';
 
+// Scope: superadmin sees everything, admin only their own division. Mirrors the
+// admin dashboard's scoping so the two always agree on "what counts".
+$scopeSql = $isSuperAdmin ? "1=1" : "t.division_id = ?";
+
 // ---------------------------
 // SELECTED MONTH
 // ---------------------------
-// Accepts ?month=YYYY-MM ; defaults to the current month. Falls back to the
-// current month if the value is malformed so the report never breaks.
 $monthParam = trim($_GET['month'] ?? '');
 if (!preg_match('/^\d{4}-\d{2}$/', $monthParam)) {
     $monthParam = date('Y-m');
 }
-
 $monthStart = $monthParam . '-01';
 $startTs    = strtotime($monthStart);
 if ($startTs === false) {
@@ -63,8 +63,6 @@ if ($startTs === false) {
     $monthStart = $monthParam . '-01';
     $startTs    = strtotime($monthStart);
 }
-
-// First day of the following month (exclusive upper bound).
 $nextMonthStart = date('Y-m-01', strtotime('+1 month', $startTs));
 $prevMonth      = date('Y-m', strtotime('-1 month', $startTs));
 $nextMonth      = date('Y-m', strtotime('+1 month', $startTs));
@@ -72,18 +70,13 @@ $monthLabel     = date('F Y', $startTs);
 $isCurrentMonth = ($monthParam === date('Y-m'));
 
 // ---------------------------
-// RESOLVED TICKETS FOR THE MONTH
+// RESOLVED TICKETS FOR THE MONTH (department / global)
 // ---------------------------
-// A ticket counts for the month if it FIRST reached a completed state
-// (Resolved / Closed) during that month, taken from the status-change log --
-// the same definition the dashboard KPIs use (see metrics_helpers.php). This is
-// throughput: what the agent actually finished that month.
-//
-// resolution_minutes measures the agent's real handling time: creation until
-// WORK_COMPLETED_AT (first of Resolved / Closed / Pending Feedback), NOT the
-// later 'Resolved' timestamp. Otherwise a ticket that sat in Pending Feedback
-// for weeks -- or was manually flipped to Resolved after hanging -- would report
-// a hugely inflated resolution time and skew the average / slowest figures.
+// Buckets by RESOLVED_AT (when the ticket reached Resolved/Closed), matching the
+// agent report. resolution_minutes measures the AGENT'S real handling time via
+// WORK_COMPLETED_AT_SQL (first of Resolved/Closed/Pending Feedback), so tickets
+// parked in Pending Feedback -- or manually cleared after hanging -- don't
+// inflate the averages. See metrics_helpers.php.
 $reportSql = "
     SELECT
         t.id,
@@ -92,6 +85,7 @@ $reportSql = "
         t.status,
         t.member_type,
         t.created_by,
+        t.assigned_to,
         t.query_date,
         " . RESOLVED_AT_SQL . " AS resolved_at,
         TIMESTAMPDIFF(MINUTE, t.query_date, " . WORK_COMPLETED_AT_SQL . ") AS resolution_minutes,
@@ -101,7 +95,7 @@ $reportSql = "
           ORDER BY tf.created_at DESC
           LIMIT 1) AS rating
     FROM tickets t
-    WHERE FIND_IN_SET(?, t.assigned_to)
+    WHERE $scopeSql
     HAVING resolved_at IS NOT NULL
        AND resolved_at >= ?
        AND resolved_at < ?
@@ -109,7 +103,11 @@ $reportSql = "
 ";
 
 $reportStmt = $conn->prepare($reportSql);
-$reportStmt->bind_param("sss", $UserEmail, $monthStart, $nextMonthStart);
+if ($isSuperAdmin) {
+    $reportStmt->bind_param("ss", $monthStart, $nextMonthStart);
+} else {
+    $reportStmt->bind_param("iss", $UserDivisionId, $monthStart, $nextMonthStart);
+}
 $reportStmt->execute();
 $reportResult = $reportStmt->get_result();
 
@@ -120,50 +118,82 @@ while ($r = $reportResult->fetch_assoc()) {
 $reportStmt->close();
 
 // ---------------------------
-// SUMMARY (computed in PHP over the fetched rows)
+// EMAIL -> USERNAME LOOKUP (for showing the assigned agent by name)
+// ---------------------------
+$userMap = [];
+$uRes = $conn->query("SELECT email, username FROM users");
+if ($uRes) {
+    while ($u = $uRes->fetch_assoc()) {
+        if (!empty($u['email'])) {
+            $userMap[strtolower(trim($u['email']))] = $u['username'];
+        }
+    }
+}
+
+/** Turn a comma-separated assigned_to (emails) into a display list of names. */
+function resolveAgentNames($assignedTo, array $userMap) {
+    $emails = array_filter(array_map('trim', explode(',', (string)$assignedTo)));
+    if (empty($emails)) return ['Unassigned'];
+    $names = [];
+    foreach ($emails as $em) {
+        $names[] = $userMap[strtolower($em)] ?? $em;
+    }
+    return $names;
+}
+
+// ---------------------------
+// SUMMARY + PER-AGENT BREAKDOWN (computed in PHP over the fetched rows)
 // ---------------------------
 $totalResolved = count($rows);
-$sumMinutes    = 0;
-$countTimed    = 0;
-$fastest       = null;
-$slowest       = null;
-$sumRating     = 0;
-$countRated    = 0;
+$sumMinutes = 0; $countTimed = 0; $fastest = null; $slowest = null;
+$sumRating = 0;  $countRated = 0;
 $priorityCounts = ['High' => 0, 'Medium' => 0, 'Low' => 0];
+
+// Per-agent: a ticket with several assignees counts toward each of them, the
+// same attribution the dashboard leaderboard uses.
+$agentStats = []; // email => [...]
 
 foreach ($rows as $r) {
     $mins = $r['resolution_minutes'];
-    if ($mins !== null && is_numeric($mins) && $mins >= 0) {
+    $timed = ($mins !== null && is_numeric($mins) && $mins >= 0);
+    if ($timed) {
         $sumMinutes += $mins;
         $countTimed++;
         if ($fastest === null || $mins < $fastest) $fastest = (int)$mins;
         if ($slowest === null || $mins > $slowest) $slowest = (int)$mins;
     }
-    if ($r['rating'] !== null && is_numeric($r['rating'])) {
-        $sumRating += (float)$r['rating'];
-        $countRated++;
-    }
+    $rated = ($r['rating'] !== null && is_numeric($r['rating']));
+    if ($rated) { $sumRating += (float)$r['rating']; $countRated++; }
+
     $p = $r['priority'] ?? '';
-    if (isset($priorityCounts[$p])) {
-        $priorityCounts[$p]++;
+    if (isset($priorityCounts[$p])) $priorityCounts[$p]++;
+
+    $emails = array_filter(array_map('trim', explode(',', (string)($r['assigned_to'] ?? ''))));
+    foreach ($emails as $em) {
+        $key = strtolower($em);
+        if (!isset($agentStats[$key])) {
+            $agentStats[$key] = [
+                'name' => $userMap[$key] ?? $em,
+                'count' => 0, 'sumMin' => 0, 'cntMin' => 0, 'sumRate' => 0, 'cntRate' => 0,
+            ];
+        }
+        $agentStats[$key]['count']++;
+        if ($timed)  { $agentStats[$key]['sumMin'] += $mins; $agentStats[$key]['cntMin']++; }
+        if ($rated)  { $agentStats[$key]['sumRate'] += (float)$r['rating']; $agentStats[$key]['cntRate']++; }
     }
 }
 
 $avgMinutes = $countTimed > 0 ? ($sumMinutes / $countTimed) : null;
 $avgRating  = $countRated > 0 ? ($sumRating / $countRated) : null;
+$activeAgents = count($agentStats);
 
-function badgeClassForStatus($status) {
-    return match (strtolower(trim((string)$status))) {
-        'open'            => 'bg-warning text-dark',
-        'in progress'     => 'bg-info text-dark',
-        'resolved',
-        'closed'          => 'bg-success',
-        'pending feedback'=> 'bg-primary',
-        'escalate',
-        'escalated'       => 'bg-danger',
-        default           => 'bg-secondary',
-    };
-}
+// Sort agents by resolved count (desc), then by name.
+uasort($agentStats, function ($a, $b) {
+    if ($b['count'] !== $a['count']) return $b['count'] - $a['count'];
+    return strcasecmp($a['name'], $b['name']);
+});
+
+$scopeLabel = $isSuperAdmin ? 'All Departments' : $userDept;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -174,30 +204,21 @@ function badgeClassForStatus($status) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="../style5.css">
-    <link rel="stylesheet" href="./agent_style.css">
+    <link rel="stylesheet" href="../agent/agent_style.css">
     <link rel="icon" type="image/png" href="../uploads/pspflogo2.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- SheetJS (XLSX) for client-side Excel export -->
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <style>
         .report-toolbar {
-            display: flex;
-            flex-wrap: wrap;
-            gap: .75rem;
-            align-items: end;
-            justify-content: space-between;
-            margin-bottom: 1rem;
+            display: flex; flex-wrap: wrap; gap: .75rem;
+            align-items: end; justify-content: space-between; margin-bottom: 1rem;
         }
-        .month-nav {
-            display: flex;
-            gap: .5rem;
-            align-items: end;
-        }
+        .month-nav { display: flex; gap: .5rem; align-items: end; }
         .summary-value { font-size: 1.75rem; font-weight: 700; line-height: 1.1; }
-        .summary-label { color: white; font-size: .8rem; }
+        .summary-label { color: var(--text-muted, #64748b); font-size: .8rem; }
         table.report-table th { white-space: nowrap; }
         @media print {
-            .no-print, nav.navbar, .settings-actions, .report-toolbar .no-print { display: none !important; }
+            .no-print, nav.navbar, .settings-actions { display: none !important; }
             .table-container, .stat-card { box-shadow: none !important; border: 1px solid #ddd; }
             a[href]:after { content: ""; }
         }
@@ -205,7 +226,7 @@ function badgeClassForStatus($status) {
 </head>
 <body>
 
-<?php include './topnav_agent.php'; ?>
+<?php include '../agent/topnav_agent.php'; ?>
 
 <div class="container-xl mt-4 mb-4">
     <!-- Header -->
@@ -214,20 +235,20 @@ function badgeClassForStatus($status) {
             <i class="bi bi-calendar-check me-2"></i>Monthly Report
         </h1>
         <div class="settings-actions">
-            <a href="./agent_dashboard.php" class="btn btn-outline-secondary back-btn">
+            <a href="./admin_dashboard.php" class="btn btn-outline-secondary back-btn">
                 <i class="bi bi-arrow-left"></i> Back to Dashboard
             </a>
         </div>
     </div>
 
-    <!-- Report identity (also used on the printed page) -->
+    <!-- Report identity -->
     <div class="mb-3">
-        <div class="fw-semibold fs-5"><?= htmlspecialchars($UserUsername) ?></div>
+        <div class="fw-semibold fs-5">
+            <i class="bi bi-building me-1"></i><?= htmlspecialchars($scopeLabel) ?>
+        </div>
         <div class="text-muted small">
-            <?php if (!empty($UserDept)): ?>
-                <i class="bi bi-building me-1"></i><?= htmlspecialchars($UserDept) ?> &middot;
-            <?php endif; ?>
             <i class="bi bi-calendar3 me-1"></i>Resolved tickets for <strong><?= htmlspecialchars($monthLabel) ?></strong>
+            &middot; prepared by <?= htmlspecialchars($UserUsername) ?>
         </div>
     </div>
 
@@ -268,6 +289,11 @@ function badgeClassForStatus($status) {
             <div class="summary-label">Tickets Resolved</div>
         </div>
         <div class="stat-card">
+            <div class="stat-icon info"><i class="bi bi-people-fill"></i></div>
+            <div class="summary-value"><?= $activeAgents ?></div>
+            <div class="summary-label">Agents Contributing</div>
+        </div>
+        <div class="stat-card">
             <div class="stat-icon info"><i class="bi bi-clock-history"></i></div>
             <div class="summary-value"><?= formatDuration($avgMinutes) ?></div>
             <div class="summary-label">Avg Resolution Time</div>
@@ -290,14 +316,47 @@ function badgeClassForStatus($status) {
             </div>
             <div class="summary-label">Avg Rating (<?= $countRated ?>)</div>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon danger"><i class="bi bi-flag-fill"></i></div>
-            <div class="summary-value" style="font-size:1.1rem;">
-                <span class="badge bg-danger"><?= $priorityCounts['High'] ?> High</span>
-                <span class="badge bg-warning text-dark"><?= $priorityCounts['Medium'] ?> Med</span>
-                <span class="badge bg-success"><?= $priorityCounts['Low'] ?> Low</span>
-            </div>
-            <div class="summary-label">By Priority</div>
+    </div>
+
+    <!-- Priority breakdown -->
+    <div class="mb-4">
+        <span class="badge bg-danger fs-6"><?= $priorityCounts['High'] ?> High</span>
+        <span class="badge bg-warning text-dark fs-6"><?= $priorityCounts['Medium'] ?> Medium</span>
+        <span class="badge bg-success fs-6"><?= $priorityCounts['Low'] ?> Low</span>
+        <span class="text-muted small ms-2">priority mix of resolved tickets</span>
+    </div>
+
+    <!-- Per-agent breakdown -->
+    <div class="table-container mb-4">
+        <div class="table-header">
+            <h3><i class="bi bi-people-fill me-2"></i>By Agent &mdash; <?= htmlspecialchars($monthLabel) ?></h3>
+            <span class="badge bg-secondary"><?= $activeAgents ?> agents</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover report-table mb-0" id="agentTable">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Agent</th>
+                        <th>Resolved</th>
+                        <th>Avg Resolution Time</th>
+                        <th>Avg Rating</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if ($activeAgents > 0): ?>
+                        <?php foreach ($agentStats as $a): ?>
+                            <tr>
+                                <td><?= htmlspecialchars($a['name']) ?></td>
+                                <td><?= $a['count'] ?></td>
+                                <td><?= $a['cntMin'] > 0 ? formatDuration($a['sumMin'] / $a['cntMin']) : 'N/A' ?></td>
+                                <td><?= $a['cntRate'] > 0 ? number_format($a['sumRate'] / $a['cntRate'], 1) : 'N/A' ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <tr><td colspan="4" class="text-center py-4 text-muted">No agent activity for this month.</td></tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -314,6 +373,7 @@ function badgeClassForStatus($status) {
                         <th>Ticket #</th>
                         <th>Title</th>
                         <th>Priority</th>
+                        <th>Assigned Agent</th>
                         <th>Requester</th>
                         <th>Created</th>
                         <th>Resolved</th>
@@ -336,6 +396,7 @@ function badgeClassForStatus($status) {
                                         <?= htmlspecialchars($t['priority']) ?>
                                     </span>
                                 </td>
+                                <td><?= htmlspecialchars(implode(', ', resolveAgentNames($t['assigned_to'], $userMap))) ?></td>
                                 <td><?= htmlspecialchars($t['created_by']) ?></td>
                                 <td><?= htmlspecialchars(date('Y-m-d H:i', strtotime($t['query_date']))) ?></td>
                                 <td><?= htmlspecialchars(date('Y-m-d H:i', strtotime($t['resolved_at']))) ?></td>
@@ -355,7 +416,7 @@ function badgeClassForStatus($status) {
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="8" class="text-center py-5 text-muted">
+                            <td colspan="9" class="text-center py-5 text-muted">
                                 <i class="bi bi-inbox display-6 d-block mb-2"></i>
                                 No tickets were resolved in <?= htmlspecialchars($monthLabel) ?>.
                             </td>
@@ -370,8 +431,8 @@ function badgeClassForStatus($status) {
         <i class="bi bi-info-circle me-1"></i>
         <strong>Resolution Time</strong> is active agent handling time &mdash; from when the ticket was created
         until the work was completed (Resolved, Closed, or handed to Pending Feedback). It excludes any time the
-        ticket spent waiting on the requester's feedback, so tickets that hung in Pending Feedback (or were later
-        cleared manually) don't inflate the average or slowest figures.
+        ticket spent waiting on the requester's feedback. A ticket assigned to more than one agent counts toward
+        each of them in the per-agent breakdown.
     </p>
 </div>
 
@@ -379,37 +440,45 @@ function badgeClassForStatus($status) {
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    // Build a clean sheet from the rendered table (star icons -> numeric rating).
-    function exportExcel() {
-        const table = document.getElementById('reportTable');
-        if (!table) return;
-
+    // Convert a rendered table to an array-of-arrays, turning the star column
+    // (if present) into a numeric rating.
+    function tableToAoa(table, ratingColIndex) {
         const data = [];
-        // Header row
         const headers = [];
-        table.querySelectorAll('thead th').forEach(th => headers.push(th.textContent.trim()));
+        table.querySelectorAll('thead th').forEach(th => headers.push(th.textContent.trim().replace(/\s+/g, ' ')));
         data.push(headers);
-
-        // Body rows
         table.querySelectorAll('tbody tr').forEach(tr => {
             const cells = tr.querySelectorAll('td');
-            if (cells.length < 8) return; // skip the "no tickets" placeholder row
+            if (cells.length < headers.length) return; // skip placeholder rows
             const row = [];
             cells.forEach((td, idx) => {
-                if (idx === 7) {
-                    // Rating column: count filled stars
+                if (idx === ratingColIndex) {
                     const filled = td.querySelectorAll('.bi-star-fill').length;
-                    row.push(filled > 0 ? filled : '');
+                    row.push(filled > 0 ? filled : (td.textContent.trim() === '—' ? '' : td.textContent.trim()));
                 } else {
                     row.push(td.textContent.trim());
                 }
             });
             data.push(row);
         });
+        return data;
+    }
 
-        const ws = XLSX.utils.aoa_to_sheet(data);
+    function exportExcel() {
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Resolved');
+
+        const ticketTable = document.getElementById('reportTable');
+        if (ticketTable) {
+            const ws1 = XLSX.utils.aoa_to_sheet(tableToAoa(ticketTable, 8)); // rating is last col
+            XLSX.utils.book_append_sheet(wb, ws1, 'Resolved Tickets');
+        }
+
+        const agentTable = document.getElementById('agentTable');
+        if (agentTable) {
+            const ws2 = XLSX.utils.aoa_to_sheet(tableToAoa(agentTable, -1)); // no star column
+            XLSX.utils.book_append_sheet(wb, ws2, 'By Agent');
+        }
+
         XLSX.writeFile(wb, 'monthly_report_<?= $monthParam ?>.xlsx');
     }
 </script>
