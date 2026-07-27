@@ -72,6 +72,33 @@ if (!defined('RESOLVED_AT_SQL')) {
     );
 }
 
+// SQL that resolves to the moment the AGENT'S work first completed -- the
+// earliest transition into 'Resolved', 'Closed', OR 'Pending Feedback', taken
+// from the status-change log.
+//
+// Why this differs from RESOLVED_AT_SQL: a ticket can sit in 'Pending Feedback'
+// (agent work done, waiting on the requester to rate) for a long time before it
+// is flipped to 'Resolved' -- by submit_feedback.php when the rating arrives, or
+// by a manual DB cleanup when it hangs. In both cases the 'Resolved' log entry
+// is dated at the RATING / cleanup time, not when the agent actually finished.
+// Using that late date makes resolution time (and especially the "slowest"
+// figure) look far worse than the agent's real handling time.
+//
+// This expression stops the clock the moment the agent handed the ticket off as
+// done. For the normal fast-close path (Open -> ... -> Resolved with no Pending
+// Feedback stage) it is identical to RESOLVED_AT_SQL, so only await-feedback /
+// parked tickets are affected. NULL when there is no genuine completion log, so
+// AVG()/MIN()/MAX() simply skip the row.
+//
+// Assumes the tickets table is aliased "t" in the surrounding query.
+if (!defined('WORK_COMPLETED_AT_SQL')) {
+    define('WORK_COMPLETED_AT_SQL',
+        "(SELECT MIN(l.change_date) FROM ticket_status_logs l " .
+        " WHERE l.ticket_id = t.id " .
+        "   AND l.new_status IN ('Resolved', 'Closed', 'Pending Feedback'))"
+    );
+}
+
 // Rolling window for the "Avg Resolution" KPI. Only tickets completed within
 // this many days count, so the number reflects current performance instead of
 // being dragged around by the entire ticket history.

@@ -78,6 +78,12 @@ $isCurrentMonth = ($monthParam === date('Y-m'));
 // (Resolved / Closed) during that month, taken from the status-change log --
 // the same definition the dashboard KPIs use (see metrics_helpers.php). This is
 // throughput: what the agent actually finished that month.
+//
+// resolution_minutes measures the agent's real handling time: creation until
+// WORK_COMPLETED_AT (first of Resolved / Closed / Pending Feedback), NOT the
+// later 'Resolved' timestamp. Otherwise a ticket that sat in Pending Feedback
+// for weeks -- or was manually flipped to Resolved after hanging -- would report
+// a hugely inflated resolution time and skew the average / slowest figures.
 $reportSql = "
     SELECT
         t.id,
@@ -88,7 +94,7 @@ $reportSql = "
         t.created_by,
         t.query_date,
         " . RESOLVED_AT_SQL . " AS resolved_at,
-        TIMESTAMPDIFF(MINUTE, t.query_date, " . RESOLVED_AT_SQL . ") AS resolution_minutes,
+        TIMESTAMPDIFF(MINUTE, t.query_date, " . WORK_COMPLETED_AT_SQL . ") AS resolution_minutes,
         (SELECT tf.rating
            FROM ticket_feedback tf
           WHERE tf.ticket_id = t.id
@@ -311,7 +317,11 @@ function badgeClassForStatus($status) {
                         <th>Requester</th>
                         <th>Created</th>
                         <th>Resolved</th>
-                        <th>Resolution Time</th>
+                        <th>
+                            Resolution Time
+                            <i class="bi bi-info-circle text-muted" style="cursor:help;"
+                               title="Active agent handling time: from creation until the work was completed (Resolved, Closed, or handed to Pending Feedback). Excludes time spent waiting on the requester's feedback."></i>
+                        </th>
                         <th>Rating</th>
                     </tr>
                 </thead>
@@ -355,6 +365,14 @@ function badgeClassForStatus($status) {
             </table>
         </div>
     </div>
+
+    <p class="text-muted small mt-2 mb-0">
+        <i class="bi bi-info-circle me-1"></i>
+        <strong>Resolution Time</strong> is active agent handling time &mdash; from when the ticket was created
+        until the work was completed (Resolved, Closed, or handed to Pending Feedback). It excludes any time the
+        ticket spent waiting on the requester's feedback, so tickets that hung in Pending Feedback (or were later
+        cleared manually) don't inflate the average or slowest figures.
+    </p>
 </div>
 
 <?php include '../footer.php'; ?>
