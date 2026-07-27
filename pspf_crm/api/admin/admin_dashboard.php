@@ -511,6 +511,9 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : htmlspecialchars($userDept);
             <a href="admin_view.php?status=resolved" class="action-btn success">
                 <i class="bi bi-check-circle"></i> Resolved (<?= $deptResolved ?>)
             </a>
+            <a href="admin_monthly_report.php" class="action-btn success">
+                <i class="bi bi-calendar-check"></i> Monthly Report
+            </a>
             <a href="reports.php" class="action-btn primary">
                 <i class="bi bi-bar-chart"></i> Reports
             </a>
