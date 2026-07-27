@@ -92,6 +92,7 @@ $reportSql = "
         t.status,
         t.member_type,
         t.created_by,
+        t.description,
         t.query_date,
         " . RESOLVED_AT_SQL . " AS resolved_at,
         TIMESTAMPDIFF(MINUTE, t.query_date, " . WORK_COMPLETED_AT_SQL . ") AS resolution_minutes,
@@ -323,6 +324,8 @@ function badgeClassForStatus($status) {
                                title="Active agent handling time: from creation until the work was completed (Resolved, Closed, or handed to Pending Feedback). Excludes time spent waiting on the requester's feedback."></i>
                         </th>
                         <th>Rating</th>
+                        <!-- Hidden on screen; included in the Excel export / print. -->
+                        <th class="d-none">Description</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -351,11 +354,12 @@ function badgeClassForStatus($status) {
                                         <span class="text-muted">&mdash;</span>
                                     <?php endif; ?>
                                 </td>
+                                <td class="d-none"><?= htmlspecialchars($t['description'] ?? '') ?></td>
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="8" class="text-center py-5 text-muted">
+                            <td colspan="9" class="text-center py-5 text-muted">
                                 <i class="bi bi-inbox display-6 d-block mb-2"></i>
                                 No tickets were resolved in <?= htmlspecialchars($monthLabel) ?>.
                             </td>
@@ -393,7 +397,7 @@ function badgeClassForStatus($status) {
         // Body rows
         table.querySelectorAll('tbody tr').forEach(tr => {
             const cells = tr.querySelectorAll('td');
-            if (cells.length < 8) return; // skip the "no tickets" placeholder row
+            if (cells.length < 9) return; // skip the "no tickets" placeholder row
             const row = [];
             cells.forEach((td, idx) => {
                 if (idx === 7) {
