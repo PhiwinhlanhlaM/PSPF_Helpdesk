@@ -215,7 +215,7 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : $userDept;
         }
         .month-nav { display: flex; gap: .5rem; align-items: end; }
         .summary-value { font-size: 1.75rem; font-weight: 700; line-height: 1.1; }
-        .summary-label { color: var(--text-muted, #64748b); font-size: .8rem; }
+        .summary-label { color: white; font-size: .8rem; }
         table.report-table th { white-space: nowrap; }
         @media print {
             .no-print, nav.navbar, .settings-actions { display: none !important; }
