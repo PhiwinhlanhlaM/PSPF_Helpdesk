@@ -5,7 +5,7 @@
  * Creates a NEW request linked to a rejected one via appeal_of, carrying the
  * requester's revisions. The original is never modified — it stays as the
  * signed record of the rejection. The appeal re-enters the chain from the top
- * (supervisor -> ICT -> director), exactly like a fresh request.
+ * (ICT -> director), exactly like a fresh request.
  *
  * Rules enforced here:
  *   - only the person who submitted the original may appeal it
@@ -28,7 +28,6 @@ require_once '../session_config.php';
 require_once '../db.php';
 require_once '../includes/auth_helpers.php';
 require_once __DIR__ . '/mailer.php';
-require_once __DIR__ . '/supervisor_helpers.php';
 
 if (!isLoggedIn()) {
     http_response_code(401);
@@ -36,6 +35,14 @@ if (!isLoggedIn()) {
     exit;
 }
 enforceActiveUser($conn);
+
+// Appealing, like submitting, is limited to supervisor-role holders. (The owner
+// check below still applies — you may only appeal your own rejected request.)
+if (!hasRole('supervisor')) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Only a supervisor may appeal an IT access request']);
+    exit;
+}
 
 $body = json_decode(file_get_contents('php://input'), true);
 if (!is_array($body)) {
@@ -155,30 +162,20 @@ $empDiv    = htmlspecialchars(trim($emp['division'] ?? ''), ENT_QUOTES, 'UTF-8')
 $empTitle  = htmlspecialchars(trim($emp['title']), ENT_QUOTES, 'UTF-8');
 $justClean = htmlspecialchars($justification, ENT_QUOTES, 'UTF-8');
 
-// Route the appeal exactly like a new request: nominated supervisor if valid,
-// else resolve; else straight to ICT.
-$chosenSupervisor = isset($body['supervisorId']) ? (int)$body['supervisorId'] : 0;
-$supervisorId = null;
-if ($chosenSupervisor > 0 && $chosenSupervisor !== $submittedBy
-    && itaIsUsableSupervisor($conn, $chosenSupervisor)) {
-    $supervisorId = $chosenSupervisor;
-} else {
-    $supervisorId = itaResolveSupervisor($conn, $submittedBy);
-}
-$initialStatus = $supervisorId !== null ? 'awaiting-supervisor' : 'new';
-
+// The appeal re-enters the ICT queue directly as 'new', exactly like a fresh
+// request — there is no supervisor approval step.
 $conn->begin_transaction();
 try {
     $stmt = $conn->prepare(
         "INSERT INTO it_access_requests
          (ref_number, request_type, employee_name, employee_id, department, division, job_title,
-          start_date, justification, submitted_by, appeal_of, supervisor_id, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+          start_date, justification, submitted_by, appeal_of, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')"
     );
     $stmt->bind_param(
-        "sssssssssiiis",
+        "sssssssssii",
         $refNumber, $requestType, $empName, $empId, $empDept, $empDiv, $empTitle,
-        $startDate, $justClean, $submittedBy, $appealOf, $supervisorId, $initialStatus
+        $startDate, $justClean, $submittedBy, $appealOf
     );
     $stmt->execute();
     $requestId = $conn->insert_id;
@@ -218,7 +215,7 @@ try {
 
     $conn->commit();
 
-    // Notify whoever the appeal now waits on — supervisor if routed, else ICT.
+    // Notify the ICT officers — the appeal enters their queue immediately.
     $submitterName = $_SESSION['user']['full_name'] ?? ($_SESSION['user']['username'] ?? 'User');
     $detail = [
         'Reference'   => $refNumber,
@@ -227,27 +224,13 @@ try {
         'Department'  => $empDept,
         'Start date'  => $startDate,
     ];
-    if ($supervisorId !== null) {
-        $supervisor = itAccessUserById($conn, $supervisorId);
-        if ($supervisor) {
-            [$html, $text] = itAccessEmailBody(
-                "IT Access Appeal Awaiting Your Approval",
-                ["Dear {$supervisor['name']},",
-                 "A previously rejected IT access request has been revised and resubmitted as an appeal. It needs your approval."],
-                $detail,
-                ['text' => 'Review appeal', 'url' => itAccessAppUrl()]
-            );
-            itAccessSendMail([$supervisor], "IT Access Appeal Awaiting Your Approval - $refNumber", $html, $text);
-        }
-    } else {
-        [$html, $text] = itAccessEmailBody(
-            "IT Access Appeal Submitted",
-            ["A previously rejected request has been revised and resubmitted as an appeal, and is awaiting ICT action."],
-            $detail,
-            ['text' => 'Review & claim request', 'url' => itAccessAppUrl()]
-        );
-        itAccessSendMail(itAccessOfficers($conn), "IT Access Appeal Submitted - $refNumber", $html, $text);
-    }
+    [$html, $text] = itAccessEmailBody(
+        "IT Access Appeal Submitted",
+        ["A previously rejected request has been revised and resubmitted as an appeal, and is awaiting ICT action."],
+        $detail,
+        ['text' => 'Review & claim request', 'url' => itAccessAppUrl()]
+    );
+    itAccessSendMail(itAccessOfficers($conn), "IT Access Appeal Submitted - $refNumber", $html, $text);
 
     echo json_encode(['ok' => true, 'id' => $requestId, 'ref' => $refNumber, 'appealOf' => $appealOf]);
 } catch (Exception $e) {

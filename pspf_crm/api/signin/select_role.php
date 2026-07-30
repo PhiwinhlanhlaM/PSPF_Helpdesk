@@ -6,8 +6,8 @@ if (!isset($_SESSION['pending_roles'])) {
     exit;
 }
 
-// it_officer / it_director are permissions, not selectable personas — never offer them here.
-$NON_SELECTABLE_ROLES = ['it_officer', 'it_director'];
+// it_officer / it_director / supervisor are permissions, not selectable personas — never offer them here.
+$NON_SELECTABLE_ROLES = ['it_officer', 'it_director', 'supervisor'];
 $roles = array_values(array_diff($_SESSION['pending_roles'], $NON_SELECTABLE_ROLES));
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -45,6 +45,29 @@ function getRoleIcon($role, $roleIcons) {
     if (strpos($roleLower, 'superadmin') !== false) return 'bi-person-gear';
     
     return 'bi-person'; // Default icon
+}
+
+// Human-friendly role label. This page runs pre-login and deliberately does not
+// include auth_helpers.php (which is DB/session-oriented), so it carries its own
+// copy of roleLabel(). Guarded with function_exists() so it never collides if
+// auth_helpers.php is ever loaded here. Keep in step with the canonical helper.
+if (!function_exists('roleLabel')) {
+    function roleLabel($role) {
+        $role = trim((string)$role);
+        if ($role === '') return '';
+        $labels = [
+            'superadmin'  => 'Superadmin',
+            'admin'       => 'Admin',
+            'agent'       => 'Agent',
+            'user'        => 'User',
+            'supervisor'  => 'Supervisor',
+            'it_officer'  => 'IT Officer',
+            'it_director' => 'IT Director',
+        ];
+        $key = strtolower($role);
+        if (isset($labels[$key])) return $labels[$key];
+        return implode(' ', array_map('ucfirst', preg_split('/[_\-]+/', $key)));
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -383,7 +406,7 @@ function getRoleIcon($role, $roleIcons) {
                         <div class="roles-grid <?= count($roles) > 6 ? 'compact-view' : '' ?>">
                             <?php foreach ($roles as $role): 
                                 $iconClass = getRoleIcon($role, $roleIcons);
-                                $roleDisplay = htmlspecialchars(ucfirst($role));
+                                $roleDisplay = htmlspecialchars(roleLabel($role));
                             ?>
                                 <label class="role-card" for="role_<?= htmlspecialchars($role) ?>">
                                     <input type="radio" 
@@ -413,7 +436,7 @@ function getRoleIcon($role, $roleIcons) {
                                                 echo 'Customer support';
                                                 break;
                                             default:
-                                                echo ucfirst($role) . ' access';
+                                                echo htmlspecialchars(roleLabel($role)) . ' access';
                                         }
                                         ?>
                                     </div>

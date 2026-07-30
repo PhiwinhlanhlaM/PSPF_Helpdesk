@@ -539,7 +539,7 @@ elseif (isset($_POST['update_profile'])) {
                     </div>
                     <div class="col-md-3">
                         <p><strong><i class="bi bi-shield-check"></i> Active Role:</strong><br>
-                        <?= ucfirst(getActiveRole()) ?></p>
+                        <?= htmlspecialchars(roleLabel(getActiveRole())) ?></p>
                     </div>
                 </div>
                 

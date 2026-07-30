@@ -10,7 +10,6 @@ require_once '../session_config.php';
 require_once '../db.php';
 require_once '../includes/auth_helpers.php';
 require_once __DIR__ . '/mailer.php';
-require_once __DIR__ . '/supervisor_helpers.php';
 
 if (!isLoggedIn()) {
     http_response_code(401);
@@ -18,9 +17,16 @@ if (!isLoggedIn()) {
     exit;
 }
 enforceActiveUser($conn);
-// Any authenticated, active user may submit an IT access request. Requests are
-// gated by the approval chain (supervisor -> ICT -> director), not by who is
-// allowed to ask — so no role check here beyond being signed in.
+
+// Only holders of the 'supervisor' role may submit an IT access request. The
+// role is the gate for who is allowed to ask on behalf of their team; the
+// request is then reviewed by ICT and signed off by the Director. This is a
+// deliberate, role-based restriction — an admin is not implicitly a supervisor.
+if (!hasRole('supervisor')) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Only a supervisor may submit an IT access request']);
+    exit;
+}
 
 // Read JSON body
 $body = json_decode(file_get_contents('php://input'), true);
@@ -97,38 +103,21 @@ $empDiv    = htmlspecialchars(trim($emp['division'] ?? ''), ENT_QUOTES, 'UTF-8')
 $empTitle  = htmlspecialchars(trim($emp['title']), ENT_QUOTES, 'UTF-8');
 $justClean = htmlspecialchars($justification, ENT_QUOTES, 'UTF-8');
 
-// ---------------------------------------------------------------------
-// Route the request. A requester may nominate their supervisor on the form;
-// we accept that choice only if the person genuinely holds the supervisor role
-// (the dropdown is not the access control). Otherwise we resolve it from their
-// own override, then their division's supervisor, then the division delegate.
-//
-// If nothing resolves, the request skips the supervisor step and enters the
-// ICT queue as 'new' — a request must never stall because nobody was assigned.
-// ---------------------------------------------------------------------
-$chosenSupervisor = isset($body['supervisorId']) ? (int)$body['supervisorId'] : 0;
-$supervisorId = null;
-if ($chosenSupervisor > 0
-    && $chosenSupervisor !== $submittedBy
-    && itaIsUsableSupervisor($conn, $chosenSupervisor)) {
-    $supervisorId = $chosenSupervisor;
-} else {
-    $supervisorId = itaResolveSupervisor($conn, $submittedBy);
-}
-$initialStatus = $supervisorId !== null ? 'awaiting-supervisor' : 'new';
-
+// The request enters the ICT queue directly as 'new'. There is no supervisor
+// approval step — the submitter already holds the supervisor role, which is the
+// authority to raise the request; ICT then reviews and the Director signs off.
 $conn->begin_transaction();
 try {
     // Insert main request
     $stmt = $conn->prepare(
         "INSERT INTO it_access_requests
-         (ref_number, request_type, employee_name, employee_id, department, division, job_title, start_date, justification, submitted_by, supervisor_id, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+         (ref_number, request_type, employee_name, employee_id, department, division, job_title, start_date, justification, submitted_by, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')"
     );
     $stmt->bind_param(
-        "sssssssssiis",
+        "sssssssssi",
         $refNumber, $requestType, $empName, $empId, $empDept, $empDiv, $empTitle,
-        $startDate, $justClean, $submittedBy, $supervisorId, $initialStatus
+        $startDate, $justClean, $submittedBy
     );
     $stmt->execute();
     $requestId = $conn->insert_id;
@@ -221,9 +210,7 @@ try {
         );
     }
 
-    // 2. Notify whoever the request is actually waiting on. When a supervisor
-    //    was resolved it sits with them first, so telling ICT now would be
-    //    premature — they are notified once the supervisor approves.
+    // 2. Notify the ICT officers — the request enters their queue immediately.
     $detailRows = [
         'Reference'    => $refNumber,
         'Employee'     => $empName,
@@ -232,39 +219,17 @@ try {
         'Submitted by' => $submitterName,
         'Systems'      => $systemList,
     ];
-
-    if ($supervisorId !== null) {
-        $supervisor = itAccessUserById($conn, $supervisorId);
-        if ($supervisor) {
-            [$html, $text] = itAccessEmailBody(
-                "IT Access Request Awaiting Your Approval",
-                [
-                    "Dear {$supervisor['name']},",
-                    "A member of your team has requested IT access. It needs your approval before the ICT team can action it.",
-                ],
-                $detailRows,
-                ['text' => 'Review request', 'url' => $claimUrl]
-            );
-            itAccessSendMail(
-                [$supervisor],
-                "IT Access Request Awaiting Your Approval - $refNumber",
-                $html, $text
-            );
-        }
-    } else {
-        // No supervisor on file — the request went straight to the ICT queue.
-        [$html, $text] = itAccessEmailBody(
-            "New IT Access Request",
-            ["A new IT access request has been submitted and is awaiting action."],
-            $detailRows,
-            ['text' => 'Review & claim request', 'url' => $claimUrl]
-        );
-        itAccessSendMail(
-            itAccessOfficers($conn),
-            "New IT Access Request - $refNumber",
-            $html, $text
-        );
-    }
+    [$html, $text] = itAccessEmailBody(
+        "New IT Access Request",
+        ["A new IT access request has been submitted and is awaiting action."],
+        $detailRows,
+        ['text' => 'Review & claim request', 'url' => $claimUrl]
+    );
+    itAccessSendMail(
+        itAccessOfficers($conn),
+        "New IT Access Request - $refNumber",
+        $html, $text
+    );
 
     echo json_encode(['ok' => true, 'id' => $requestId, 'ref' => $refNumber]);
 } catch (Exception $e) {

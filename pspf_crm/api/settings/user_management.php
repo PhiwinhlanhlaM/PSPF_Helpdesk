@@ -59,7 +59,7 @@ function flash_redirect(string $kind, string $msg): void {
     exit;
 }
 
-$IT_ROLES = ['it_officer', 'it_director']; // permission roles (grantable here)
+$IT_ROLES = ['it_officer', 'it_director', 'supervisor']; // silent permission roles (no switchable persona)
 
 // ---------------------------------------------------------------------------
 // POST HANDLING — all actions validated (superadmin already enforced above).
@@ -345,7 +345,7 @@ function e($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
         <select name="role" class="form-select" style="max-width:170px">
             <option value="">All roles</option>
             <?php foreach ($roles as $r): ?>
-                <option value="<?= e($r['name']) ?>" <?= $filterRole===$r['name']?'selected':'' ?>><?= e(ucfirst($r['name'])) ?></option>
+                <option value="<?= e($r['name']) ?>" <?= $filterRole===$r['name']?'selected':'' ?>><?= e(roleLabel($r['name'])) ?></option>
             <?php endforeach; ?>
         </select>
         <button class="btn btn-primary"><i class="bi bi-search"></i> Filter</button>
@@ -410,7 +410,7 @@ function e($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
                                     <input type="hidden" name="user_id" value="<?= $uid ?>">
                                     <input type="hidden" name="role_id" value="<?= (int)$r['id'] ?>">
                                     <button name="remove_role" class="btn btn-sm btn-outline-danger role-chip me-1 mb-1">
-                                        <?= e(ucfirst($r['name'])) ?> &times;
+                                        <?= e(roleLabel($r['name'])) ?> &times;
                                     </button>
                                 </form>
                             <?php endforeach; ?>
@@ -422,7 +422,7 @@ function e($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
                                 <input type="hidden" name="user_id" value="<?= $uid ?>">
                                 <select name="role_id" class="form-select form-select-sm" style="min-width:120px">
                                     <?php foreach ($roles as $r): if (in_array($r['name'], $uRoleNames, true)) continue; ?>
-                                        <option value="<?= (int)$r['id'] ?>"><?= e(ucfirst($r['name'])) ?></option>
+                                        <option value="<?= (int)$r['id'] ?>"><?= e(roleLabel($r['name'])) ?></option>
                                     <?php endforeach; ?>
                                 </select>
                                 <button name="assign_role" class="btn btn-sm btn-primary" <?= !$u['is_active'] ? 'disabled' : '' ?>>Add</button>

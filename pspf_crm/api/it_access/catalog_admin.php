@@ -158,8 +158,30 @@ try {
                 }
                 if (mb_strlen($id) > 100) $id = mb_substr($id, 0, 100);
 
-                $ord = $conn->query("SELECT COALESCE(MAX(sort_order), 0) + 10 AS o FROM it_systems")
-                            ->fetch_assoc()['o'];
+                // Slot the new system immediately ABOVE the catch-all "Other"
+                // entry, which is meant to stay last. Take Other's sort_order for
+                // the new row and push Other (and anything at or below it) down by
+                // 10 so nothing collides and "Other" remains the final option. If
+                // there is no "Other" system, fall back to appending at the end.
+                $otherRow = $conn->query(
+                    "SELECT sort_order FROM it_systems WHERE id = 'other' LIMIT 1"
+                )->fetch_assoc();
+
+                if ($otherRow !== null) {
+                    $ord = (int)$otherRow['sort_order'];
+                    // Make room: shift Other and any later rows down before inserting.
+                    $shift = $conn->prepare(
+                        "UPDATE it_systems SET sort_order = sort_order + 10 WHERE sort_order >= ?"
+                    );
+                    $shift->bind_param("i", $ord);
+                    $shift->execute();
+                    $shift->close();
+                } else {
+                    $ord = (int)$conn->query(
+                        "SELECT COALESCE(MAX(sort_order), 0) + 10 AS o FROM it_systems"
+                    )->fetch_assoc()['o'];
+                }
+
                 $stmt = $conn->prepare(
                     "INSERT INTO it_systems (id, name, description, icon, multi_role, sort_order, is_active)
                      VALUES (?, ?, ?, ?, ?, ?, 1)"

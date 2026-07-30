@@ -17,6 +17,33 @@ if (session_status() === PHP_SESSION_NONE) {
 global $conn;
 
 /**
+ * Human-friendly display label for a role slug.
+ *
+ * Role slugs are stored lowercase and may contain underscores (e.g.
+ * 'it_officer', 'it_director'). Rendering them raw — or via ucfirst() — leaks
+ * the underscore into the UI ("It_officer"). This maps the known roles to
+ * proper labels and falls back to a Title-Cased, space-separated version for
+ * anything not explicitly listed, so a new role still reads sensibly.
+ */
+function roleLabel(?string $role): string {
+    $role = trim((string)$role);
+    if ($role === '') return '';
+    static $labels = [
+        'superadmin'  => 'Superadmin',
+        'admin'       => 'Admin',
+        'agent'       => 'Agent',
+        'user'        => 'User',
+        'supervisor'  => 'Supervisor',
+        'it_officer'  => 'IT Officer',
+        'it_director' => 'IT Director',
+    ];
+    $key = strtolower($role);
+    if (isset($labels[$key])) return $labels[$key];
+    // Fallback: split on underscores/hyphens and Title-Case each word.
+    return implode(' ', array_map('ucfirst', preg_split('/[_\-]+/', $key)));
+}
+
+/**
  * Ensures that $conn is valid.
  * Does NOT reload db.php — only verifies.
  */
@@ -175,7 +202,7 @@ function renderRoleSwitcher(): string {
            . ' id="roleSwitcherDropdown" data-bs-toggle="dropdown" aria-expanded="false"'
            . ' title="Switch role">';
     $html .= '<i class="bi bi-arrow-left-right"></i>';
-    $html .= '<span class="d-none d-lg-inline ms-1">' . htmlspecialchars(ucfirst($active)) . '</span>';
+    $html .= '<span class="d-none d-lg-inline ms-1">' . htmlspecialchars(roleLabel($active)) . '</span>';
     $html .= '</a>';
     $html .= '<ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="roleSwitcherDropdown">';
     $html .= '<li><h6 class="dropdown-header">Switch Role</h6></li>';
@@ -191,7 +218,7 @@ function renderRoleSwitcher(): string {
         $html .= '<button type="submit" class="dropdown-item d-flex align-items-center gap-2'
                . ($isActive ? ' active fw-semibold' : '') . '">';
         $html .= '<i class="bi ' . $icon . '"></i>';
-        $html .= htmlspecialchars(ucfirst($role));
+        $html .= htmlspecialchars(roleLabel($role));
         if ($isActive) {
             $html .= ' <i class="bi bi-check2 ms-auto"></i>';
         }

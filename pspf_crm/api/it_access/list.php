@@ -23,7 +23,6 @@ $activeRole = getActiveRole();
 // Determine which requests this user can see
 $isOfficer    = hasRole('it_officer');
 $isDirector   = hasRole('it_director');
-$isSupervisor = hasRole('supervisor');
 $isSuper      = in_array($activeRole, ['admin', 'superadmin']);
 
 // Build WHERE clause based on role
@@ -31,19 +30,6 @@ if ($isSuper) {
     $whereClause = "1=1";
     $bindTypes   = "";
     $bindArgs    = [];
-} elseif ($isSupervisor && !$isOfficer && !$isDirector) {
-    // A supervisor sees requests routed to them (including ones they have
-    // already actioned, so their history is visible), anything where they are
-    // their division's delegate standing in, and their own requests.
-    $whereClause = "r.supervisor_id = ?
-                    OR r.submitted_by = ?
-                    OR EXISTS (
-                         SELECT 1 FROM users ru
-                         JOIN divisions rd ON rd.id = ru.division_id
-                         WHERE ru.id = r.submitted_by AND rd.delegate_id = ?
-                       )";
-    $bindTypes   = "iii";
-    $bindArgs    = [$userId, $userId, $userId];
 } elseif ($isDirector) {
     // Director sees director-queue + terminal + own submitted requests
     $whereClause = "r.status IN ('awaiting-director','provisioned','rejected') OR r.submitted_by = ?";
@@ -51,10 +37,7 @@ if ($isSuper) {
     $bindArgs    = [$userId];
 } elseif ($isOfficer) {
     // Officer sees all live requests + anything they claimed + their own.
-    // 'awaiting-supervisor' is excluded: those have not yet been approved by
-    // the requester's supervisor, so they are not in the ICT queue and showing
-    // them would invite officers to action work that may still be rejected.
-    $whereClause = "(r.status NOT IN ('awaiting-supervisor','provisioned','rejected'))
+    $whereClause = "(r.status NOT IN ('provisioned','rejected'))
                     OR r.claimed_by = ? OR r.submitted_by = ?";
     $bindTypes   = "ii";
     $bindArgs    = [$userId, $userId];
@@ -81,9 +64,6 @@ $sql = "
         r.appeal_of,
         ao.ref_number AS appeal_of_ref,
         (SELECT COUNT(*) FROM it_access_requests ap WHERE ap.appeal_of = r.id) AS appeal_count,
-        r.supervisor_id,
-        sv.full_name  AS supervisor_full_name,
-        sv.username   AS supervisor_username,
         sb.email      AS submitter_email,
         sb.username   AS submitter_username,
         sb.full_name  AS submitter_full_name,
@@ -112,7 +92,6 @@ $sql = "
         ap.email          AS approver_email
     FROM it_access_requests r
     LEFT JOIN users                sb ON sb.id = r.submitted_by
-    LEFT JOIN users                sv ON sv.id = r.supervisor_id
     LEFT JOIN it_access_requests   ao ON ao.id = r.appeal_of
     LEFT JOIN it_request_systems   s ON s.request_id = r.id
     LEFT JOIN it_request_approvals a ON a.request_id = r.id
@@ -180,9 +159,6 @@ foreach ($rows as $row) {
                 return $uname ?: '';
             })($row['submitter_full_name'] ?? '', $row['submitter_email'] ?? '', $row['submitter_username'] ?? ''),
             'submittedAt'   => itaToUtcIso($row['submitted_at']),
-            // Who the request was routed to for supervisor approval, so the UI
-            // can show the requester where it is sitting. Null when there was no
-            // supervisor on file and it went straight to ICT.
             // Appeal linkage. `appealOf` names the rejected request this one
             // appeals; `canAppeal` tells the UI whether the "revise & appeal"
             // action should be offered — true only for a rejected ORIGINAL that
@@ -192,12 +168,6 @@ foreach ($rows as $row) {
             'canAppeal'      => ($row['status'] === 'rejected'
                                  && $row['appeal_of'] === null
                                  && (int)$row['appeal_count'] === 0),
-            'supervisorId'   => $row['supervisor_id'] ? (int)$row['supervisor_id'] : null,
-            'supervisorName' => (function ($full, $uname) {
-                $full = trim((string)$full);
-                if ($full !== '') return $full;
-                return $uname ?: null;
-            })($row['supervisor_full_name'] ?? '', $row['supervisor_username'] ?? ''),
             'approvals'     => [],
             'status'        => $row['status'],
             'claimedBy'     => $row['claimed_by'] ? (int)$row['claimed_by'] : null,

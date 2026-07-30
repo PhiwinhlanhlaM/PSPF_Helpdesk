@@ -16,6 +16,12 @@ vendor/
 *.sql
 !**/migrations/*.sql
 
+# Development-only test scripts. These are ad-hoc test runners, DB probes and
+# a login-as-anyone helper — never source, and must never reach the repo or a
+# production server. Kept locally for testing only.
+**/test_*.php
+**/*_test.php
+
 # Logs & temp
 *.log
 **/tmp/

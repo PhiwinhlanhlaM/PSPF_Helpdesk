@@ -17,9 +17,9 @@ if ($requested === '') {
     exit;
 }
 
-// it_officer / it_director are permissions, not switchable personas — never allow
-// them to be set as the active role, even via a crafted request.
-if (in_array($requested, ['it_officer', 'it_director'], true)) {
+// it_officer / it_director / supervisor are permissions, not switchable personas —
+// never allow them to be set as the active role, even via a crafted request.
+if (in_array($requested, ['it_officer', 'it_director', 'supervisor'], true)) {
     header('Location: ' . getRoleHomePage());
     exit;
 }

@@ -139,18 +139,18 @@ function itAccessEmailBody(string $heading, array $intro, array $details = [], ?
  * @param array<int, array{email:string, name:string}> $recipients
  */
 // ---------------------------------------------------------------------------
-// TEST-MODE EMAIL ALLOW-LIST
+// EMAIL ALLOW-LIST (test-mode guard — now DISABLED for production)
 //
-// While the supervisor/appeal chain is being tested against real staff data,
-// only these accounts should actually receive IT Access mail — everyone else
-// is silently filtered so real users are not emailed about test requests.
+// During testing this was populated with a few accounts so real staff were not
+// emailed about test requests. The form is now live, so the list is empty and
+// itAccessAllowlistFilter() is a no-op: mail reaches every real recipient.
 //
-// Matching is by username OR email (case-insensitive). To go live, set
-// ITA_EMAIL_ALLOWLIST to an empty array (or delete this block and the filter
-// call below) so mail reaches its real recipients again.
+// To temporarily restrict recipients again (e.g. a future test run), list the
+// permitted usernames/emails here; matching is by username OR email
+// (case-insensitive). Leave it empty for normal production operation.
 // ---------------------------------------------------------------------------
 if (!defined('ITA_EMAIL_ALLOWLIST')) {
-    define('ITA_EMAIL_ALLOWLIST', ['phiwinhlanhlam', 'khulekanin', 'administrator']);
+    define('ITA_EMAIL_ALLOWLIST', []);
 }
 
 /**

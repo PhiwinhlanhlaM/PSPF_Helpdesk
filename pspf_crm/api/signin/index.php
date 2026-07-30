@@ -121,10 +121,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $roles = getUserRoles((int)$dbId); // returns array of role names
                         }
 
-                        // it_officer / it_director are permissions, not selectable personas.
+                        // it_officer / it_director / supervisor are permissions, not selectable personas.
                         // They are excluded from the role chooser but still grant access via
                         // hasRole() checks elsewhere.
-                        $NON_SELECTABLE_ROLES = ['it_officer', 'it_director'];
+                        $NON_SELECTABLE_ROLES = ['it_officer', 'it_director', 'supervisor'];
                         $selectableRoles = array_values(array_diff($roles, $NON_SELECTABLE_ROLES));
 
                         if (empty($roles)) {

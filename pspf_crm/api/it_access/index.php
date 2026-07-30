@@ -59,12 +59,11 @@ $iconClass = $roleIcons[$role] ?? 'bi-person-fill';
 
 // Map CRM role → React initial role
 // Land the user in the area they are most likely to be here for. Ordered by
-// how far along the chain the role sits, so someone who is both a supervisor
-// and an officer opens on the ICT queue rather than their approvals.
+// how far along the chain the role sits, so someone who is both a submitter and
+// an officer opens on the ICT queue rather than the request form.
 $reactRole = 'manager';
 if (hasRole('it_director'))     $reactRole = 'director';
 elseif (hasRole('it_officer'))  $reactRole = 'officer';
-elseif (hasRole('supervisor'))  $reactRole = 'supervisor';
 
 // All CRM roles this user holds — passed to React so the Acting As panel is accurate
 $allCrmRoles = getUserRoles(); // returns array like ['user','it_officer']
@@ -95,12 +94,12 @@ $initials = strtoupper(
     <link rel="stylesheet" href="/pspf_crm/api/agent/agent_style.css">
 
     <!-- IT Access Form design system -->
-    <link rel="stylesheet" href="/IT%20Access%20Form/styles/tokens.css?v=21">
-    <link rel="stylesheet" href="/IT%20Access%20Form/styles/shell.css?v=21">
-    <link rel="stylesheet" href="/IT%20Access%20Form/styles/form.css?v=21">
-    <link rel="stylesheet" href="/IT%20Access%20Form/styles/dashboard.css?v=21">
-    <link rel="stylesheet" href="/IT%20Access%20Form/styles/sigpad.css?v=21">
-    <link rel="stylesheet" href="/IT%20Access%20Form/styles/screens.css?v=21">
+    <link rel="stylesheet" href="/IT%20Access%20Form/styles/tokens.css?v=23">
+    <link rel="stylesheet" href="/IT%20Access%20Form/styles/shell.css?v=23">
+    <link rel="stylesheet" href="/IT%20Access%20Form/styles/form.css?v=23">
+    <link rel="stylesheet" href="/IT%20Access%20Form/styles/dashboard.css?v=23">
+    <link rel="stylesheet" href="/IT%20Access%20Form/styles/sigpad.css?v=23">
+    <link rel="stylesheet" href="/IT%20Access%20Form/styles/screens.css?v=23">
 
     <style>
         /* Push React app content below the CRM topnav */
@@ -144,18 +143,17 @@ window.__REACT_INITIAL_ROLE__ = "<?= htmlspecialchars($reactRole, ENT_QUOTES) ?>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
 
 <!-- IT Access Form JSX files (load order matches standalone HTML) -->
-<script type="text/babel" src="/IT%20Access%20Form/app/crm-client.jsx?v=22"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/data.jsx?v=22"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/Icon.jsx?v=22"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/SignaturePad.jsx?v=22"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/AppShell.jsx?v=22"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/ManagerForm.jsx?v=22"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/OfficerDashboard.jsx?v=22"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/OfficerSign.jsx?v=22"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/SupervisorDashboard.jsx?v=22"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/Director.jsx?v=22"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/ManagerHistory.jsx?v=22"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/main.jsx?v=22"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/crm-client.jsx?v=23"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/data.jsx?v=23"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/Icon.jsx?v=23"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/SignaturePad.jsx?v=23"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/AppShell.jsx?v=23"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/ManagerForm.jsx?v=23"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/OfficerDashboard.jsx?v=23"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/OfficerSign.jsx?v=23"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/Director.jsx?v=23"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/ManagerHistory.jsx?v=23"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/main.jsx?v=23"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

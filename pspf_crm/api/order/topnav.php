@@ -1,4 +1,30 @@
-﻿<!-- Mobile-Responsive Navigation Bar -->
+﻿<?php
+// ---------------------------------------------------------------------------
+// Normalize the department shown in the name pill (see agent/topnav.php for the
+// rationale). Resolve $UserDept once here so the badge is consistent across all
+// roles/pages: prefer whatever the page set, else the session, else a one-off
+// DB lookup cached back into the session.
+// ---------------------------------------------------------------------------
+if (empty($UserDept)) {
+    $UserDept = $_SESSION['user']['department']
+        ?? ($userDept ?? '');
+}
+if (empty($UserDept) && isset($conn) && !empty($_SESSION['user']['id'])) {
+    $__deptStmt = $conn->prepare("SELECT department FROM users WHERE id = ? LIMIT 1");
+    if ($__deptStmt) {
+        $__uid = (int)$_SESSION['user']['id'];
+        $__deptStmt->bind_param("i", $__uid);
+        $__deptStmt->execute();
+        $__deptRow = $__deptStmt->get_result()->fetch_assoc();
+        $__deptStmt->close();
+        if ($__deptRow && $__deptRow['department'] !== null && $__deptRow['department'] !== '') {
+            $UserDept = $__deptRow['department'];
+            $_SESSION['user']['department'] = $UserDept;
+        }
+    }
+}
+?>
+<!-- Mobile-Responsive Navigation Bar -->
 <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); padding: 0.5rem 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
     <div class="container-fluid">
         <!-- Logo and Brand -->
@@ -32,7 +58,8 @@
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item" href="/pspf_crm/api/settings/profile.php"><i class="bi bi-person-circle me-2"></i>Profile</a></li>
                     <?php
-                    $_mobileRoles = getUserRoles();
+                    // it_officer / it_director / supervisor are permissions, not switchable personas.
+                    $_mobileRoles = array_values(array_diff(getUserRoles(), ['it_officer', 'it_director', 'supervisor']));
                     if (count($_mobileRoles) > 1):
                         $_mobileActive = getActiveRole();
                         $_mobileCSRF   = $_SESSION['csrf_token'] ?? '';
@@ -49,7 +76,7 @@
                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_mobileCSRF) ?>">
                             <button type="submit" class="dropdown-item d-flex align-items-center gap-2<?= $_mobileRole === $_mobileActive ? ' active fw-semibold' : '' ?>">
                                 <i class="bi <?= $_mobileIcon ?>"></i>
-                                <?= htmlspecialchars(ucfirst($_mobileRole)) ?>
+                                <?= htmlspecialchars(roleLabel($_mobileRole)) ?>
                                 <?php if ($_mobileRole === $_mobileActive): ?><i class="bi bi-check2 ms-auto"></i><?php endif ?>
                             </button>
                         </form>
@@ -148,6 +175,9 @@
                         <?php if($isSuperAdmin): ?>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="/pspf_crm/api/settings/user_management.php"><i class="bi bi-people me-2"></i>User Management</a></li>
+                            <li><a class="dropdown-item" href="/pspf_crm/api/settings/org_structure.php"><i class="bi bi-diagram-3 me-2"></i>Org Structure</a></li>
+                            <li><a class="dropdown-item" href="/pspf_crm/api/settings/system_catalog.php"><i class="bi bi-hdd-stack me-2"></i>System Catalog</a></li>
+                            <li><a class="dropdown-item" href="/pspf_crm/api/deploy/index.php"><i class="bi bi-rocket-takeoff me-2"></i>Deployments</a></li>
                         <?php endif ?>
                     </ul>
                 </li>
@@ -158,47 +188,23 @@
                 <!-- User Info Badge with Role and Department -->
                 <div class="d-flex align-items-center" style="background: rgba(255,255,255,0.15); border-radius: 30px; padding: 0.25rem 1rem;">
                     <span class="text-white me-2" style="font-size: 0.9rem; font-weight: 500;"><?= htmlspecialchars($UserUsername) ?></span>
-                    
-                    <!-- Role Badge with Icon -->
-                    <?php if ($isUser): ?>
-                        <span class="badge d-inline-flex align-items-center gap-1" style="background: #C62E65; color: white; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.7rem;">
-                            <i class="bi bi-person-fill" style="font-size: 0.6rem;"></i> User
-                        </span>
-                    <?php elseif ($isAgent): ?>
-                        <span class="badge d-inline-flex align-items-center gap-1" style="background: #7FC8F8; color: #1e293b; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.7rem;">
-                            <i class="bi bi-headset" style="font-size: 0.6rem;"></i> Agent
-                        </span>
-                    <?php elseif ($isAdmin): ?>
-                        <span class="badge d-inline-flex align-items-center gap-1" style="background: #F6AE2D; color: #1e293b; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.7rem;">
-                            <i class="bi bi-shield-fill-check" style="font-size: 0.6rem;"></i> Admin
-                        </span>
-                    <?php elseif ($isSuperAdmin): ?>
-                        <span class="badge d-inline-flex align-items-center gap-1" style="background: black; color: white; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.7rem;">
-                            <i class="bi bi-person-gear" style="font-size: 0.6rem;"></i> Super Admin
-                        </span>
-                    <?php endif; ?>
 
-                    <!-- Department Badge (for all users except maybe superadmin) -->
+                    <!-- Department Badge. The standalone role badge and the tiny "Div"
+                         badge were removed to keep the navbar on one line: the role
+                         switcher already names the active role and the avatar carries
+                         the role colour, so both were redundant width. -->
                     <?php if (!empty($UserDept)): ?>
-                        <span class="badge d-inline-flex align-items-center gap-1 ms-1" style="background: rgba(255,255,255,0.2); color: white; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.7rem;">
-                            <i class="bi bi-building" style="font-size: 0.6rem;"></i> 
+                        <span class="badge d-inline-flex align-items-center gap-1" style="background: rgba(255,255,255,0.2); color: white; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.7rem;">
+                            <i class="bi bi-building" style="font-size: 0.6rem;"></i>
                             <?= htmlspecialchars(strlen($UserDept) > 20 ? substr($UserDept, 0, 20) . '...' : $UserDept) ?>
-                        </span>
-                    <?php endif; ?>
-                    
-                    <!-- Division Badge if available -->
-                    <?php if (!empty($UserDivisionId) && $UserDivisionId > 0): 
-                        // You might want to fetch division name here
-                    ?>
-                        <span class="badge ms-1" style="background: rgba(255,255,255,0.1); color: white; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.65rem;">
-                            <i class="bi bi-diagram-3"></i> Div
                         </span>
                     <?php endif; ?>
                 </div>
 
                 <!-- Role Switcher (desktop, only shown when user has multiple roles) -->
                 <?php
-                $_desktopRoles = getUserRoles();
+                // it_officer / it_director / supervisor are permissions, not switchable personas.
+                $_desktopRoles = array_values(array_diff(getUserRoles(), ['it_officer', 'it_director', 'supervisor']));
                 if (count($_desktopRoles) > 1):
                     $_desktopActive = getActiveRole();
                     $_desktopCSRF   = $_SESSION['csrf_token'] ?? '';
@@ -209,7 +215,7 @@
                             style="background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; padding: 0.3rem 0.8rem;"
                             data-bs-toggle="dropdown" aria-expanded="false" title="Switch role">
                         <i class="bi bi-arrow-left-right" style="font-size: 0.75rem;"></i>
-                        <span style="font-size: 0.8rem;"><?= htmlspecialchars(ucfirst($_desktopActive)) ?></span>
+                        <span style="font-size: 0.8rem;"><?= htmlspecialchars(roleLabel($_desktopActive)) ?></span>
                         <i class="bi bi-chevron-down" style="font-size: 0.65rem; opacity: 0.8;"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow">
@@ -223,7 +229,7 @@
                                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_desktopCSRF) ?>">
                                 <button type="submit" class="dropdown-item d-flex align-items-center gap-2<?= $_dRole === $_desktopActive ? ' active fw-semibold' : '' ?>">
                                     <i class="bi <?= $_dIcon ?>"></i>
-                                    <?= htmlspecialchars(ucfirst($_dRole)) ?>
+                                    <?= htmlspecialchars(roleLabel($_dRole)) ?>
                                     <?php if ($_dRole === $_desktopActive): ?><i class="bi bi-check2 ms-auto"></i><?php endif ?>
                                 </button>
                             </form>

@@ -230,7 +230,6 @@ function AppProvider({ children, initialRole }) {
 
 function defaultRouteForRole(role) {
   if (role === "manager")    return { name: "manager-form" };
-  if (role === "supervisor") return { name: "supervisor-dashboard" };
   if (role === "officer")    return { name: "officer-dashboard" };
   if (role === "director")   return { name: "director-dashboard" };
   return { name: "manager-form" };
@@ -247,7 +246,7 @@ function meForRole(role) {
 // These are functional areas unlocked by permissions, not selectable personas:
 // it_officer / it_director are never shown as roles to pick; they simply unlock
 // the "IT Review" and "Director" areas. Submitting requests ("Requests") is
-// limited to CRM administrators (admin / superadmin).
+// limited to holders of the supervisor role.
 // The __CRM_USER__.crmRoles array is injected by index.php.
 function getAvailableRoles() {
   const u = window.__CRM_USER__;
@@ -258,11 +257,9 @@ function getAvailableRoles() {
   ];
   const areas = [];
   const crmRoles = u.crmRoles || [];
-  // Requesting access is open to every signed-in user — the approval chain
-  // gates the request, not who is allowed to ask.
-  areas.push({ value: "manager", label: "Requests" });
+  // Raising a request is limited to supervisor-role holders.
   if (crmRoles.includes("supervisor")) {
-    areas.push({ value: "supervisor", label: "Approvals" });
+    areas.push({ value: "manager", label: "Requests" });
   }
   if (crmRoles.includes("it_officer")) {
     areas.push({ value: "officer", label: "IT Review" });
@@ -294,8 +291,6 @@ function buildNotifications(requests, role, me) {
       else if (r.status === "claimed" && String(r.claimedBy) === String(me.id))
         items.push({ id: r.id + "-sign", kind: "amber", title: "Awaiting your signature", body: `${r.employee.name} · ${r.id}`, at: r.submittedAt, requestId: r.id, route: "officer-sign" });
     }
-    if (role === "supervisor" && r.status === "awaiting-supervisor")
-      items.push({ id: r.id + "-sup", kind: "amber", title: "Awaiting your approval", body: `${r.employee.name} · ${r.id}`, at: r.submittedAt, requestId: r.id, route: "supervisor-sign" });
     if (role === "director" && r.status === "awaiting-director")
       items.push({ id: r.id + "-ddir", kind: "amber", title: "Awaiting your review", body: `${r.employee.name} · ${r.id}`, at: r.submittedAt, requestId: r.id, route: "director-sign" });
   }
@@ -393,10 +388,6 @@ function TopBar() {
         { name: "manager-form",    label: "New request" },
         { name: "manager-history", label: "My requests" },
       ]
-    : role === "supervisor"
-    ? [
-        { name: "supervisor-dashboard", label: "Approvals" },
-      ]
     : role === "officer"
     ? [
         { name: "officer-dashboard", label: "Dashboard" },
@@ -481,7 +472,7 @@ function RoleSwitcher({ role, onChange }) {
   // it_officer / it_director are not shown as selectable roles; they simply unlock
   // the IT Review / Director areas. Hide the switcher when there's only one area.
   if (!availableRoles || availableRoles.length <= 1) return null;
-  const hints = { manager: "Submit & track requests", supervisor: "Approve your team's requests", officer: "Review & sign requests", director: "Final sign-off" };
+  const hints = { manager: "Submit & track requests", officer: "Review & sign requests", director: "Final sign-off" };
   return (
     <div className="role-switch" role="tablist" aria-label="Work area">
       <span className="role-switch-label">View</span>
@@ -529,8 +520,6 @@ function RouteView() {
   switch (state.route.name) {
     case "manager-form":      return <ManagerForm key="form"/>;
     case "manager-history":   return <ManagerHistory />;
-    case "supervisor-dashboard": return <SupervisorDashboard />;
-    case "supervisor-sign":     return <SupervisorSign requestId={state.routeParams.requestId}/>;
     case "officer-dashboard": return <OfficerDashboard />;
     case "officer-sign":      return <OfficerSign requestId={state.routeParams.requestId}/>;
     case "director-dashboard":return <DirectorDashboard />;
