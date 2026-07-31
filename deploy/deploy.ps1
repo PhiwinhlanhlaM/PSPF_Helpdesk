@@ -97,10 +97,9 @@ $LogFile    = Join-Path $LogDir "deploy_$Stamp.log"
 # minus the excludes/protected paths below). The IT Access React app ("IT Access
 # Form") is a top-level sibling.
 #
-# vehicle_booking is intentionally NOT managed here. It is an existing production
-# app the CRM team maintains directly on live and we are hands-off; the exclude
-# rule below guarantees the deploy can never create or update any vehicle_booking
-# file, even the nested pspf_crm/vehicle_booking copy.
+# vehicle_booking lives inside pspf_crm and is now deployed along with the rest
+# of that folder. Its per-environment config (db.php, auth_db.php, mail_config.php)
+# is protected below so live keeps its own secrets, exactly like the CRM config.
 $ManagedFolders = @("pspf_crm", "IT Access Form")
 
 # Files/paths NEVER overwritten on live (live keeps its own — these hold per-
@@ -109,13 +108,14 @@ $ManagedFolders = @("pspf_crm", "IT Access Form")
 $ProtectedRelPaths = @(
     "pspf_crm/api/db.php",
     "pspf_crm/api/mail_config.php",
-    "pspf_crm/api/sharepoint_config.php"
+    "pspf_crm/api/sharepoint_config.php",
+    "pspf_crm/vehicle_booking/db.php",
+    "pspf_crm/vehicle_booking/auth_db.php",
+    "pspf_crm/vehicle_booking/mail_config.php"
 )
 
 # Patterns excluded from deployment entirely (build artifacts / data / local-only).
-# NOTE: vehicle_booking is excluded here too, so even though it lives inside the
-# managed pspf_crm folder it is fully hands-off and can never be deployed.
-$ExcludeDirRegex  = '(^|/)(vendor|\.vs|\.git|node_modules|uploads|tmp|vehicle_booking)(/|$)'
+$ExcludeDirRegex  = '(^|/)(vendor|\.vs|\.git|node_modules|uploads|tmp)(/|$)'
 # Excludes: DB dumps, logs, and test-only files (e.g. it_access/test_runner.php,
 # test_login_helper.php — the latter is a session bypass that must never hit prod).
 $ExcludeFileRegex = '(\.(sql|log)$)|((^|/)test_[^/]*\.php$)'
@@ -409,7 +409,7 @@ Write-Host ""
 Write-Host "==================== DEPLOY PREVIEW ====================" -ForegroundColor Cyan
 Write-Host ("Source : {0} @ {1} ({2})" -f $RepoUrl, $Branch, $DeployedSha)
 Write-Host ("Target : {0}" -f $LiveRoot)
-Write-Host  "Scope  : full mirror of pspf_crm + IT Access Form (vehicle_booking is excluded/hands-off)"
+Write-Host  "Scope  : full mirror of pspf_crm (incl. vehicle_booking) + IT Access Form"
 Write-Host ("Changes: {0} file(s) to add/update" -f $toCopy.Count)
 Write-Host ""
 $toCopy | Sort-Object Status, Rel | ForEach-Object {
