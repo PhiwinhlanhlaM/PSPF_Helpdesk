@@ -48,14 +48,16 @@ Managed folders (`$ManagedFolders` in `deploy.ps1`):
 
 Within those, **everything is deployable except**:
 
-- **vehicle_booking (hands-off)** — the vehicle booking app (the live copy is
-  `pspf_crm/vehicle_booking/`) is maintained directly on live by the CRM team and
-  is **fully excluded** from the deploy. The exclude rule covers any path
-  containing `vehicle_booking/`, so the pipeline can never create or update it.
+- **vehicle_booking (now deployed)** — the vehicle booking app
+  (`pspf_crm/vehicle_booking/`) is deployed along with the rest of `pspf_crm/`.
+  Its per-environment config is protected (see below) so the pipeline never
+  clobbers the live DB/mail settings.
 - **Protected config** (`$ProtectedRelPaths`) — `db.php`, `mail_config.php`,
-  `sharepoint_config.php` for the CRM. Live keeps its own (per-environment secrets).
+  `sharepoint_config.php` for the CRM, plus `db.php`, `auth_db.php`, and
+  `mail_config.php` for vehicle_booking. Live keeps its own (per-environment
+  secrets).
 - **Excluded paths** (`$ExcludeDirRegex` / `$ExcludeFileRegex`) — `vendor/`,
-  `uploads/`, `.vs/`, `.git/`, `node_modules/`, `tmp/`, `vehicle_booking/`,
+  `uploads/`, `.vs/`, `.git/`, `node_modules/`, `tmp/`,
   `*.sql`, `*.log`, and test-only files (`test_*.php`, e.g. the
   `test_login_helper.php` session bypass).
 
