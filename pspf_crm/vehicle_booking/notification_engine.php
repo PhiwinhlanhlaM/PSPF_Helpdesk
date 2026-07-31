@@ -33,7 +33,7 @@ function buildRequestLink($request_id) {
  * Format request details as HTML
  */
 function formatRequestDetails($request) {
-    return "
+    $details = "
         <strong>Requester:</strong> {$request['requester_name']}<br>
         <strong>Date Requested:</strong> {$request['date_requested']}<br>
         <strong>Date &amp; Time Required:</strong> {$request['date_required']} {$request['time_required']}<br>
@@ -42,6 +42,19 @@ function formatRequestDetails($request) {
 	<strong>Passengers:</strong> {$request['passengers']}<br>
         <strong>Department:</strong> {$request['department']}<br>
     ";
+
+    // Once the driver has assigned a vehicle, include it in every email so all
+    // parties can see which car was allocated to the trip.
+    if (!empty($request['vehicle_id']) && !empty($request['vehicle_registration'])) {
+        $vehicleLabel = trim("{$request['vehicle_make']} {$request['vehicle_model']}");
+        $details .= "<strong>Assigned Vehicle:</strong> {$vehicleLabel} ({$request['vehicle_registration']})<br>";
+
+        if (!empty($request['driver_name'])) {
+            $details .= "<strong>Assigned Driver:</strong> {$request['driver_name']}<br>";
+        }
+    }
+
+    return $details;
 }
 
 /**
@@ -77,13 +90,21 @@ function notifyAllDrivers($conn, $subject, $message) {
  */
 function sendRequestEmail($conn, $request_id, $stage) {
 
-    // Fetch full request + requester details
+    // Fetch full request + requester details, plus the assigned vehicle and
+    // driver (both NULL until the driver assigns a car — LEFT JOINs keep the
+    // pre-assignment emails working).
     $stmt = $conn->prepare("
         SELECT vr.*,
                u.email AS requester_email,
-               u.name  AS requester_name
+               u.name  AS requester_name,
+               d.name  AS driver_name,
+               v.registration AS vehicle_registration,
+               v.make  AS vehicle_make,
+               v.model AS vehicle_model
         FROM vehicle_requests vr
         JOIN users u ON u.user_id = vr.requester_id
+        LEFT JOIN users d ON d.user_id = vr.driver_id
+        LEFT JOIN vehicles v ON v.vehicle_id = vr.vehicle_id
         WHERE vr.request_id = ?
     ");
     $stmt->execute([$request_id]);

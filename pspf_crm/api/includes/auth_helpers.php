@@ -4,6 +4,10 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// Enforce idle-based session timeout on every authenticated page. This must run
+// as early as possible so an expired session is cleared before any page logic.
+require_once __DIR__ . '/../session_timeout.php';
+
 /**
  * IMPORTANT:
  * DO NOT open the DB connection here.

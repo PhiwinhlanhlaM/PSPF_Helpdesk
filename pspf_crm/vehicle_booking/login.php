@@ -5,7 +5,7 @@ session_start();
 //  AUTO-LOGIN via SSO cookie set by the CRM on login
 // ══════════════════════════════════════════════════════════════════
 
-if (!isset($_SESSION['user_id']) && !isset($_GET['logout'])) {
+if (!isset($_SESSION['user_id']) && !isset($_GET['logout']) && !isset($_GET['timeout'])) {
 
     $hd_email = $_COOKIE['crm_sso_email'] ?? null;
 
@@ -227,6 +227,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="col-md-5">
       <div class="login-card">
         <h3 class="login-header">Vehicle Booking System</h3>
+
+        <?php if (isset($_GET['timeout'])): ?>
+          <div class="alert alert-warning">Your session expired due to inactivity. Please log in again.</div>
+        <?php endif; ?>
+
+        <?php if (isset($_GET['logout'])): ?>
+          <div class="alert alert-success">You have been logged out.</div>
+        <?php endif; ?>
 
         <?php if (!empty($error)): ?>
           <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>

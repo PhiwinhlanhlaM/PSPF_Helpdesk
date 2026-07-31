@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once __DIR__ . '/session_timeout.php';
 require '../vehicle_booking/db.php';
 require_once '../vehicle_booking/notification_engine.php';
 
