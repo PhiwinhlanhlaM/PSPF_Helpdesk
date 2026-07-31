@@ -248,6 +248,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             <?php endif; ?>
 
+            <?php if (isset($_GET['timeout'])): ?>
+                <div class="error">
+                    Your session expired due to inactivity. Please sign in again.
+                </div>
+            <?php endif; ?>
+
             <?php if (isset($_GET['logout']) && $_GET['logout'] == 'success'): ?>
                 <div class="success">
                     You have successfully logged out.

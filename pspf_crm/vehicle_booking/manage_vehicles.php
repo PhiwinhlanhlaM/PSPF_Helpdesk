@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once __DIR__ . '/session_timeout.php';
 require '../vehicle_booking/db.php';
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {

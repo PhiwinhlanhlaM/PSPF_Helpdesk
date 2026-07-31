@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once __DIR__ . '/session_timeout.php';
 // Only users with role 'viewer' may access this page
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'viewer') {
     header('HTTP/1.1 403 Forbidden');
