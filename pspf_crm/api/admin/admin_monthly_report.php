@@ -441,7 +441,7 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : $userDept;
             <h3><i class="bi bi-list-check me-2"></i>All Tickets &mdash; <?= htmlspecialchars($monthLabel) ?></h3>
             <div class="d-flex align-items-center gap-2">
                 <input type="search" id="ticketSearch" class="form-control form-control-sm no-print"
-                       style="max-width: 220px;" placeholder="Search title / requester...">
+                       style="max-width: 240px;" placeholder="Search title, agent, requester, description...">
                 <span class="badge bg-secondary" id="visibleCount"><?= $totalTickets ?> tickets</span>
             </div>
         </div>
@@ -470,7 +470,19 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : $userDept;
                 <tbody>
                     <?php if ($totalTickets > 0): ?>
                         <?php foreach ($rows as $t): ?>
-                            <tr data-status="<?= htmlspecialchars(trim((string)$t['status'])) ?>">
+                            <?php
+                                // Lowercased index the search box matches against: ticket #,
+                                // title, assigned agent, requester and the full description.
+                                $searchIndex = strtolower(trim(
+                                    'TCK-' . str_pad($t['id'], 6, '0', STR_PAD_LEFT) . ' ' .
+                                    ($t['title'] ?? '') . ' ' .
+                                    implode(' ', resolveAgentNames($t['assigned_to'], $userMap)) . ' ' .
+                                    ($t['created_by'] ?? '') . ' ' .
+                                    ($t['description'] ?? '')
+                                ));
+                            ?>
+                            <tr data-status="<?= htmlspecialchars(trim((string)$t['status'])) ?>"
+                                data-search="<?= htmlspecialchars($searchIndex) ?>">
                                 <td><?= 'TCK-' . str_pad($t['id'], 6, '0', STR_PAD_LEFT) ?></td>
                                 <td><?= htmlspecialchars($t['title']) ?></td>
                                 <td>
@@ -595,7 +607,8 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : $userDept;
             let shown = 0;
             rows.forEach(tr => {
                 const statusOk = activeStatus === 'all' || tr.dataset.status === activeStatus;
-                const textOk = term === '' || tr.textContent.toLowerCase().includes(term);
+                const hay = tr.dataset.search || tr.textContent.toLowerCase();
+                const textOk = term === '' || hay.includes(term);
                 const visible = statusOk && textOk;
                 tr.classList.toggle('filtered-out', !visible);
                 tr.style.display = visible ? '' : 'none';
