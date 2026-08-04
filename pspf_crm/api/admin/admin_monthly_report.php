@@ -167,6 +167,17 @@ $sumMinutes = 0; $countTimed = 0; $fastest = null; $slowest = null;
 $sumRating = 0;  $countRated = 0;
 $priorityCounts = ['High' => 0, 'Medium' => 0, 'Low' => 0];
 
+// Per-status counts for the month. Seed the canonical statuses so they always
+// render (even at 0); any other status the data contains is added on the fly.
+$statusCounts = [
+    'Open'             => 0,
+    'In Progress'      => 0,
+    'Pending Feedback' => 0,
+    'Resolved'         => 0,
+    'Closed'           => 0,
+    'Escalated'        => 0,
+];
+
 // Per-agent: a ticket with several assignees counts toward each of them, the
 // same attribution the dashboard leaderboard uses. The per-agent breakdown and
 // the timing/rating KPIs are computed only over tickets that actually reached a
@@ -190,6 +201,12 @@ foreach ($rows as $r) {
 
     $p = $r['priority'] ?? '';
     if (isset($priorityCounts[$p])) $priorityCounts[$p]++;
+
+    $st = trim((string)($r['status'] ?? ''));
+    if ($st !== '') {
+        if (!isset($statusCounts[$st])) $statusCounts[$st] = 0;
+        $statusCounts[$st]++;
+    }
 
     // Per-agent breakdown reflects resolved throughput only.
     if (!$isResolved) continue;
@@ -242,6 +259,20 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : $userDept;
         .summary-value { font-size: 1.75rem; font-weight: 700; line-height: 1.1; }
         .summary-label { color: white; font-size: .8rem; }
         table.report-table th { white-space: nowrap; }
+        /* Status filter pills (also serve as the per-status stats). */
+        .status-filter { display: flex; flex-wrap: wrap; gap: .5rem; }
+        .status-pill {
+            border: 1px solid #dee2e6; background: #fff; border-radius: 2rem;
+            padding: .35rem .85rem; font-size: .85rem; cursor: pointer;
+            display: inline-flex; align-items: center; gap: .4rem; transition: all .15s;
+        }
+        .status-pill:hover { border-color: #adb5bd; }
+        .status-pill.active { background: #0d6efd; border-color: #0d6efd; color: #fff; }
+        .status-pill .count {
+            font-weight: 700; background: rgba(0,0,0,.08); border-radius: 1rem;
+            padding: 0 .5rem; min-width: 1.6rem; text-align: center;
+        }
+        .status-pill.active .count { background: rgba(255,255,255,.25); }
         @media print {
             .no-print, nav.navbar, .settings-actions { display: none !important; }
             .table-container, .stat-card { box-shadow: none !important; border: 1px solid #ddd; }
@@ -390,11 +421,29 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : $userDept;
         </div>
     </div>
 
-    <!-- Resolved tickets list -->
+    <!-- Status filter (doubles as the per-status stats for the month) -->
+    <div class="mb-2 no-print">
+        <div class="status-filter" id="statusFilter">
+            <button type="button" class="status-pill active" data-status="all">
+                All <span class="count"><?= $totalTickets ?></span>
+            </button>
+            <?php foreach ($statusCounts as $st => $cnt): ?>
+                <button type="button" class="status-pill" data-status="<?= htmlspecialchars($st) ?>">
+                    <?= htmlspecialchars($st) ?> <span class="count"><?= $cnt ?></span>
+                </button>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
+    <!-- All tickets list -->
     <div class="table-container">
         <div class="table-header">
             <h3><i class="bi bi-list-check me-2"></i>All Tickets &mdash; <?= htmlspecialchars($monthLabel) ?></h3>
-            <span class="badge bg-secondary"><?= $totalTickets ?> tickets</span>
+            <div class="d-flex align-items-center gap-2">
+                <input type="search" id="ticketSearch" class="form-control form-control-sm no-print"
+                       style="max-width: 220px;" placeholder="Search title / requester...">
+                <span class="badge bg-secondary" id="visibleCount"><?= $totalTickets ?> tickets</span>
+            </div>
         </div>
         <div class="table-responsive">
             <table class="table table-bordered table-hover report-table mb-0" id="reportTable">
@@ -421,7 +470,7 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : $userDept;
                 <tbody>
                     <?php if ($totalTickets > 0): ?>
                         <?php foreach ($rows as $t): ?>
-                            <tr>
+                            <tr data-status="<?= htmlspecialchars(trim((string)$t['status'])) ?>">
                                 <td><?= 'TCK-' . str_pad($t['id'], 6, '0', STR_PAD_LEFT) ?></td>
                                 <td><?= htmlspecialchars($t['title']) ?></td>
                                 <td>
@@ -489,6 +538,7 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : $userDept;
         table.querySelectorAll('tbody tr').forEach(tr => {
             const cells = tr.querySelectorAll('td');
             if (cells.length < headers.length) return; // skip placeholder rows
+            if (tr.classList.contains('filtered-out')) return; // export what's shown
             const row = [];
             cells.forEach((td, idx) => {
                 if (idx === ratingColIndex) {
@@ -523,6 +573,47 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : $userDept;
 
         XLSX.writeFile(wb, 'monthly_report_<?= $monthParam ?>.xlsx');
     }
+
+    // -----------------------------------------------------------------
+    // Status + text filtering of the ticket list. The status pills also
+    // show the per-status counts for the month.
+    // -----------------------------------------------------------------
+    (function () {
+        const filterBar   = document.getElementById('statusFilter');
+        const searchInput = document.getElementById('ticketSearch');
+        const countBadge  = document.getElementById('visibleCount');
+        const table       = document.getElementById('reportTable');
+        if (!table) return;
+
+        const rows = [...table.querySelectorAll('tbody tr')].filter(
+            tr => tr.querySelectorAll('td').length > 1 // skip placeholder row
+        );
+        let activeStatus = 'all';
+
+        function apply() {
+            const term = (searchInput.value || '').trim().toLowerCase();
+            let shown = 0;
+            rows.forEach(tr => {
+                const statusOk = activeStatus === 'all' || tr.dataset.status === activeStatus;
+                const textOk = term === '' || tr.textContent.toLowerCase().includes(term);
+                const visible = statusOk && textOk;
+                tr.classList.toggle('filtered-out', !visible);
+                tr.style.display = visible ? '' : 'none';
+                if (visible) shown++;
+            });
+            countBadge.textContent = shown + (shown === 1 ? ' ticket' : ' tickets');
+        }
+
+        filterBar.addEventListener('click', e => {
+            const pill = e.target.closest('.status-pill');
+            if (!pill) return;
+            filterBar.querySelectorAll('.status-pill').forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            activeStatus = pill.dataset.status;
+            apply();
+        });
+        searchInput.addEventListener('input', apply);
+    })();
 </script>
 </body>
 </html>
