@@ -70,13 +70,16 @@ $monthLabel     = date('F Y', $startTs);
 $isCurrentMonth = ($monthParam === date('Y-m'));
 
 // ---------------------------
-// RESOLVED TICKETS FOR THE MONTH (department / global)
+// ALL TICKETS RAISED IN THE MONTH (department / global)
 // ---------------------------
-// Buckets by RESOLVED_AT (when the ticket reached Resolved/Closed), matching the
-// agent report. resolution_minutes measures the AGENT'S real handling time via
-// WORK_COMPLETED_AT_SQL (first of Resolved/Closed/Pending Feedback), so tickets
-// parked in Pending Feedback -- or manually cleared after hanging -- don't
-// inflate the averages. See metrics_helpers.php.
+// Buckets by QUERY_DATE (when the ticket was created), so every ticket raised in
+// the month appears with its current status -- Open, In Progress, Resolved, etc.
+// resolved_at / resolution_minutes are still computed for the ones that reached a
+// completed state, so the resolution metrics stay accurate; they are NULL for
+// tickets that are not finished yet. resolution_minutes measures the AGENT'S real
+// handling time via WORK_COMPLETED_AT_SQL (first of Resolved/Closed/Pending
+// Feedback), so tickets parked in Pending Feedback -- or manually cleared after
+// hanging -- don't inflate the averages. See metrics_helpers.php.
 $reportSql = "
     SELECT
         t.id,
@@ -97,10 +100,9 @@ $reportSql = "
           LIMIT 1) AS rating
     FROM tickets t
     WHERE $scopeSql
-    HAVING resolved_at IS NOT NULL
-       AND resolved_at >= ?
-       AND resolved_at < ?
-    ORDER BY resolved_at ASC
+      AND t.query_date >= ?
+      AND t.query_date < ?
+    ORDER BY t.query_date ASC
 ";
 
 $reportStmt = $conn->prepare($reportSql);
@@ -142,19 +144,39 @@ function resolveAgentNames($assignedTo, array $userMap) {
     return $names;
 }
 
+/** Bootstrap badge class for a ticket status (matches the agent report). */
+function badgeClassForStatus($status) {
+    return match (strtolower(trim((string)$status))) {
+        'open'             => 'bg-warning text-dark',
+        'in progress'      => 'bg-info text-dark',
+        'resolved',
+        'closed'           => 'bg-success',
+        'pending feedback' => 'bg-primary',
+        'escalate',
+        'escalated'        => 'bg-danger',
+        default            => 'bg-secondary',
+    };
+}
+
 // ---------------------------
 // SUMMARY + PER-AGENT BREAKDOWN (computed in PHP over the fetched rows)
 // ---------------------------
-$totalResolved = count($rows);
+$totalTickets  = count($rows);
+$totalResolved = 0;
 $sumMinutes = 0; $countTimed = 0; $fastest = null; $slowest = null;
 $sumRating = 0;  $countRated = 0;
 $priorityCounts = ['High' => 0, 'Medium' => 0, 'Low' => 0];
 
 // Per-agent: a ticket with several assignees counts toward each of them, the
-// same attribution the dashboard leaderboard uses.
+// same attribution the dashboard leaderboard uses. The per-agent breakdown and
+// the timing/rating KPIs are computed only over tickets that actually reached a
+// completed state, so unfinished tickets in the list don't distort them.
 $agentStats = []; // email => [...]
 
 foreach ($rows as $r) {
+    $isResolved = !empty($r['resolved_at']);
+    if ($isResolved) $totalResolved++;
+
     $mins = $r['resolution_minutes'];
     $timed = ($mins !== null && is_numeric($mins) && $mins >= 0);
     if ($timed) {
@@ -169,6 +191,8 @@ foreach ($rows as $r) {
     $p = $r['priority'] ?? '';
     if (isset($priorityCounts[$p])) $priorityCounts[$p]++;
 
+    // Per-agent breakdown reflects resolved throughput only.
+    if (!$isResolved) continue;
     $emails = array_filter(array_map('trim', explode(',', (string)($r['assigned_to'] ?? ''))));
     foreach ($emails as $em) {
         $key = strtolower($em);
@@ -248,7 +272,7 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : $userDept;
             <i class="bi bi-building me-1"></i><?= htmlspecialchars($scopeLabel) ?>
         </div>
         <div class="text-muted small">
-            <i class="bi bi-calendar3 me-1"></i>Resolved tickets for <strong><?= htmlspecialchars($monthLabel) ?></strong>
+            <i class="bi bi-calendar3 me-1"></i>All tickets raised in <strong><?= htmlspecialchars($monthLabel) ?></strong>
             &middot; prepared by <?= htmlspecialchars($UserUsername) ?>
         </div>
     </div>
@@ -273,7 +297,7 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : $userDept;
         </form>
 
         <div class="d-flex gap-2 no-print">
-            <button type="button" class="btn btn-success" onclick="exportExcel()" <?= $totalResolved === 0 ? 'disabled' : '' ?>>
+            <button type="button" class="btn btn-success" onclick="exportExcel()" <?= $totalTickets === 0 ? 'disabled' : '' ?>>
                 <i class="bi bi-file-earmark-excel me-1"></i> Export to Excel
             </button>
             <button type="button" class="btn btn-outline-primary" onclick="window.print()">
@@ -284,6 +308,11 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : $userDept;
 
     <!-- Summary KPIs -->
     <div class="stats-grid mb-4">
+        <div class="stat-card">
+            <div class="stat-icon info"><i class="bi bi-ticket-detailed"></i></div>
+            <div class="summary-value"><?= $totalTickets ?></div>
+            <div class="summary-label">Total Tickets</div>
+        </div>
         <div class="stat-card">
             <div class="stat-icon success"><i class="bi bi-check2-circle"></i></div>
             <div class="summary-value"><?= $totalResolved ?></div>
@@ -324,7 +353,7 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : $userDept;
         <span class="badge bg-danger fs-6"><?= $priorityCounts['High'] ?> High</span>
         <span class="badge bg-warning text-dark fs-6"><?= $priorityCounts['Medium'] ?> Medium</span>
         <span class="badge bg-success fs-6"><?= $priorityCounts['Low'] ?> Low</span>
-        <span class="text-muted small ms-2">priority mix of resolved tickets</span>
+        <span class="text-muted small ms-2">priority mix of all tickets</span>
     </div>
 
     <!-- Per-agent breakdown -->
@@ -364,8 +393,8 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : $userDept;
     <!-- Resolved tickets list -->
     <div class="table-container">
         <div class="table-header">
-            <h3><i class="bi bi-list-check me-2"></i>Resolved Tickets &mdash; <?= htmlspecialchars($monthLabel) ?></h3>
-            <span class="badge bg-secondary"><?= $totalResolved ?> tickets</span>
+            <h3><i class="bi bi-list-check me-2"></i>All Tickets &mdash; <?= htmlspecialchars($monthLabel) ?></h3>
+            <span class="badge bg-secondary"><?= $totalTickets ?> tickets</span>
         </div>
         <div class="table-responsive">
             <table class="table table-bordered table-hover report-table mb-0" id="reportTable">
@@ -374,6 +403,7 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : $userDept;
                         <th>Ticket #</th>
                         <th>Title</th>
                         <th>Priority</th>
+                        <th>Status</th>
                         <th>Assigned Agent</th>
                         <th>Requester</th>
                         <th>Created</th>
@@ -389,7 +419,7 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : $userDept;
                     </tr>
                 </thead>
                 <tbody>
-                    <?php if ($totalResolved > 0): ?>
+                    <?php if ($totalTickets > 0): ?>
                         <?php foreach ($rows as $t): ?>
                             <tr>
                                 <td><?= 'TCK-' . str_pad($t['id'], 6, '0', STR_PAD_LEFT) ?></td>
@@ -399,10 +429,15 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : $userDept;
                                         <?= htmlspecialchars($t['priority']) ?>
                                     </span>
                                 </td>
+                                <td>
+                                    <span class="badge <?= badgeClassForStatus($t['status']) ?>">
+                                        <?= htmlspecialchars($t['status']) ?>
+                                    </span>
+                                </td>
                                 <td><?= htmlspecialchars(implode(', ', resolveAgentNames($t['assigned_to'], $userMap))) ?></td>
                                 <td><?= htmlspecialchars($t['created_by']) ?></td>
                                 <td><?= htmlspecialchars(date('Y-m-d H:i', strtotime($t['query_date']))) ?></td>
-                                <td><?= htmlspecialchars(date('Y-m-d H:i', strtotime($t['resolved_at']))) ?></td>
+                                <td><?= !empty($t['resolved_at']) ? htmlspecialchars(date('Y-m-d H:i', strtotime($t['resolved_at']))) : '<span class="text-muted">&mdash;</span>' ?></td>
                                 <td><?= formatDuration($t['resolution_minutes']) ?></td>
                                 <td>
                                     <?php if ($t['rating'] !== null && is_numeric($t['rating'])): ?>
@@ -420,9 +455,9 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : $userDept;
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="10" class="text-center py-5 text-muted">
+                            <td colspan="11" class="text-center py-5 text-muted">
                                 <i class="bi bi-inbox display-6 d-block mb-2"></i>
-                                No tickets were resolved in <?= htmlspecialchars($monthLabel) ?>.
+                                No tickets were raised in <?= htmlspecialchars($monthLabel) ?>.
                             </td>
                         </tr>
                     <?php endif; ?>
@@ -473,8 +508,11 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : $userDept;
 
         const ticketTable = document.getElementById('reportTable');
         if (ticketTable) {
-            const ws1 = XLSX.utils.aoa_to_sheet(tableToAoa(ticketTable, 8)); // rating is last col
-            XLSX.utils.book_append_sheet(wb, ws1, 'Resolved Tickets');
+            // Find the Rating column by header text so the export survives column changes.
+            const heads = [...ticketTable.querySelectorAll('thead th')].map(th => th.textContent.trim().toLowerCase());
+            const ratingCol = heads.indexOf('rating');
+            const ws1 = XLSX.utils.aoa_to_sheet(tableToAoa(ticketTable, ratingCol));
+            XLSX.utils.book_append_sheet(wb, ws1, 'All Tickets');
         }
 
         const agentTable = document.getElementById('agentTable');
