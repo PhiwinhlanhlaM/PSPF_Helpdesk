@@ -72,12 +72,13 @@ $monthLabel     = date('F Y', $startTs);
 $isCurrentMonth = ($monthParam === date('Y-m'));
 
 // ---------------------------
-// RESOLVED TICKETS FOR THE MONTH
+// ALL TICKETS RAISED IN THE MONTH (assigned to this agent)
 // ---------------------------
-// A ticket counts for the month if it FIRST reached a completed state
-// (Resolved / Closed) during that month, taken from the status-change log --
-// the same definition the dashboard KPIs use (see metrics_helpers.php). This is
-// throughput: what the agent actually finished that month.
+// A ticket counts for the month if it was CREATED (query_date) during that
+// month, so every ticket the agent handled appears with its current status --
+// Open, In Progress, Resolved, etc. resolved_at / resolution_minutes are still
+// computed for the ones that reached a completed state (NULL otherwise), so the
+// resolution metrics stay accurate.
 //
 // resolution_minutes measures the agent's real handling time: creation until
 // WORK_COMPLETED_AT (first of Resolved / Closed / Pending Feedback), NOT the
@@ -103,10 +104,9 @@ $reportSql = "
           LIMIT 1) AS rating
     FROM tickets t
     WHERE FIND_IN_SET(?, t.assigned_to)
-    HAVING resolved_at IS NOT NULL
-       AND resolved_at >= ?
-       AND resolved_at < ?
-    ORDER BY resolved_at ASC
+      AND t.query_date >= ?
+      AND t.query_date < ?
+    ORDER BY t.query_date ASC
 ";
 
 $reportStmt = $conn->prepare($reportSql);
@@ -123,7 +123,8 @@ $reportStmt->close();
 // ---------------------------
 // SUMMARY (computed in PHP over the fetched rows)
 // ---------------------------
-$totalResolved = count($rows);
+$totalTickets  = count($rows);
+$totalResolved = 0;
 $sumMinutes    = 0;
 $countTimed    = 0;
 $fastest       = null;
@@ -133,6 +134,8 @@ $countRated    = 0;
 $priorityCounts = ['High' => 0, 'Medium' => 0, 'Low' => 0];
 
 foreach ($rows as $r) {
+    if (!empty($r['resolved_at'])) $totalResolved++;
+
     $mins = $r['resolution_minutes'];
     if ($mins !== null && is_numeric($mins) && $mins >= 0) {
         $sumMinutes += $mins;
@@ -228,7 +231,7 @@ function badgeClassForStatus($status) {
             <?php if (!empty($UserDept)): ?>
                 <i class="bi bi-building me-1"></i><?= htmlspecialchars($UserDept) ?> &middot;
             <?php endif; ?>
-            <i class="bi bi-calendar3 me-1"></i>Resolved tickets for <strong><?= htmlspecialchars($monthLabel) ?></strong>
+            <i class="bi bi-calendar3 me-1"></i>All tickets raised in <strong><?= htmlspecialchars($monthLabel) ?></strong>
         </div>
     </div>
 
@@ -252,7 +255,7 @@ function badgeClassForStatus($status) {
         </form>
 
         <div class="d-flex gap-2 no-print">
-            <button type="button" class="btn btn-success" onclick="exportExcel()" <?= $totalResolved === 0 ? 'disabled' : '' ?>>
+            <button type="button" class="btn btn-success" onclick="exportExcel()" <?= $totalTickets === 0 ? 'disabled' : '' ?>>
                 <i class="bi bi-file-earmark-excel me-1"></i> Export to Excel
             </button>
             <button type="button" class="btn btn-outline-primary" onclick="window.print()">
@@ -263,6 +266,11 @@ function badgeClassForStatus($status) {
 
     <!-- Summary KPIs -->
     <div class="stats-grid mb-4">
+        <div class="stat-card">
+            <div class="stat-icon info"><i class="bi bi-ticket-detailed"></i></div>
+            <div class="summary-value"><?= $totalTickets ?></div>
+            <div class="summary-label">Total Tickets</div>
+        </div>
         <div class="stat-card">
             <div class="stat-icon success"><i class="bi bi-check2-circle"></i></div>
             <div class="summary-value"><?= $totalResolved ?></div>
@@ -305,8 +313,8 @@ function badgeClassForStatus($status) {
     <!-- Resolved tickets list -->
     <div class="table-container">
         <div class="table-header">
-            <h3><i class="bi bi-list-check me-2"></i>Resolved Tickets &mdash; <?= htmlspecialchars($monthLabel) ?></h3>
-            <span class="badge bg-secondary"><?= $totalResolved ?> tickets</span>
+            <h3><i class="bi bi-list-check me-2"></i>All Tickets &mdash; <?= htmlspecialchars($monthLabel) ?></h3>
+            <span class="badge bg-secondary"><?= $totalTickets ?> tickets</span>
         </div>
         <div class="table-responsive">
             <table class="table table-bordered table-hover report-table mb-0" id="reportTable">
@@ -315,6 +323,7 @@ function badgeClassForStatus($status) {
                         <th>Ticket #</th>
                         <th>Title</th>
                         <th>Priority</th>
+                        <th>Status</th>
                         <th>Requester</th>
                         <th>Created</th>
                         <th>Resolved</th>
@@ -329,7 +338,7 @@ function badgeClassForStatus($status) {
                     </tr>
                 </thead>
                 <tbody>
-                    <?php if ($totalResolved > 0): ?>
+                    <?php if ($totalTickets > 0): ?>
                         <?php foreach ($rows as $t): ?>
                             <tr>
                                 <td><?= 'TCK-' . str_pad($t['id'], 6, '0', STR_PAD_LEFT) ?></td>
@@ -339,9 +348,14 @@ function badgeClassForStatus($status) {
                                         <?= htmlspecialchars($t['priority']) ?>
                                     </span>
                                 </td>
+                                <td>
+                                    <span class="badge <?= badgeClassForStatus($t['status']) ?>">
+                                        <?= htmlspecialchars($t['status']) ?>
+                                    </span>
+                                </td>
                                 <td><?= htmlspecialchars($t['created_by']) ?></td>
                                 <td><?= htmlspecialchars(date('Y-m-d H:i', strtotime($t['query_date']))) ?></td>
-                                <td><?= htmlspecialchars(date('Y-m-d H:i', strtotime($t['resolved_at']))) ?></td>
+                                <td><?= !empty($t['resolved_at']) ? htmlspecialchars(date('Y-m-d H:i', strtotime($t['resolved_at']))) : '<span class="text-muted">&mdash;</span>' ?></td>
                                 <td><?= formatDuration($t['resolution_minutes']) ?></td>
                                 <td>
                                     <?php if ($t['rating'] !== null && is_numeric($t['rating'])): ?>
@@ -359,9 +373,9 @@ function badgeClassForStatus($status) {
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="9" class="text-center py-5 text-muted">
+                            <td colspan="10" class="text-center py-5 text-muted">
                                 <i class="bi bi-inbox display-6 d-block mb-2"></i>
-                                No tickets were resolved in <?= htmlspecialchars($monthLabel) ?>.
+                                No tickets were raised in <?= htmlspecialchars($monthLabel) ?>.
                             </td>
                         </tr>
                     <?php endif; ?>
@@ -394,13 +408,16 @@ function badgeClassForStatus($status) {
         table.querySelectorAll('thead th').forEach(th => headers.push(th.textContent.trim()));
         data.push(headers);
 
+        // Find the Rating column by header text so the export survives column changes.
+        const ratingCol = headers.map(h => h.toLowerCase()).indexOf('rating');
+
         // Body rows
         table.querySelectorAll('tbody tr').forEach(tr => {
             const cells = tr.querySelectorAll('td');
-            if (cells.length < 9) return; // skip the "no tickets" placeholder row
+            if (cells.length < headers.length) return; // skip the "no tickets" placeholder row
             const row = [];
             cells.forEach((td, idx) => {
-                if (idx === 7) {
+                if (idx === ratingCol) {
                     // Rating column: count filled stars
                     const filled = td.querySelectorAll('.bi-star-fill').length;
                     row.push(filled > 0 ? filled : '');
@@ -413,7 +430,7 @@ function badgeClassForStatus($status) {
 
         const ws = XLSX.utils.aoa_to_sheet(data);
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Resolved');
+        XLSX.utils.book_append_sheet(wb, ws, 'All Tickets');
         XLSX.writeFile(wb, 'monthly_report_<?= $monthParam ?>.xlsx');
     }
 </script>
