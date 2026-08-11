@@ -136,7 +136,7 @@ function sendRequestEmail($conn, $request_id, $stage) {
             notifyAllDrivers(
                $conn,
              
-                    "New Vehicle Request – Action Required (#$request_id)",
+                    "New Vehicle Request - Action Required (#$request_id)",
                     "A new vehicle request has been submitted and requires your availability confirmation.<br><br>" .
                     $requestDetails .
                     "<br><a href='" . buildApprovalLink('driver', $request_id) . "'>Review &amp; Confirm Availability</a>"
@@ -169,7 +169,7 @@ function sendRequestEmail($conn, $request_id, $stage) {
             // Notify requester
             sendMailTo(
                 $request['requester_email'],
-                "Driver Confirmed – Awaiting Supervisor Approval (#$request_id)",
+                "Driver Confirmed - Awaiting Supervisor Approval (#$request_id)",
                 "The driver has confirmed availability for your request. It now awaits supervisor approval.<br><br>" .
                 $requestDetails .
                 "<br><a href='" . buildRequestLink($request_id) . "'>View Request</a>"
@@ -190,7 +190,7 @@ function sendRequestEmail($conn, $request_id, $stage) {
         case 'driver_rejected':
             sendMailTo(
                 $request['requester_email'],
-                "Driver Unavailable – Request Rejected (#$request_id)",
+                "Driver Unavailable - Request Rejected (#$request_id)",
                 "Unfortunately the driver is unable to fulfil your request at this time.<br>" .
                 "Reason: {$request['rejection_reason']}<br><br>" .
                 $requestDetails .
@@ -203,7 +203,7 @@ function sendRequestEmail($conn, $request_id, $stage) {
 
             sendMailTo(
                 $request['requester_email'],
-                "Supervisor Approved – Awaiting HRM (#$request_id)",
+                "Supervisor Approved - Awaiting HRM (#$request_id)",
                 "Your request has been approved by the supervisor and is now awaiting HRM authorisation.<br><br>" .
                 $requestDetails .
                 "<br><a href='" . buildRequestLink($request_id) . "'>View Request</a>"
@@ -286,7 +286,7 @@ function sendReturnEscalationEmail($conn, $request_id) {
                  urlencode("http://192.168.1.16/pspf_crm/vehicle_booking/return_vehicle.php?id={$request_id}");
 
     $message = "
-        <strong>Vehicle Return Escalation – Request #{$data['request_id']}</strong><br><br>
+        <strong>Vehicle Return Escalation - Request #{$data['request_id']}</strong><br><br>
         This request has exceeded its expected return date of <strong>{$data['expected_return_date']}</strong>.<br>
         Please submit the vehicle return form immediately.<br><br>
         <a href='{$returnUrl}'>Submit Return Form</a>
@@ -348,7 +348,7 @@ function sendVehicleReturnEmail($conn, $request_id) {
     $mileage_traveled = $data['mileage_in'] - $data['mileage_out'];
 
     $message = "
-        <h3>Vehicle Return Confirmation – Request #{$data['request_id']}</h3>
+        <h3>Vehicle Return Confirmation - Request #{$data['request_id']}</h3>
         <p>The vehicle has been returned and this request is now <strong>closed</strong>.</p>
         <hr>
         <h4>Trip Details</h4>
@@ -370,7 +370,7 @@ function sendVehicleReturnEmail($conn, $request_id) {
         <strong>Status:</strong> CLOSED
     ";
 
-    $subject = "Vehicle Request #{$request_id} – Closed";
+    $subject = "Vehicle Request #{$request_id} - Closed";
 
     sendMailTo($data['requester_email'], $subject, $message);
 
