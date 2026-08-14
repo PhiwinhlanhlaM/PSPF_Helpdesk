@@ -116,7 +116,9 @@ function generateAndUploadPdf(mysqli $conn, int $requestId): ?string {
         </div>';
     }
 
-    // Logo — embed as base64 so mPDF never needs to resolve a file path.
+    // Logo — reference the file by absolute path. mPDF resolves file paths
+    // reliably; base64 data: URIs were not rendering in production (the logo and
+    // every signature showed as broken-image boxes).
     // Use the inverted (white) logo so it is visible against the dark header band.
     $logoPath = __DIR__ . '/assets/pspf-logo-inverted.png';
     if (!file_exists($logoPath)) {
@@ -124,8 +126,7 @@ function generateAndUploadPdf(mysqli $conn, int $requestId): ?string {
     }
     $logoHtml = '';
     if (file_exists($logoPath)) {
-        $logoB64  = base64_encode(file_get_contents($logoPath));
-        $logoHtml = '<img src="data:image/png;base64,' . $logoB64 . '" style="height:40px;width:auto;" />';
+        $logoHtml = '<img src="' . htmlspecialchars($logoPath, ENT_QUOTES) . '" style="height:40px;width:auto;" />';
     }
 
     $refNum   = htmlspecialchars($req['ref_number']);
@@ -434,6 +435,13 @@ HTML;
     try {
         require_once __DIR__ . '/../../vendor/autoload.php';
 
+        // Give mPDF an explicit, writable temp dir. The default lives inside
+        // vendor/ and can be non-writable on a locked-down live server, which
+        // makes image handling and rendering fail silently — one contributor to
+        // the broken-image output. A dir under the system temp is always writable.
+        $mpdfTempDir = sys_get_temp_dir() . '/ita_mpdf_tmp';
+        if (!is_dir($mpdfTempDir)) @mkdir($mpdfTempDir, 0700, true);
+
         $mpdfConfig = [
             'margin_top'    => 0,
             'margin_left'   => 0,
@@ -441,6 +449,7 @@ HTML;
             'margin_bottom' => 0,
             'format'        => 'A4',
             'allow_charset_conversion' => true,
+            'tempDir'       => $mpdfTempDir,
         ];
 
         // Uniformly scale EVERY px-based dimension in the whole document (the
@@ -495,7 +504,11 @@ HTML;
             }
         }
         if (getenv('ITA_PDF_DEBUG')) error_log("ITA_PDF: ref=$refNum usedScale=$usedScale pages=$pageCount");
+
+        // All renders are done — remove the temp signature/logo images.
+        itaCleanupPdfTempFiles();
     } catch (\Throwable $e) {
+        itaCleanupPdfTempFiles(); // never leak temp images on failure
         error_log('PDF generation failed: ' . $e->getMessage());
         return null;
     }
@@ -534,7 +547,55 @@ HTML;
 }
 
 /**
- * Render drawn signature strokes onto a GD canvas and return a base64 <img> tag.
+ * Registry of temp image files created for one PDF render, so they can be
+ * cleaned up after mPDF has consumed them. Populated by the image helpers
+ * below and flushed by itaCleanupPdfTempFiles().
+ *
+ * @var array<int,string>
+ */
+$GLOBALS['__ITA_PDF_TEMP_FILES'] = [];
+
+/**
+ * Write PNG bytes to a temp file and return its absolute path, tracking it for
+ * later cleanup. Returns null if a temp file could not be created.
+ *
+ * mPDF renders <img src="/absolute/path.png"> reliably across versions, whereas
+ * base64 data: URIs are version-dependent and were not rendering in production
+ * (the logo and every signature came out as broken-image boxes). Writing a real
+ * file and referencing it by path is the robust path.
+ */
+function itaWritePdfTempPng(string $pngBytes): ?string {
+    $dir = sys_get_temp_dir() . '/ita_pdf_img';
+    if (!is_dir($dir)) @mkdir($dir, 0700, true);
+    $path = @tempnam($dir, 'sig_');
+    if ($path === false) return null;
+    // tempnam has no extension; mPDF keys image handling off the extension, so
+    // give it a .png suffix and use that path instead.
+    $pngPath = $path . '.png';
+    if (@file_put_contents($pngPath, $pngBytes) === false) {
+        @unlink($path);
+        return null;
+    }
+    @unlink($path); // remove the extension-less placeholder tempnam created
+    $GLOBALS['__ITA_PDF_TEMP_FILES'][] = $pngPath;
+    return $pngPath;
+}
+
+/**
+ * Delete every temp image file created during a PDF render. Call once after the
+ * final mPDF Output() so the files exist for the whole render (including the
+ * shrink-to-fit re-renders) but never accumulate on disk.
+ */
+function itaCleanupPdfTempFiles(): void {
+    foreach ($GLOBALS['__ITA_PDF_TEMP_FILES'] as $f) {
+        if (is_file($f)) @unlink($f);
+    }
+    $GLOBALS['__ITA_PDF_TEMP_FILES'] = [];
+}
+
+/**
+ * Render drawn signature strokes onto a GD canvas, write it to a temp PNG file,
+ * and return an <img> tag referencing that file by absolute path.
  */
 function renderDrawnSigAsFile(string $strokesJson, int $w = 300, int $h = 80): string {
     $strokes = json_decode($strokesJson, true);
@@ -565,15 +626,22 @@ function renderDrawnSigAsFile(string $strokesJson, int $w = 300, int $h = 80): s
     $png = ob_get_clean();
     imagedestroy($im);
 
-    $b64 = base64_encode($png);
-    return '<img src="data:image/png;base64,' . $b64 . '" style="max-width:150px;max-height:45px;display:block;" />';
+    $path = itaWritePdfTempPng($png);
+    if ($path === null) return '';
+    return '<img src="' . htmlspecialchars($path, ENT_QUOTES) . '" style="max-width:150px;max-height:45px;display:block;" />';
 }
 
 /**
- * Pass an uploaded data: URI signature straight through as a base64 <img> tag.
- * mPDF supports data: URIs when using WriteHTML — no temp file needed.
+ * Decode an uploaded data: URI signature, write it to a temp file, and return an
+ * <img> tag referencing it by absolute path (same rationale as the drawn case —
+ * mPDF renders file paths reliably where data: URIs failed).
  */
 function dataUriToImgTag(string $dataUri, int $maxW = 150, int $maxH = 45): string {
-    if (!preg_match('/^data:image\/(png|jpeg|jpg|gif);base64,/i', $dataUri)) return '';
-    return '<img src="' . $dataUri . '" style="max-width:' . $maxW . 'px;max-height:' . $maxH . 'px;display:block;" />';
+    if (!preg_match('#^data:image/(png|jpe?g|gif);base64,(.+)$#is', $dataUri, $m)) return '';
+    $bytes = base64_decode($m[2], true);
+    if ($bytes === false || $bytes === '') return '';
+    $path = itaWritePdfTempPng($bytes);
+    if ($path === null) return '';
+    return '<img src="' . htmlspecialchars($path, ENT_QUOTES)
+         . '" style="max-width:' . $maxW . 'px;max-height:' . $maxH . 'px;display:block;" />';
 }
