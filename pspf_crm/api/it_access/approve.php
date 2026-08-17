@@ -39,7 +39,12 @@ $action          = $body['action'] ?? '';
 $stepRole        = $body['step_role'] ?? '';
 $signature       = $body['signature'] ?? null;
 $reason          = trim($body['reason'] ?? '');
-$actionedSystems = $body['actioned_systems'] ?? null; // array of system IDs actioned by officer
+$actionedSystems = $body['actioned_systems'] ?? null; // array of system IDs the officer GRANTS
+// Per-system rejection: [{ id: 'banking', reason: '...' }, ...]. An officer may
+// grant some of their claimed systems and reject others in the same action; the
+// request then pauses at 'awaiting-requester' until the requester responds to
+// each rejected system. Optional — an empty/absent list means "grant only".
+$rejectedSystems = $body['rejected_systems'] ?? null;
 
 // Validate inputs
 if (!$requestDbId || !in_array($action, ['approved', 'rejected']) || !$stepRole) {
@@ -100,13 +105,13 @@ if (!isset($validTransitions[$stepRole]) || !in_array($currentStatus, $validTran
 
 $approverId  = (int)$_SESSION['user']['id'];
 
-// An officer may only action systems they have claimed; reject ones they don't own.
+// An officer decides ONLY on systems they have claimed. The action carries the
+// systems they grant (actioned_systems) and, optionally, ones they reject
+// (rejected_systems, each with a reason). Both are intersected with what the
+// officer actually owns, so a client can never action or reject someone else's
+// claim. $rejectMap ends as [system_id => reason] for the officer's rejections.
+$rejectMap = [];
 if ($stepRole === 'officer-1' && $action === 'approved') {
-    if (!is_array($actionedSystems) || count($actionedSystems) === 0) {
-        http_response_code(422);
-        echo json_encode(['error' => 'No systems specified to action']);
-        exit;
-    }
     $ownStmt = $conn->prepare(
         "SELECT system_id FROM it_request_systems
          WHERE request_id = ? AND claimed_by = ? AND status = 'claimed'"
@@ -115,15 +120,41 @@ if ($stepRole === 'officer-1' && $action === 'approved') {
     $ownStmt->execute();
     $ownRows = $ownStmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $ownStmt->close();
-    $ownedIds = array_column($ownRows, 'system_id');
+    $ownedIds = array_map('strval', array_column($ownRows, 'system_id'));
 
-    $actionedSystems = array_values(array_intersect(
-        array_map('strval', $actionedSystems),
-        array_map('strval', $ownedIds)
-    ));
-    if (count($actionedSystems) === 0) {
+    // Granted: intersect requested grants with owned claims.
+    $actionedSystems = is_array($actionedSystems)
+        ? array_values(array_intersect(array_map('strval', $actionedSystems), $ownedIds))
+        : [];
+
+    // Rejected: keep only owned systems, require a reason (>= 3 chars) each.
+    if (is_array($rejectedSystems)) {
+        foreach ($rejectedSystems as $rj) {
+            $rid = isset($rj['id']) ? (string)$rj['id'] : '';
+            $rr  = trim($rj['reason'] ?? '');
+            if ($rid === '' || !in_array($rid, $ownedIds, true)) continue;
+            if (strlen($rr) < 3) {
+                http_response_code(422);
+                echo json_encode(['error' => "A reason (min 3 chars) is required to reject system '{$rid}'"]);
+                exit;
+            }
+            $rejectMap[$rid] = $rr;
+        }
+    }
+
+    // A system can't be both granted and rejected in one action — reject wins is
+    // ambiguous, so refuse it rather than guess.
+    $overlap = array_intersect($actionedSystems, array_keys($rejectMap));
+    if ($overlap) {
+        http_response_code(422);
+        echo json_encode(['error' => 'A system cannot be both granted and rejected: ' . implode(', ', $overlap)]);
+        exit;
+    }
+
+    // The officer must decide on at least one of their claimed systems.
+    if (count($actionedSystems) === 0 && count($rejectMap) === 0) {
         http_response_code(409);
-        echo json_encode(['error' => 'You have no claimed systems left to action on this request']);
+        echo json_encode(['error' => 'You have no claimed systems to grant or reject on this request']);
         exit;
     }
 }
@@ -173,32 +204,68 @@ try {
     $apStmt->execute();
     $apStmt->close();
 
-    // Officer actioning: mark this officer's claimed systems as actioned, then
-    // advance to the director only once EVERY system on the request is actioned.
+    // Officer decision: mark granted systems 'actioned' and rejected systems
+    // 'rejected' (with reason), then recompute the request status.
     if ($stepRole === 'officer-1' && $action === 'approved') {
-        $markStmt = $conn->prepare(
-            "UPDATE it_request_systems
-             SET status = 'actioned', actioned_by = ?, actioned_at = UTC_TIMESTAMP()
-             WHERE request_id = ? AND system_id = ? AND claimed_by = ? AND status = 'claimed'"
-        );
-        foreach ($actionedSystems as $sysId) {
-            $markStmt->bind_param("iisi", $approverId, $requestDbId, $sysId, $approverId);
-            $markStmt->execute();
+        // Grant. Clearing the reject_* fields matters for a system that was
+        // previously rejected, then appealed and re-granted — otherwise it would
+        // carry a stale "declined" reason onto the authorization PDF.
+        if ($actionedSystems) {
+            $markStmt = $conn->prepare(
+                "UPDATE it_request_systems
+                 SET status = 'actioned', actioned_by = ?, actioned_at = UTC_TIMESTAMP(),
+                     reject_reason = NULL, rejected_by = NULL, rejected_at = NULL
+                 WHERE request_id = ? AND system_id = ? AND claimed_by = ? AND status = 'claimed'"
+            );
+            foreach ($actionedSystems as $sysId) {
+                $markStmt->bind_param("iisi", $approverId, $requestDbId, $sysId, $approverId);
+                $markStmt->execute();
+            }
+            $markStmt->close();
         }
-        $markStmt->close();
 
-        // Are any systems still outstanding (not yet actioned)?
-        $pendStmt = $conn->prepare(
-            "SELECT COUNT(*) AS remaining FROM it_request_systems
-             WHERE request_id = ? AND status <> 'actioned'"
+        // Reject (per system, with reason). One-appeal rule: a system that was
+        // already appealed once (appeal_count >= 1) and is rejected AGAIN is
+        // final — it goes straight to 'dropped' rather than back to the
+        // requester. A first-time rejection goes to 'rejected' (awaiting the
+        // requester's accept/appeal). The CASE decides per row.
+        if ($rejectMap) {
+            $rejStmt = $conn->prepare(
+                "UPDATE it_request_systems
+                 SET status = IF(appeal_count >= 1, 'dropped', 'rejected'),
+                     reject_reason = ?, rejected_by = ?, rejected_at = UTC_TIMESTAMP()
+                 WHERE request_id = ? AND system_id = ? AND claimed_by = ? AND status = 'claimed'"
+            );
+            foreach ($rejectMap as $sysId => $rr) {
+                $sysIdStr = (string)$sysId;
+                $rejStmt->bind_param("siisi", $rr, $approverId, $requestDbId, $sysIdStr, $approverId);
+                $rejStmt->execute();
+            }
+            $rejStmt->close();
+        }
+
+        // Recompute the request status from the systems' collective state:
+        //   * any system still 'rejected' (awaiting the requester) -> 'awaiting-requester'
+        //   * else any system not yet terminal (pending/claimed) -> 'claimed' (more officer work)
+        //   * else every system is terminal (actioned or dropped) -> 'awaiting-director'
+        $stStmt = $conn->prepare(
+            "SELECT
+                SUM(status = 'rejected')                          AS rejected_open,
+                SUM(status IN ('pending','claimed'))              AS still_open
+             FROM it_request_systems WHERE request_id = ?"
         );
-        $pendStmt->bind_param("i", $requestDbId);
-        $pendStmt->execute();
-        $remaining = (int)$pendStmt->get_result()->fetch_assoc()['remaining'];
-        $pendStmt->close();
+        $stStmt->bind_param("i", $requestDbId);
+        $stStmt->execute();
+        $st = $stStmt->get_result()->fetch_assoc();
+        $stStmt->close();
 
-        $allActioned = ($remaining === 0);
-        $newStatus   = $allActioned ? 'awaiting-director' : 'claimed';
+        if ((int)$st['rejected_open'] > 0) {
+            $newStatus = 'awaiting-requester';
+        } elseif ((int)$st['still_open'] > 0) {
+            $newStatus = 'claimed';
+        } else {
+            $newStatus = 'awaiting-director';
+        }
     }
 
     // Update request status
@@ -269,6 +336,51 @@ try {
                 itAccessSendMail(
                     [$requestor],
                     "IT Access Request Rejected - {$rInfo['ref_number']}",
+                    $html, $text
+                );
+            }
+        }
+    }
+
+    // Some systems were rejected by the officer — the request now waits on the
+    // requester to accept or appeal each. Tell them what was denied and why.
+    if ($stepRole === 'officer-1' && $action === 'approved' && $rejectMap) {
+        $rqInfoStmt = $conn->prepare(
+            "SELECT ref_number, employee_name, department, submitted_by
+             FROM it_access_requests WHERE id = ?"
+        );
+        $rqInfoStmt->bind_param("i", $requestDbId);
+        $rqInfoStmt->execute();
+        $rqInfo = $rqInfoStmt->get_result()->fetch_assoc();
+        $rqInfoStmt->close();
+
+        if ($rqInfo) {
+            $requestor = itAccessUserById($conn, (int)$rqInfo['submitted_by']);
+            if ($requestor) {
+                // Build a readable "system: reason" block for the denied systems.
+                $deniedLines = [];
+                foreach ($rejectMap as $sysId => $rr) {
+                    $deniedLines[] = "{$sysId} — {$rr}";
+                }
+                $deniedList = implode("\n", $deniedLines);
+
+                [$html, $text] = itAccessEmailBody(
+                    "IT Access Request — Action Needed",
+                    [
+                        "Dear {$requestor['name']},",
+                        "The ICT team has reviewed your request. Some of the requested access was granted, but the following was declined. Your request will not proceed until you respond to each declined item — you can accept the decision, or appeal it once with further justification.",
+                    ],
+                    [
+                        'Reference'       => $rqInfo['ref_number'],
+                        'Employee'        => $rqInfo['employee_name'],
+                        'Department'      => $rqInfo['department'],
+                        'Declined access' => $deniedList,
+                    ],
+                    ['text' => 'Respond to the declined items', 'url' => itAccessAppUrl()]
+                );
+                itAccessSendMail(
+                    [$requestor],
+                    "IT Access Request — Action Needed - {$rqInfo['ref_number']}",
                     $html, $text
                 );
             }

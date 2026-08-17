@@ -10,6 +10,11 @@ function OfficerSign({ requestId }) {
   const [rejectReason, setRejectReason] = useState("");
   const [signedAt, setSignedAt] = useState(null);
   const [proof, setProof] = useState(null);
+  // Per-system decision for the systems THIS officer has claimed. Defaults to
+  // "grant"; the officer flips individual systems to "reject" (with a reason).
+  // A single signature covers the whole batch.
+  const [decisions, setDecisions] = useState({});   // { sysId: 'grant' | 'reject' }
+  const [rejectReasons, setRejectReasons] = useState({}); // { sysId: reasonText }
 
   if (!request) {
     return (
@@ -29,10 +34,18 @@ function OfficerSign({ requestId }) {
   const next = nextStep(request);
   const stepRole = "officer-1"; // single officer sufficient
   const stepLabel = "IT Officer action";
-  // The systems THIS officer claimed and still has to action. Other officers
+  // The systems THIS officer claimed and still has to decide on. Other officers
   // handle the rest of the request independently.
   const myClaimed = systemsToAction(request, me.id);
-  const actionedSystems = myClaimed.map(s => s.id);
+
+  // Decision helpers (default = grant when not explicitly set).
+  const decisionOf = (sysId) => decisions[sysId] || "grant";
+  const grantedSystems  = myClaimed.filter(s => decisionOf(s.id) === "grant").map(s => s.id);
+  const rejectedSystems = myClaimed.filter(s => decisionOf(s.id) === "reject").map(s => s.id);
+  // Every rejected system needs a reason (min 3 chars) before submit.
+  const rejectionsComplete = rejectedSystems.every(id => (rejectReasons[id] || "").trim().length >= 3);
+  const setDecision = (sysId, d) => setDecisions(prev => ({ ...prev, [sysId]: d }));
+  const setReason   = (sysId, v) => setRejectReasons(prev => ({ ...prev, [sysId]: v }));
 
   function generateProof() {
     // Pretend cryptographic proof - random hex
@@ -40,8 +53,12 @@ function OfficerSign({ requestId }) {
   }
 
   async function action() {
-    if (actionedSystems.length === 0) {
-      toast({ kind: "error", title: "Nothing to action", body: "You have no claimed systems left to action on this request." });
+    if (myClaimed.length === 0) {
+      toast({ kind: "error", title: "Nothing to action", body: "You have no claimed systems left to decide on this request." });
+      return;
+    }
+    if (!rejectionsComplete) {
+      toast({ kind: "error", title: "Reason required", body: "Give a reason for every system you are rejecting (min 3 characters)." });
       return;
     }
     if (!confirmed) {
@@ -55,6 +72,7 @@ function OfficerSign({ requestId }) {
     setMode("submitting");
     try {
       const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "";
+      const rejectedPayload = rejectedSystems.map(id => ({ id, reason: (rejectReasons[id] || "").trim() }));
       const res = await fetch("/pspf_crm/api/it_access/approve.php", {
         method: "POST",
         credentials: "include",
@@ -64,13 +82,14 @@ function OfficerSign({ requestId }) {
           action:           "approved", // backend action value (DB enum) - unchanged
           step_role:        stepRole,
           signature:        signature,
-          actioned_systems: actionedSystems,
+          actioned_systems: grantedSystems,
+          rejected_systems: rejectedPayload,
         }),
       });
       if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error || "Could not record action"); }
       const at = new Date().toISOString();
       const p  = generateProof();
-      dispatch({ type: "approve-request", id: request.id, personId: me.id, role: stepRole, signature, actionedSystems });
+      dispatch({ type: "approve-request", id: request.id, personId: me.id, role: stepRole, signature, actionedSystems: grantedSystems });
       fetch("/pspf_crm/api/it_access/list.php", { credentials: "include" })
         .then(r => r.ok ? r.json() : null)
         .then(data => { if (data && Array.isArray(data.requests)) dispatch({ type: "load-requests", requests: data.requests }); })
@@ -122,7 +141,7 @@ function OfficerSign({ requestId }) {
           <span className="mono muted" style={{ fontSize: 12 }}>{request.id}</span>
           <h1 className="page-title">Action access request: {request.employee.name}</h1>
           <p className="page-subtitle">
-            {stepLabel} · you are actioning: <strong>{actionedSystems.map(id => { const s = getSystem(id); return s ? s.name : id; }).join(", ")}</strong>. Sign to confirm.
+            {stepLabel} · decide each of your <strong>{myClaimed.length}</strong> claimed system{myClaimed.length === 1 ? "" : "s"} below — grant or reject with a reason — then sign once to confirm.
           </p>
         </div>
       </div>
@@ -151,21 +170,56 @@ function OfficerSign({ requestId }) {
                 const sys = getSystem(s.id);
                 const st = s.status || "pending";
                 const mine = st === "claimed" && s.claimedBy === me.id;
+                const decision = decisionOf(s.id);
+                const subLine = s.role
+                  ? s.role + (Array.isArray(s.subValues) && s.subValues.length ? " · " + s.subValues.join(", ") : (typeof s.subValues === "string" && s.subValues ? " · " + s.subValues : ""))
+                  : (Array.isArray(s.subValues) && s.subValues.length ? s.subValues.join(", ") : (typeof s.subValues === "string" ? s.subValues : ""));
+
+                // Read-only tag for systems this officer isn't actioning.
                 let tag = null;
-                if (mine) tag = <span className="badge badge-blue">You action</span>;
-                else if (st === "actioned") tag = <span className="badge badge-green">Actioned</span>;
-                else if (st === "claimed") tag = <span className="badge badge-gray">Another officer</span>;
-                else tag = <span className="badge badge-gray">Unclaimed</span>;
+                if (!mine) {
+                  if (st === "actioned")      tag = <span className="badge badge-green">Actioned</span>;
+                  else if (st === "dropped")  tag = <span className="badge badge-gray">Denied</span>;
+                  else if (st === "rejected") tag = <span className="badge badge-amber">Awaiting requester</span>;
+                  else if (st === "claimed")  tag = <span className="badge badge-gray">Another officer</span>;
+                  else                        tag = <span className="badge badge-gray">Unclaimed</span>;
+                }
+
                 return (
-                  <div key={s.id} className="sys-mini" style={mine ? { background: "var(--blue-50, #eff6ff)" } : { opacity: st === "pending" ? 0.6 : 1 }}>
-                    <div className="sys-mini-icon"><Icon name={sys.icon} size={14}/></div>
-                    <div className="col" style={{ flex: 1, minWidth: 0 }}>
-                      <strong style={{ fontSize: 13, fontWeight: 550 }}>{sys.name}</strong>
-                      <span className="muted" style={{ fontSize: 12 }}>
-                        {s.role}{Array.isArray(s.subValues) && s.subValues.length ? " · " + s.subValues.join(", ") : (typeof s.subValues === "string" ? " · " + s.subValues : "")}
-                      </span>
+                  <div key={s.id} className="col" style={{ gap: 6 }}>
+                    <div className="sys-mini" style={mine ? { background: decision === "reject" ? "var(--red-50, #fef2f2)" : "var(--blue-50, #eff6ff)" } : { opacity: st === "pending" ? 0.6 : 1 }}>
+                      <div className="sys-mini-icon"><Icon name={sys.icon} size={14}/></div>
+                      <div className="col" style={{ flex: 1, minWidth: 0 }}>
+                        <strong style={{ fontSize: 13, fontWeight: 550 }}>{sys.name}</strong>
+                        <span className="muted" style={{ fontSize: 12 }}>{subLine}</span>
+                      </div>
+                      {mine ? (
+                        // Per-system Grant / Reject toggle.
+                        <div className="row" style={{ gap: 4 }}>
+                          <button type="button"
+                            className={"btn btn-sm " + (decision === "grant" ? "btn-primary" : "btn-ghost")}
+                            style={{ padding: "3px 10px", fontSize: 12 }}
+                            onClick={() => setDecision(s.id, "grant")}>
+                            <Icon name="check" size={12}/> Grant
+                          </button>
+                          <button type="button"
+                            className={"btn btn-sm " + (decision === "reject" ? "btn-danger" : "btn-ghost")}
+                            style={{ padding: "3px 10px", fontSize: 12, ...(decision === "reject" ? { background: "var(--red-600)", color: "#fff", borderColor: "var(--red-600)" } : {}) }}
+                            onClick={() => setDecision(s.id, "reject")}>
+                            <Icon name="x" size={12}/> Reject
+                          </button>
+                        </div>
+                      ) : tag}
                     </div>
-                    {tag}
+                    {mine && decision === "reject" && (
+                      <input
+                        className="input"
+                        style={{ fontSize: 12.5, marginLeft: 34, width: "calc(100% - 34px)" }}
+                        placeholder="Reason this system is declined (required)…"
+                        value={rejectReasons[s.id] || ""}
+                        onChange={e => setReason(s.id, e.target.value)}
+                      />
+                    )}
                   </div>
                 );
               })}
@@ -192,21 +246,27 @@ function OfficerSign({ requestId }) {
 
               <SignaturePad onChange={setSignature}/>
 
+              {/* Decision summary so the officer sees what they're signing. */}
+              <div className="row" style={{ gap: 8, fontSize: 12.5, marginBottom: 4 }}>
+                <span className="badge badge-green">{grantedSystems.length} granting</span>
+                {rejectedSystems.length > 0 && <span className="badge badge-red">{rejectedSystems.length} rejecting</span>}
+              </div>
+
               <label className="confirm-row">
                 <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)}/>
-                <span>I confirm I have reviewed this request and action the access listed above.</span>
+                <span>I confirm I have reviewed this request and my grant/reject decisions on the systems above.</span>
               </label>
 
               <div className="sign-actions">
-                <button className="btn btn-danger" onClick={() => setMode("rejecting")} disabled={mode === "submitting"}>
-                  Reject
+                <button className="btn btn-danger" onClick={() => setMode("rejecting")} disabled={mode === "submitting"} title="Reject the whole request, not just individual systems">
+                  Reject entire request
                 </button>
                 <div className="row gap-2">
                   <button className="btn btn-secondary" onClick={() => dispatch({ type: "set-route", route: { name: "officer-dashboard" } })}>
                     Cancel
                   </button>
-                  <button className="btn btn-primary" disabled={mode === "submitting"} onClick={action}>
-                    {mode === "submitting" ? <><span className="spin"/> Submitting...</> : <><Icon name="shield-check" size={14}/> Sign &amp; action</>}
+                  <button className="btn btn-primary" disabled={mode === "submitting" || !rejectionsComplete} onClick={action}>
+                    {mode === "submitting" ? <><span className="spin"/> Submitting...</> : <><Icon name="shield-check" size={14}/> Sign &amp; submit</>}
                   </button>
                 </div>
               </div>

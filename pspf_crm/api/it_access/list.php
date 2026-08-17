@@ -79,6 +79,9 @@ $sql = "
         s.status          AS sys_status,
         s.claimed_by      AS sys_claimed_by,
         s.actioned_by     AS sys_actioned_by,
+        s.reject_reason   AS sys_reject_reason,
+        s.rejected_by     AS sys_rejected_by,
+        s.appeal_count    AS sys_appeal_count,
         a.id              AS appr_row_id,
         a.step_role,
         a.approver_id,
@@ -190,12 +193,18 @@ foreach ($rows as $row) {
             $subValues = ($decoded !== null) ? $decoded : $subRaw;
         }
         $requests[$idx]['systems'][] = [
-            'id'         => $row['system_id'],
-            'role'       => $row['sys_role'],
-            'subValues'  => $subValues,
-            'status'     => $row['sys_status'] ?? 'pending',
-            'claimedBy'  => $row['sys_claimed_by']  ? (int)$row['sys_claimed_by']  : null,
-            'actionedBy' => $row['sys_actioned_by'] ? (int)$row['sys_actioned_by'] : null,
+            'id'           => $row['system_id'],
+            'role'         => $row['sys_role'],
+            'subValues'    => $subValues,
+            'status'       => $row['sys_status'] ?? 'pending',
+            'claimedBy'    => $row['sys_claimed_by']  ? (int)$row['sys_claimed_by']  : null,
+            'actionedBy'   => $row['sys_actioned_by'] ? (int)$row['sys_actioned_by'] : null,
+            // Per-system rejection detail (partial-rejection loop). rejectReason
+            // is the officer's reason (with any appended appeal context);
+            // appealCount gates the one-appeal-then-final rule in the UI.
+            'rejectReason' => $row['sys_reject_reason'] ?: null,
+            'rejectedBy'   => $row['sys_rejected_by'] ? (int)$row['sys_rejected_by'] : null,
+            'appealCount'  => (int)($row['sys_appeal_count'] ?? 0),
         ];
     }
 

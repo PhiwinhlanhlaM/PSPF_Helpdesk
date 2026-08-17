@@ -62,10 +62,26 @@ function generateAndUploadPdf(mysqli $conn, int $requestId): ?string {
                 $subStr = htmlspecialchars($subRaw);
             }
         }
-        $systemsHtml .= '<tr>
+        // Per-system outcome (partial-rejection). 'actioned' = granted; 'dropped'
+        // = denied (requester accepted the denial or a re-rejected appeal). Older
+        // records without these states default to granted, as before.
+        $st = $sys['status'] ?? 'actioned';
+        $denied = ($st === 'dropped');
+        $statusPill = $denied
+            ? '<span class="sys-status sys-status-denied">Denied</span>'
+            : '<span class="sys-status sys-status-granted">Granted</span>';
+        // For a denied system, show the reason compactly under the details cell.
+        $reasonHtml = '';
+        if ($denied && !empty($sys['reject_reason'])) {
+            $reasonHtml = '<div class="sys-denied-reason">'
+                . htmlspecialchars($sys['reject_reason']) . '</div>';
+        }
+        $rowCls = $denied ? ' class="sys-row-denied"' : '';
+        $systemsHtml .= '<tr' . $rowCls . '>
             <td><span class="sys-name">' . $sysId . '</span></td>
             <td><span class="sys-role">' . $sysRole . '</span></td>
-            <td><span class="sys-sub">' . htmlspecialchars($subStr) . '</span></td>
+            <td><span class="sys-sub">' . htmlspecialchars($subStr) . '</span>' . $reasonHtml . '</td>
+            <td>' . $statusPill . '</td>
         </tr>';
     }
 
@@ -296,6 +312,24 @@ function generateAndUploadPdf(mysqli $conn, int $requestId): ?string {
   .sys-role { color: #3d5a7e; font-weight: 600; }
   .sys-sub  { color: #6c7a92; font-size: 10px; }
 
+  /* Per-system outcome pill (partial rejection). */
+  .sys-status {
+    display: inline-block;
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: 20px;
+    padding: 2px 7px;
+    white-space: nowrap;
+  }
+  .sys-status-granted { color: #0f7a4a; background: #e3f5ec; border: 1px solid #a3dbbf; }
+  .sys-status-denied  { color: #a01b1b; background: #fde6e6; border: 1px solid #f3c5c5; }
+  /* Denied row: mute the name/role and show the reason under Details. */
+  .sys-row-denied .sys-name,
+  .sys-row-denied .sys-role { color: #94a1b2; text-decoration: line-through; }
+  .sys-denied-reason { color: #a01b1b; font-size: 9px; font-style: italic; margin-top: 2px; }
+
   /* ── Approval chain ── */
   .approval-block {
     border: 1px solid #dfe3eb;
@@ -403,13 +437,14 @@ function generateAndUploadPdf(mysqli $conn, int $requestId): ?string {
   <div class="just-box">{$just}</div>
 
   <!-- Systems -->
-  <div class="section-heading">Systems &amp; Access Granted</div>
+  <div class="section-heading">Systems &amp; Access</div>
   <table class="sys-table">
     <thead>
       <tr>
         <th>System</th>
         <th>Role / Access Level</th>
         <th>Details</th>
+        <th style="width:64px;">Status</th>
       </tr>
     </thead>
     <tbody>{$systemsHtml}</tbody>

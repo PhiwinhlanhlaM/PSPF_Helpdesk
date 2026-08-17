@@ -76,10 +76,10 @@ function itAccessUserById(mysqli $conn, int $userId): ?array {
 function itAccessEmailBody(string $heading, array $intro, array $details = [], ?array $cta = null): array {
     $lines = [];
 
-    // Heading with an underline for visual separation.
-    $lines[] = $heading;
-    $lines[] = str_repeat('=', max(3, min(60, strlen($heading))));
-    $lines[] = '';
+    // The heading duplicates the email subject, so it is not repeated in the
+    // body — the message opens directly with the intro paragraphs. ($heading is
+    // still accepted for backwards compatibility with callers and to keep the
+    // subject/body wording in one place.)
 
     // Intro paragraphs, blank line between each.
     foreach ($intro as $p) {

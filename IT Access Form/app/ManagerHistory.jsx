@@ -55,6 +55,7 @@ function ManagerHistory() {
       ) : (
         <div className="hist-grid">
           {visible.map(r => <HistoryCard key={r.id} request={r} onOpen={() => setOpenId(r.id)}
+            onResolve={(req) => dispatch({ type: "set-route", route: { name: "requester-resolve" }, params: { requestId: req.id } })}
             onAppeal={(req) => {
               // Stash the rejected request as a draft the form picks up on mount,
               // then route there. The form submits it via appeal.php, linked back.
@@ -70,12 +71,14 @@ function ManagerHistory() {
   );
 }
 
-function HistoryCard({ request, onOpen, onAppeal }) {
+function HistoryCard({ request, onOpen, onAppeal, onResolve }) {
   const meta = statusMeta(request.status);
   const total = 4; // chain length
   const done = request.approvals.filter(a => a.action === "approved").length;
   const isRejected = request.status === "rejected";
   const isProvisioned = request.status === "provisioned";
+  const needsResponse = request.status === "awaiting-requester";
+  const declinedCount = (request.systems || []).filter(s => (s.status || "") === "rejected").length;
 
   return (
     <article className={"hist-card hist-" + (isRejected ? "rejected" : isProvisioned ? "approved" : "pending")}>
@@ -139,6 +142,13 @@ function HistoryCard({ request, onOpen, onAppeal }) {
         </div>
       )}
 
+      {needsResponse && (
+        <div className="hist-status-row" style={{ background: "var(--amber-100)", color: "var(--amber-700)" }}>
+          <Icon name="alert" size={14}/>
+          <span>{declinedCount} system{declinedCount === 1 ? "" : "s"} declined — your response is needed</span>
+        </div>
+      )}
+
       {request.appealOfRef && (
         <div className="hist-status-row" style={{ background: "var(--amber-100)", color: "var(--amber-700)" }}>
           <Icon name="chevron-right" size={14}/>
@@ -149,6 +159,7 @@ function HistoryCard({ request, onOpen, onAppeal }) {
       <div className="hist-foot">
         <span className="muted" style={{ fontSize: 11.5 }}>Requested {fmtDate(request.submittedAt)}</span>
         <div className="row gap-2">
+          {needsResponse && <button className="btn btn-primary btn-sm" onClick={() => onResolve(request)}><Icon name="alert" size={12}/> Respond</button>}
           {request.canAppeal && <button className="btn btn-primary btn-sm" onClick={() => onAppeal(request)}>Revise &amp; appeal</button>}
           {isRejected && !request.canAppeal && request.appealOf && (
             <span className="muted" style={{ fontSize: 11.5, fontStyle: "italic" }}>Appeal was final</span>

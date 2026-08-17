@@ -280,6 +280,8 @@ function buildNotifications(requests, role, me) {
         items.push({ id: r.id + "-prov", kind: "success", title: "Access provisioned", body: `${r.employee.name} · ${r.id}`, at: r.provisionedAt || r.submittedAt, requestId: r.id, route: "manager-history" });
       else if (r.status === "rejected")
         items.push({ id: r.id + "-rej", kind: "error", title: "Request rejected", body: `${r.employee.name} · ${r.id}`, at: r.approvals.slice(-1)[0]?.at || r.submittedAt, requestId: r.id, route: "manager-history" });
+      else if (r.status === "awaiting-requester")
+        items.push({ id: r.id + "-actn", kind: "amber", title: "Action needed — access declined", body: `${r.employee.name} · ${r.id}`, at: r.submittedAt, requestId: r.id, route: "requester-resolve" });
       else if (r.status === "awaiting-director")
         items.push({ id: r.id + "-dir", kind: "info", title: "Awaiting director", body: `${r.employee.name} · ${r.id}`, at: r.submittedAt, requestId: r.id, route: "manager-history" });
       else if (r.status === "new" || r.status === "claimed")
@@ -309,9 +311,8 @@ function NotificationPanel({ onClose }) {
   );
 
   function go(n) {
-    if (n.route === "officer-sign")
-      dispatch({ type: "set-route", route: { name: n.route }, params: { requestId: n.requestId } });
-    else if (n.route === "director-sign")
+    // Routes that need a specific request id passed through.
+    if (["officer-sign", "director-sign", "requester-resolve"].includes(n.route))
       dispatch({ type: "set-route", route: { name: n.route }, params: { requestId: n.requestId } });
     else
       dispatch({ type: "set-route", route: { name: n.route } });
@@ -520,6 +521,7 @@ function RouteView() {
   switch (state.route.name) {
     case "manager-form":      return <ManagerForm key="form"/>;
     case "manager-history":   return <ManagerHistory />;
+    case "requester-resolve": return <RequesterResolve requestId={state.routeParams.requestId}/>;
     case "officer-dashboard": return <OfficerDashboard />;
     case "officer-sign":      return <OfficerSign requestId={state.routeParams.requestId}/>;
     case "director-dashboard":return <DirectorDashboard />;

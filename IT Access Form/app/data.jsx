@@ -177,13 +177,25 @@ function getSystem(systemId) {
 
 function statusMeta(status) {
   switch (status) {
-    case "new":               return { label: "New",               cls: "badge-blue",  dot: true };
-    case "claimed":           return { label: "Under review",      cls: "badge-blue",  dot: true };
-    case "awaiting-officer-2":return { label: "Under review",      cls: "badge-blue",  dot: true };
-    case "awaiting-director": return { label: "Awaiting director", cls: "badge-amber", dot: true };
-    case "provisioned":       return { label: "Provisioned",       cls: "badge-green", dot: false };
-    case "rejected":          return { label: "Rejected",          cls: "badge-red",   dot: false };
-    default:                  return { label: status,              cls: "badge-gray",  dot: true };
+    case "new":                 return { label: "New",                cls: "badge-blue",  dot: true };
+    case "claimed":             return { label: "Under review",       cls: "badge-blue",  dot: true };
+    case "awaiting-officer-2":  return { label: "Under review",       cls: "badge-blue",  dot: true };
+    case "awaiting-requester":  return { label: "Action needed",      cls: "badge-amber", dot: true };
+    case "awaiting-director":   return { label: "Awaiting director",  cls: "badge-amber", dot: true };
+    case "provisioned":         return { label: "Provisioned",        cls: "badge-green", dot: false };
+    case "rejected":            return { label: "Rejected",           cls: "badge-red",   dot: false };
+    default:                    return { label: status,               cls: "badge-gray",  dot: true };
+  }
+}
+
+// Per-system status label for display (granted/denied/awaiting etc.).
+function sysStatusMeta(s) {
+  switch (sysStatus(s)) {
+    case "actioned": return { label: "Granted",  cls: "badge-green" };
+    case "dropped":  return { label: "Denied",   cls: "badge-gray"  };
+    case "rejected": return { label: "Declined — your response needed", cls: "badge-amber" };
+    case "claimed":  return { label: "Under review", cls: "badge-blue" };
+    default:         return { label: "Pending",  cls: "badge-gray"  };
   }
 }
 
@@ -228,6 +240,21 @@ function canOfficerSign(req, officerId) {
   return req.status === "claimed" && systemsToAction(req, officerId).length > 0;
 }
 
+// ---- Partial-rejection (per-system) helpers ----
+// Systems an officer rejected that are now waiting on the requester to accept
+// or appeal. A system can be appealed only once (appealCount < 1).
+function systemsAwaitingRequester(req) {
+  return (req.systems || []).filter(s => sysStatus(s) === "rejected");
+}
+// Does this request need the requester (owner) to respond to any rejection?
+function needsRequesterResponse(req) {
+  return req.status === "awaiting-requester" && systemsAwaitingRequester(req).length > 0;
+}
+// Can this specific rejected system still be appealed, or only accepted?
+function canAppealSystem(s) {
+  return sysStatus(s) === "rejected" && (s.appealCount || 0) < 1;
+}
+
 // What's the next pending step? Single officer sufficient, no officer-2 required.
 function nextStep(req) {
   if (req.status === "rejected" || req.status === "provisioned") return null;
@@ -243,6 +270,7 @@ Object.assign(window, {
   SYSTEM_CATALOG, DEPARTMENTS, PEOPLE,
   setSystemCatalog, getSystemCatalog,
   buildSeedRequests, fmtDateTime, fmtDate, fmtRelative,
-  getPerson, getSystem, statusMeta, chainSteps, nextStep, submitterName,
+  getPerson, getSystem, statusMeta, sysStatusMeta, chainSteps, nextStep, submitterName,
   sysStatus, claimableSystems, systemsToAction, canOfficerClaim, canOfficerSign,
+  systemsAwaitingRequester, needsRequesterResponse, canAppealSystem,
 });
