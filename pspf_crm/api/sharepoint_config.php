@@ -46,7 +46,7 @@ function getGraphToken(): ?string {
  */
 function uploadToSharePoint(string $pdfBytes, string $filename): ?string {
     if (!SP_SITE_ID || !SP_DRIVE_ID) {
-        error_log('SharePoint not configured — skipping upload');
+        error_log('SharePoint not configured - skipping upload');
         return null;
     }
     $token = getGraphToken();

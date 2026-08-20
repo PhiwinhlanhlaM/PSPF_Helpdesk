@@ -6,7 +6,7 @@
 -- NEW.assigned_to as changed_by. But ticket_status_logs.changed_by is NOT NULL,
 -- so when a ticket has no assignee (assigned_to IS NULL) ANY status change
 -- throws "Column 'changed_by' cannot be null" and rolls back the whole
--- operation — e.g. a requester submitting feedback on an unassigned ticket, or
+-- operation - e.g. a requester submitting feedback on an unassigned ticket, or
 -- an agent changing its status. This wraps the value in COALESCE so a missing
 -- assignee is recorded as 'SYSTEM' instead of crashing.
 --

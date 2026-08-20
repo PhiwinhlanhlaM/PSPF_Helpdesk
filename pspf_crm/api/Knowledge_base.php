@@ -82,7 +82,7 @@ $iconClass = $roleIcons[$role] ?? 'bi-person-fill';
             <div class="card-1">
                <a href="telephone.php"><i class="fas fa-phone fa-2x"></i></a>
                 <h4>Telephone</h4>
-                <p>Configure and personalize your office landline — from ringtones to feature settings.</p>
+                <p>Configure and personalize your office landline - from ringtones to feature settings.</p>
             </div>
             <div class="card-1">
                <a href="#"> <i class="fas fa-print fa-2x"></i></a>

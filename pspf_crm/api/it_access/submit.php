@@ -10,6 +10,7 @@ require_once '../session_config.php';
 require_once '../db.php';
 require_once '../includes/auth_helpers.php';
 require_once __DIR__ . '/mailer.php';
+require_once __DIR__ . '/form_fields_shared.php';
 
 if (!isLoggedIn()) {
     http_response_code(401);
@@ -21,7 +22,7 @@ enforceActiveUser($conn);
 // Only holders of the 'supervisor' role may submit an IT access request. The
 // role is the gate for who is allowed to ask on behalf of their team; the
 // request is then reviewed by ICT and signed off by the Director. This is a
-// deliberate, role-based restriction — an admin is not implicitly a supervisor.
+// deliberate, role-based restriction - an admin is not implicitly a supervisor.
 if (!hasRole('supervisor')) {
     http_response_code(403);
     echo json_encode(['error' => 'Only a supervisor may submit an IT access request']);
@@ -68,6 +69,12 @@ if (!$managerApproval || empty($managerApproval['signature'])) {
     $errors[] = 'Manager signature required';
 }
 
+// Validate the superadmin-defined custom fields. Unknown keys are dropped;
+// required fields must be answered; choices are checked against their options.
+$customSubmitted = is_array($body['customValues'] ?? null) ? $body['customValues'] : [];
+$activeFields    = itaFormFields($conn, false);
+$customValues    = itaValidateCustomValues($customSubmitted, $activeFields, $errors);
+
 if ($errors) {
     http_response_code(422);
     echo json_encode(['error' => implode('; ', $errors)]);
@@ -104,20 +111,23 @@ $empTitle  = htmlspecialchars(trim($emp['title']), ENT_QUOTES, 'UTF-8');
 $justClean = htmlspecialchars($justification, ENT_QUOTES, 'UTF-8');
 
 // The request enters the ICT queue directly as 'new'. There is no supervisor
-// approval step — the submitter already holds the supervisor role, which is the
+// approval step - the submitter already holds the supervisor role, which is the
 // authority to raise the request; ICT then reviews and the Director signs off.
 $conn->begin_transaction();
 try {
+    // Custom-field answers stored as a JSON map (NULL when none answered).
+    $customJson = $customValues ? json_encode($customValues, JSON_UNESCAPED_UNICODE) : null;
+
     // Insert main request
     $stmt = $conn->prepare(
         "INSERT INTO it_access_requests
-         (ref_number, request_type, employee_name, employee_id, department, division, job_title, start_date, justification, submitted_by, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')"
+         (ref_number, request_type, employee_name, employee_id, department, division, job_title, start_date, justification, submitted_by, custom_values, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')"
     );
     $stmt->bind_param(
-        "sssssssssi",
+        "sssssssssis",
         $refNumber, $requestType, $empName, $empId, $empDept, $empDiv, $empTitle,
-        $startDate, $justClean, $submittedBy
+        $startDate, $justClean, $submittedBy, $customJson
     );
     $stmt->execute();
     $requestId = $conn->insert_id;
@@ -131,7 +141,20 @@ try {
         $sysId    = htmlspecialchars(trim($sys['id'] ?? ''), ENT_QUOTES, 'UTF-8');
         $rawRole  = $sys['role'] ?? '';
         $sysRole  = htmlspecialchars(is_array($rawRole) ? implode(', ', $rawRole) : trim($rawRole), ENT_QUOTES, 'UTF-8');
-        $subVals  = isset($sys['subValues']) ? json_encode($sys['subValues']) : null;
+        // Merge free-text sub-answers (subTexts, e.g. the "Other" system's name
+        // and role) into subValues so they persist and render downstream. The
+        // form keeps them in a separate object; here they become one JSON blob.
+        $merged = [];
+        if (isset($sys['subValues']) && is_array($sys['subValues'])) {
+            $merged = $sys['subValues'];
+        }
+        if (isset($sys['subTexts']) && is_array($sys['subTexts'])) {
+            foreach ($sys['subTexts'] as $k => $v) {
+                $v = is_string($v) ? trim($v) : $v;
+                if ($v !== '' && $v !== null) $merged[$k] = $v;
+            }
+        }
+        $subVals  = $merged ? json_encode($merged) : null;
         $syStmt->bind_param("isss", $requestId, $sysId, $sysRole, $subVals);
         $syStmt->execute();
     }
@@ -176,13 +199,27 @@ try {
     }
     if ($submitterName === '') $submitterName = $_SESSION['user']['username'] ?? 'User';
 
-    // Build a readable system list for the email detail row
+    // Build a readable system list for the email detail row. Resolve display
+    // names via the shared helper so the "Other" system shows the typed name.
+    require_once __DIR__ . '/catalog_shared.php';
+    $emailCatalog = itaBuildCatalog($conn, true);
     $systemParts = [];
     foreach ($systems as $sys) {
-        $sysId      = trim($sys['id'] ?? '');
         $rawSysRole = $sys['role'] ?? '';
         $sysRole    = is_array($rawSysRole) ? implode(', ', $rawSysRole) : trim($rawSysRole);
-        $systemParts[] = $sysId . ($sysRole ? " ($sysRole)" : '');
+        // Merge subValues + subTexts (same as the insert) so free-text answers
+        // are available for display.
+        $merged = (isset($sys['subValues']) && is_array($sys['subValues'])) ? $sys['subValues'] : [];
+        if (isset($sys['subTexts']) && is_array($sys['subTexts'])) {
+            foreach ($sys['subTexts'] as $k => $v) {
+                $v = is_string($v) ? trim($v) : $v;
+                if ($v !== '' && $v !== null) $merged[$k] = $v;
+            }
+        }
+        $disp = itaSystemDisplay(trim($sys['id'] ?? ''), $sysRole, $merged, $emailCatalog);
+        $line = $disp['name'] . ($disp['role'] ? " ({$disp['role']})" : '');
+        if ($disp['detail']) $line .= " - {$disp['detail']}";
+        $systemParts[] = $line;
     }
     $systemList = implode("\n", $systemParts);
     $claimUrl   = itAccessAppUrl();
@@ -210,7 +247,7 @@ try {
         );
     }
 
-    // 2. Notify the ICT officers — the request enters their queue immediately.
+    // 2. Notify the ICT officers - the request enters their queue immediately.
     $detailRows = [
         'Reference'    => $refNumber,
         'Employee'     => $empName,

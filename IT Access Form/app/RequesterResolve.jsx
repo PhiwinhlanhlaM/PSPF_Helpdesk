@@ -1,4 +1,4 @@
-// Screen — Requester: respond to per-system rejections.
+// Screen - Requester: respond to per-system rejections.
 // Shown when a request is 'awaiting-requester': the ICT officer granted some
 // systems and declined others. The requester must ACCEPT (drop) or APPEAL
 // (re-justify, once) each declined system before the request can proceed.
@@ -84,17 +84,17 @@ function RequesterResolve({ requestId }) {
       {/* Declined systems needing a response */}
       <div className="col gap-3">
         {rejected.map(s => {
-          const sys = getSystem(s.id);
+          const disp = systemDisplay(s);
           const appealable = canAppealSystem(s);
           const inAppeal = appealing === s.id;
           return (
             <section key={s.id} className="card card-pad" style={{ borderLeft: "3px solid var(--red-500, #ef4444)" }}>
               <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
                 <div className="row" style={{ gap: 10, alignItems: "flex-start" }}>
-                  <div className="sys-mini-icon"><Icon name={sys.icon} size={16}/></div>
+                  <div className="sys-mini-icon"><Icon name={disp.icon} size={16}/></div>
                   <div className="col" style={{ minWidth: 0 }}>
-                    <strong style={{ fontSize: 14 }}>{sys.name}</strong>
-                    {s.role && <span className="muted" style={{ fontSize: 12 }}>{s.role}</span>}
+                    <strong style={{ fontSize: 14 }}>{disp.name}</strong>
+                    {disp.role && <span className="muted" style={{ fontSize: 12 }}>{disp.role}</span>}
                   </div>
                 </div>
                 <span className="badge badge-red"><span className="dot"/> Declined</span>
@@ -117,7 +117,7 @@ function RequesterResolve({ requestId }) {
                       <Icon name="chevron-right" size={12}/> Appeal
                     </button>
                   ) : (
-                    <span className="muted" style={{ fontSize: 12, alignSelf: "center" }}>Already appealed once — accept to proceed.</span>
+                    <span className="muted" style={{ fontSize: 12, alignSelf: "center" }}>Already appealed once - accept to proceed.</span>
                   )}
                 </div>
               ) : (
@@ -144,13 +144,13 @@ function RequesterResolve({ requestId }) {
           <span className="section-title">Already granted</span>
           <div className="col gap-2" style={{ marginTop: 6 }}>
             {granted.map(s => {
-              const sys = getSystem(s.id);
+              const disp = systemDisplay(s);
               return (
                 <div key={s.id} className="sys-mini" style={{ opacity: 0.9 }}>
-                  <div className="sys-mini-icon"><Icon name={sys.icon} size={14}/></div>
+                  <div className="sys-mini-icon"><Icon name={disp.icon} size={14}/></div>
                   <div className="col" style={{ flex: 1, minWidth: 0 }}>
-                    <strong style={{ fontSize: 13 }}>{sys.name}</strong>
-                    {s.role && <span className="muted" style={{ fontSize: 12 }}>{s.role}</span>}
+                    <strong style={{ fontSize: 13 }}>{disp.name}</strong>
+                    {disp.role && <span className="muted" style={{ fontSize: 12 }}>{disp.role}</span>}
                   </div>
                   <span className="badge badge-green">Granted</span>
                 </div>

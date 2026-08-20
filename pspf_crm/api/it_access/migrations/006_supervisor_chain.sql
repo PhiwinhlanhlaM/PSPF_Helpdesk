@@ -1,5 +1,5 @@
 -- =====================================================================
--- IT Access — supervisor approval step (feedback item 4)
+-- IT Access - supervisor approval step (feedback item 4)
 -- Target database: pspf_helpdesk
 --
 -- Opens the IT Access form to all registered users by inserting a SUPERVISOR
@@ -15,20 +15,20 @@
 --
 -- HOW A SUPERVISOR IS RESOLVED
 -- ----------------------------
---   1. users.supervisor_id        — an explicit override for this person
---   2. divisions.supervisor_id    — otherwise, their division's supervisor
---   3. (none)                     — otherwise the request skips the supervisor
+--   1. users.supervisor_id        - an explicit override for this person
+--   2. divisions.supervisor_id    - otherwise, their division's supervisor
+--   3. (none)                     - otherwise the request skips the supervisor
 --                                   step and goes straight to the ICT queue
 --
 -- Most divisions are small and flat, so setting 13 division supervisors covers
 -- the majority of staff with no per-user data entry. The per-user override
--- exists for divisions with real internal tiers — Benefits, where branch
--- officers report to a branch supervisor rather than the division head — so
+-- exists for divisions with real internal tiers - Benefits, where branch
+-- officers report to a branch supervisor rather than the division head - so
 -- accuracy is bought only where it is actually needed.
 --
 -- The delegate columns cover absence: if the supervisor is away, their
 -- delegate may action the step. A request never waits on a person who cannot
--- act — with no supervisor and no delegate it falls through to ICT rather than
+-- act - with no supervisor and no delegate it falls through to ICT rather than
 -- rotting in a queue.
 --
 -- Idempotent: safe to re-run (IF NOT EXISTS guards, enum changes are absolute).
@@ -82,7 +82,7 @@ SET @sql := IF(@fk_div_del = 0,
 PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
 
 -- ---------------------------------------------------------------------
--- 2. Per-user override. NULL for almost everyone — set only where a person's
+-- 2. Per-user override. NULL for almost everyone - set only where a person's
 --    supervisor differs from their division's default.
 -- ---------------------------------------------------------------------
 ALTER TABLE `users`

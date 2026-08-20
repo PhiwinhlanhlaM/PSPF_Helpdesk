@@ -94,7 +94,7 @@ function HistoryCard({ request, onOpen, onAppeal, onResolve }) {
 
       <div className="hist-systems">
         {request.systems.slice(0, 4).map(s => (
-          <span key={s.id} className="badge badge-gray">{getSystem(s.id).name.split(" ")[0]}</span>
+          <span key={s.id} className="badge badge-gray">{systemDisplay(s).name.split(" ")[0]}</span>
         ))}
         {request.systems.length > 4 && <span className="badge badge-gray">+{request.systems.length - 4}</span>}
       </div>
@@ -145,7 +145,7 @@ function HistoryCard({ request, onOpen, onAppeal, onResolve }) {
       {needsResponse && (
         <div className="hist-status-row" style={{ background: "var(--amber-100)", color: "var(--amber-700)" }}>
           <Icon name="alert" size={14}/>
-          <span>{declinedCount} system{declinedCount === 1 ? "" : "s"} declined — your response is needed</span>
+          <span>{declinedCount} system{declinedCount === 1 ? "" : "s"} declined - your response is needed</span>
         </div>
       )}
 
@@ -211,14 +211,14 @@ function RequestDetailModal({ request, onClose }) {
           <span className="section-title">Systems & roles</span>
           <div className="col gap-2">
             {request.systems.map(s => {
-              const sys = getSystem(s.id);
+              const disp = systemDisplay(s);
               return (
                 <div key={s.id} className="sys-mini">
-                  <div className="sys-mini-icon"><Icon name={sys.icon} size={14}/></div>
+                  <div className="sys-mini-icon"><Icon name={disp.icon} size={14}/></div>
                   <div className="col" style={{ flex: 1, minWidth: 0 }}>
-                    <strong style={{ fontSize: 13, fontWeight: 550 }}>{sys.name}</strong>
+                    <strong style={{ fontSize: 13, fontWeight: 550 }}>{disp.name}</strong>
                     <span className="muted" style={{ fontSize: 12 }}>
-                      {s.role}{Array.isArray(s.subValues) && s.subValues.length ? " · " + s.subValues.join(", ") : (typeof s.subValues === "string" ? " · " + s.subValues : "")}
+                      {disp.role}{disp.detail ? " · " + disp.detail : ""}
                     </span>
                   </div>
                 </div>
@@ -230,6 +230,8 @@ function RequestDetailModal({ request, onClose }) {
 
           <span className="section-title">Justification</span>
           <p className="just-text">{request.justification}</p>
+
+          <CustomFieldsBlock request={request}/>
 
           <div className="divider"/>
 

@@ -110,7 +110,7 @@ while ($r = $rows->fetch_assoc()) {
                         <option value="">Select Division</option>
                         <?php foreach ($divisions as $d): ?>
                         <option value="<?= $d['id'] ?>" data-department="<?= htmlspecialchars($d['department_name']) ?>">
-                            <?= htmlspecialchars($d['department_name']) ?> — <?= htmlspecialchars($d['division_name']) ?>
+                            <?= htmlspecialchars($d['department_name']) ?> - <?= htmlspecialchars($d['division_name']) ?>
                         </option>
                         <?php endforeach; ?>
                     </select>
@@ -253,22 +253,22 @@ while ($r = $rows->fetch_assoc()) {
                 case 1:
                     bar.style.width = "20%";
                     bar.className = "progress-bar bg-danger";
-                    txt.textContent = "Very Weak — need uppercase, lowercase, number & special character";
+                    txt.textContent = "Very Weak - need uppercase, lowercase, number & special character";
                     break;
                 case 2:
                     bar.style.width = "40%";
                     bar.className = "progress-bar bg-danger";
-                    txt.textContent = "Weak — add more variety";
+                    txt.textContent = "Weak - add more variety";
                     break;
                 case 3:
                     bar.style.width = "60%";
                     bar.className = "progress-bar bg-warning";
-                    txt.textContent = "Fair — add uppercase, numbers, or special characters";
+                    txt.textContent = "Fair - add uppercase, numbers, or special characters";
                     break;
                 case 4:
                     bar.style.width = "80%";
                     bar.className = "progress-bar bg-info";
-                    txt.textContent = "Good — almost strong";
+                    txt.textContent = "Good - almost strong";
                     break;
                 case 5:
                     bar.style.width = "100%";

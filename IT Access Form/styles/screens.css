@@ -3,12 +3,16 @@
 .sign-grid { display: grid; grid-template-columns: minmax(0, 1fr) 440px; gap: 24px; align-items: start; }
 @media (max-width: 1100px) { .sign-grid { grid-template-columns: 1fr; } }
 
-.doc-preview { padding: 24px 28px; position: relative; overflow: hidden; }
+/* position + z-index:0 makes .doc-preview its own stacking context, so the
+   watermark's negative z-index stays behind the card content but not behind
+   the page itself. Content children paint above the z-index:-1 watermark. */
+.doc-preview { padding: 24px 28px; position: relative; z-index: 0; overflow: hidden; }
 .doc-watermark {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-22deg);
   font-family: var(--font-display); font-weight: 700; font-size: 96px;
   color: var(--pspf-100); letter-spacing: 0.1em;
   pointer-events: none; user-select: none;
+  z-index: -1;
 }
 .doc-head { display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 1px solid var(--ink-150); }
 
@@ -29,6 +33,41 @@
 .info-card { display: flex; gap: 10px; align-items: flex-start; background: var(--blue-100); border-color: #cee0fb; color: var(--blue-700); }
 .info-card .col strong { color: var(--blue-700); }
 .info-card .col .muted { color: #4267b8; }
+
+/* ===== Analytics dashboard ===== */
+.an-section { margin-bottom: 26px; }
+.an-section-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+.an-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 900px) { .an-grid-2 { grid-template-columns: 1fr; } }
+
+.an-bar-row { display: grid; grid-template-columns: 130px 1fr auto; align-items: center; gap: 10px; padding: 4px 0; }
+.an-bar-label { font-size: 12.5px; color: var(--ink-700); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.an-bar-track { height: 8px; border-radius: 6px; background: var(--ink-100); overflow: hidden; }
+.an-bar-fill { height: 100%; border-radius: 6px; transition: width 0.3s var(--ease-out); }
+.an-bar-value { font-size: 12.5px; font-weight: 600; color: var(--ink-900); min-width: 28px; text-align: right; }
+
+.an-split-track { display: flex; height: 8px; border-radius: 6px; overflow: hidden; background: var(--ink-100); flex: 1; }
+.an-split-g { background: var(--green-600); }
+.an-split-d { background: var(--red-600); }
+
+/* Weekly volume bars with numeric labels. */
+.an-vol { display: flex; align-items: flex-end; gap: 6px; height: 130px; padding-top: 4px; }
+.an-vol-col { flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 0; height: 100%; }
+.an-vol-num { font-size: 11px; font-weight: 600; color: var(--ink-700); margin-bottom: 2px; }
+.an-vol-bar-wrap { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.an-vol-bar { width: 60%; min-width: 6px; border-radius: 3px 3px 0 0; transition: height 0.3s var(--ease-out); }
+.an-vol-wk { font-size: 9.5px; color: var(--ink-500); margin-top: 4px; white-space: nowrap; }
+
+.an-stuck-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--ink-100); }
+.an-stuck-row:last-child { border-bottom: 0; }
+
+.an-sys-head { display: grid; grid-template-columns: 160px 1fr 150px; gap: 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-500); padding: 8px 0 6px; border-bottom: 1px solid var(--ink-150); }
+.an-sys-row { display: grid; grid-template-columns: 160px 1fr 150px; gap: 12px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--ink-100); }
+.an-sys-row:last-child { border-bottom: 0; }
+.an-sys-name { font-size: 12.5px; font-weight: 550; color: var(--ink-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.an-sys-bar { display: flex; align-items: center; gap: 8px; }
+.an-sys-count { font-size: 12.5px; font-weight: 600; min-width: 22px; text-align: right; }
+.an-sys-grant { display: flex; align-items: center; gap: 8px; }
 
 .spin {
   width: 12px; height: 12px;

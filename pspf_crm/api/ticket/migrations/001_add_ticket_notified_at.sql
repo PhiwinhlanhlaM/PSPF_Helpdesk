@@ -1,5 +1,5 @@
 -- =====================================================================
--- tickets.notified_at — one-time notification guard
+-- tickets.notified_at - one-time notification guard
 -- Target database: pspf_helpdesk
 --
 -- The ticket "logged" confirmation + assignment emails are sent from

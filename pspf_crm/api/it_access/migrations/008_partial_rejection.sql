@@ -1,5 +1,5 @@
 -- =====================================================================
--- IT Access — partial (per-system) rejection loop
+-- IT Access - partial (per-system) rejection loop
 -- Target database: pspf_helpdesk
 --
 -- Today rejection is all-or-nothing: an officer can only reject an ENTIRE
@@ -10,7 +10,7 @@
 --   * An officer marks each of their claimed systems as GRANTED (-> actioned)
 --     or REJECTED (-> rejected, with a reason).
 --   * A request with any rejected-and-unresolved system PAUSES at the new
---     request status 'awaiting-requester' — it does NOT advance to the director
+--     request status 'awaiting-requester' - it does NOT advance to the director
 --     and nothing provisions while the requester still owes a response.
 --   * The requester resolves each rejected system by either:
 --       ACCEPT  -> the system is 'dropped' (final, not granted), or
@@ -18,11 +18,11 @@
 --                  its full context (original request + the rejection reason);
 --                  appeal_count is incremented.
 --   * ONE appeal per system: a system rejected again after it was already
---     appealed (appeal_count >= 1) is auto-'dropped' (final) — mirrors the
+--     appealed (appeal_count >= 1) is auto-'dropped' (final) - mirrors the
 --     one-appeal rule of the whole-request appeal loop (007).
 --   * The request advances to the director only once EVERY system is terminal
 --     for this stage: 'actioned' (granted) or 'dropped' (denied). Granted
---     systems are held — a single director sign-off, a single provisioning
+--     systems are held - a single director sign-off, a single provisioning
 --     event, one PDF that shows both granted and denied systems.
 --
 -- Idempotent:
@@ -38,7 +38,7 @@
 
 -- ---------------------------------------------------------------------
 -- Per-system status: add 'rejected' (officer denied it, awaiting requester)
--- and 'dropped' (finally not granted — requester accepted the denial, or a
+-- and 'dropped' (finally not granted - requester accepted the denial, or a
 -- re-rejected appeal). 'pending'/'claimed'/'actioned' keep their meaning.
 -- ---------------------------------------------------------------------
 ALTER TABLE `it_request_systems`
@@ -46,7 +46,7 @@ ALTER TABLE `it_request_systems`
     ENUM('pending','claimed','actioned','rejected','dropped')
     NOT NULL DEFAULT 'pending';
 
--- Per-system rejection detail. All nullable — only set when a system is
+-- Per-system rejection detail. All nullable - only set when a system is
 -- rejected. reject_reason is shown to the requester and printed on the PDF.
 ALTER TABLE `it_request_systems`
   ADD COLUMN IF NOT EXISTS `reject_reason` TEXT DEFAULT NULL
@@ -85,7 +85,7 @@ SET @sql := IF(@fk_rej = 0,
 PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
 
 -- ---------------------------------------------------------------------
--- Request-level: add 'awaiting-requester' — the request is paused because one
+-- Request-level: add 'awaiting-requester' - the request is paused because one
 -- or more systems were rejected and the requester has not yet accepted or
 -- appealed them. Every other value keeps its meaning.
 -- ---------------------------------------------------------------------

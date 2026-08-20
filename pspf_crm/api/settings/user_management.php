@@ -9,7 +9,7 @@ enforceActiveUser($conn);
 enforcePasswordPolicy($conn);
 
 // ---------------------------------------------------------------------------
-// AUTHORIZATION — User Management is superadmin-only.
+// AUTHORIZATION - User Management is superadmin-only.
 // The page AND every mutating action are gated. It is not enough to hide the
 // UI: each POST re-checks the role so a crafted request from a lower-privilege
 // account cannot escalate. Uses held-role check via hasRole().
@@ -43,7 +43,7 @@ $roleIcons    = [
 $iconClass    = $roleIcons[$role] ?? 'bi-person-fill';
 
 // ---------------------------------------------------------------------------
-// CSRF — ensure a token exists, and validate it on every POST.
+// CSRF - ensure a token exists, and validate it on every POST.
 // ---------------------------------------------------------------------------
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -62,7 +62,7 @@ function flash_redirect(string $kind, string $msg): void {
 $IT_ROLES = ['it_officer', 'it_director', 'supervisor']; // silent permission roles (no switchable persona)
 
 // ---------------------------------------------------------------------------
-// POST HANDLING — all actions validated (superadmin already enforced above).
+// POST HANDLING - all actions validated (superadmin already enforced above).
 // ---------------------------------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // CSRF check
@@ -229,7 +229,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // ---------------------------------------------------------------------------
-// READ — filters + data for display
+// READ - filters + data for display
 // ---------------------------------------------------------------------------
 $flash = $_SESSION['um_flash'] ?? null;
 unset($_SESSION['um_flash']);
@@ -479,7 +479,7 @@ function e($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
           <select name="new_division_id" class="form-select" required>
             <option value="">Select…</option>
             <?php foreach ($divisions as $d): ?>
-              <option value="<?= (int)$d['id'] ?>"><?= e($d['department_name']) ?> — <?= e($d['division_name']) ?></option>
+              <option value="<?= (int)$d['id'] ?>"><?= e($d['department_name']) ?> - <?= e($d['division_name']) ?></option>
             <?php endforeach; ?>
           </select></div>
         <div class="mb-2"><label class="form-label">Temporary password (min 8 chars)</label>
@@ -499,7 +499,7 @@ function e($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
     <form method="POST" class="modal-content">
       <input type="hidden" name="csrf_token" value="<?= e($CSRF) ?>">
       <input type="hidden" name="user_id" id="resetUserId" value="">
-      <div class="modal-header"><h5 class="modal-title">Reset Password — <span id="resetUsername"></span></h5>
+      <div class="modal-header"><h5 class="modal-title">Reset Password - <span id="resetUsername"></span></h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
       <div class="modal-body">
         <div class="mb-2"><label class="form-label">New password (min 8 chars)</label>

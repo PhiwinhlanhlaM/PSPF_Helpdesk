@@ -24,7 +24,7 @@ global $conn;
  * Human-friendly display label for a role slug.
  *
  * Role slugs are stored lowercase and may contain underscores (e.g.
- * 'it_officer', 'it_director'). Rendering them raw — or via ucfirst() — leaks
+ * 'it_officer', 'it_director'). Rendering them raw - or via ucfirst() - leaks
  * the underscore into the UI ("It_officer"). This maps the known roles to
  * proper labels and falls back to a Title-Cased, space-separated version for
  * anything not explicitly listed, so a new role still reads sensibly.
@@ -49,7 +49,7 @@ function roleLabel(?string $role): string {
 
 /**
  * Ensures that $conn is valid.
- * Does NOT reload db.php — only verifies.
+ * Does NOT reload db.php - only verifies.
  */
 function ensureDBConnection() {
     global $conn;

@@ -43,7 +43,7 @@ $actionedSystems = $body['actioned_systems'] ?? null; // array of system IDs the
 // Per-system rejection: [{ id: 'banking', reason: '...' }, ...]. An officer may
 // grant some of their claimed systems and reject others in the same action; the
 // request then pauses at 'awaiting-requester' until the requester responds to
-// each rejected system. Optional — an empty/absent list means "grant only".
+// each rejected system. Optional - an empty/absent list means "grant only".
 $rejectedSystems = $body['rejected_systems'] ?? null;
 
 // Validate inputs
@@ -142,7 +142,7 @@ if ($stepRole === 'officer-1' && $action === 'approved') {
         }
     }
 
-    // A system can't be both granted and rejected in one action — reject wins is
+    // A system can't be both granted and rejected in one action - reject wins is
     // ambiguous, so refuse it rather than guess.
     $overlap = array_intersect($actionedSystems, array_keys($rejectMap));
     if ($overlap) {
@@ -208,7 +208,7 @@ try {
     // 'rejected' (with reason), then recompute the request status.
     if ($stepRole === 'officer-1' && $action === 'approved') {
         // Grant. Clearing the reject_* fields matters for a system that was
-        // previously rejected, then appealed and re-granted — otherwise it would
+        // previously rejected, then appealed and re-granted - otherwise it would
         // carry a stale "declined" reason onto the authorization PDF.
         if ($actionedSystems) {
             $markStmt = $conn->prepare(
@@ -226,7 +226,7 @@ try {
 
         // Reject (per system, with reason). One-appeal rule: a system that was
         // already appealed once (appeal_count >= 1) and is rejected AGAIN is
-        // final — it goes straight to 'dropped' rather than back to the
+        // final - it goes straight to 'dropped' rather than back to the
         // requester. A first-time rejection goes to 'rejected' (awaiting the
         // requester's accept/appeal). The CASE decides per row.
         if ($rejectMap) {
@@ -294,7 +294,7 @@ try {
 
     $conn->commit();
 
-    // A request was rejected — tell the requester, with the reason and a link
+    // A request was rejected - tell the requester, with the reason and a link
     // back. This is the notification that was previously missing entirely: a
     // rejected requester had no way to learn of it except by logging in.
     if ($action === 'rejected') {
@@ -310,7 +310,7 @@ try {
         if ($rInfo) {
             $requestor = itAccessUserById($conn, (int)$rInfo['submitted_by']);
             if ($requestor) {
-                // A request that is itself an appeal cannot be appealed again —
+                // A request that is itself an appeal cannot be appealed again -
                 // so the message tells the requester whether this is the end of
                 // the road or whether they may revise and appeal.
                 $isAppeal = $rInfo['appeal_of'] !== null;
@@ -342,7 +342,7 @@ try {
         }
     }
 
-    // Some systems were rejected by the officer — the request now waits on the
+    // Some systems were rejected by the officer - the request now waits on the
     // requester to accept or appeal each. Tell them what was denied and why.
     if ($stepRole === 'officer-1' && $action === 'approved' && $rejectMap) {
         $rqInfoStmt = $conn->prepare(
@@ -357,18 +357,34 @@ try {
         if ($rqInfo) {
             $requestor = itAccessUserById($conn, (int)$rqInfo['submitted_by']);
             if ($requestor) {
-                // Build a readable "system: reason" block for the denied systems.
+                // Build a readable "system: reason" block for the denied systems,
+                // resolving display names (so "Other" shows the typed name).
+                require_once __DIR__ . '/catalog_shared.php';
+                $apprCatalog = itaBuildCatalog($conn, true);
                 $deniedLines = [];
                 foreach ($rejectMap as $sysId => $rr) {
-                    $deniedLines[] = "{$sysId} — {$rr}";
+                    $svRow = $conn->prepare(
+                        "SELECT role, sub_values FROM it_request_systems
+                         WHERE request_id = ? AND system_id = ? LIMIT 1"
+                    );
+                    $svRow->bind_param("is", $requestDbId, $sysId);
+                    $svRow->execute();
+                    $svData = $svRow->get_result()->fetch_assoc();
+                    $svRow->close();
+                    $sub = null;
+                    if ($svData && !empty($svData['sub_values'])) {
+                        $sub = json_decode($svData['sub_values'], true) ?? $svData['sub_values'];
+                    }
+                    $disp = itaSystemDisplay($sysId, $svData['role'] ?? '', $sub, $apprCatalog);
+                    $deniedLines[] = "{$disp['name']} - {$rr}";
                 }
                 $deniedList = implode("\n", $deniedLines);
 
                 [$html, $text] = itAccessEmailBody(
-                    "IT Access Request — Action Needed",
+                    "IT Access Request - Action Needed",
                     [
                         "Dear {$requestor['name']},",
-                        "The ICT team has reviewed your request. Some of the requested access was granted, but the following was declined. Your request will not proceed until you respond to each declined item — you can accept the decision, or appeal it once with further justification.",
+                        "The ICT team has reviewed your request. Some of the requested access was granted, but the following was declined. Your request will not proceed until you respond to each declined item - you can accept the decision, or appeal it once with further justification.",
                     ],
                     [
                         'Reference'       => $rqInfo['ref_number'],
@@ -380,7 +396,7 @@ try {
                 );
                 itAccessSendMail(
                     [$requestor],
-                    "IT Access Request — Action Needed - {$rqInfo['ref_number']}",
+                    "IT Access Request - Action Needed - {$rqInfo['ref_number']}",
                     $html, $text
                 );
             }
@@ -425,7 +441,7 @@ try {
             generateAndUploadPdf($conn, $requestDbId);
         } catch (\Throwable $pdfEx) {
             error_log('PDF/SharePoint error: ' . $pdfEx->getMessage());
-            // Non-fatal — provisioning already committed
+            // Non-fatal - provisioning already committed
         }
 
         // Fetch request details for the notifications (non-blocking)
@@ -442,7 +458,7 @@ try {
             $empName  = $pInfo['employee_name'];
             $empDept  = $pInfo['department'];
 
-            // Requestor: all systems claimed and actioned — access granted.
+            // Requestor: all systems claimed and actioned - access granted.
             $requestor = itAccessUserById($conn, (int)$pInfo['submitted_by']);
             if ($requestor) {
                 [$html, $text] = itAccessEmailBody(

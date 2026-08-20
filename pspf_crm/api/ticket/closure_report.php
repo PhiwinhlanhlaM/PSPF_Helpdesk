@@ -161,7 +161,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel') {
 // ✅ EXPORT PDF
 if (isset($_GET['export']) && $_GET['export'] === 'pdf') {
 
-    // You can decide to export all or just current page — here we’ll export all filtered
+    // You can decide to export all or just current page - here we’ll export all filtered
     $sql_all = "
         SELECT c.ticket_id, t.created_by, t.query_date, c.closed_by, c.closed_at, ts.department, t.status
         FROM ticket_closures c

@@ -169,17 +169,17 @@ document.addEventListener("DOMContentLoaded", () => {
       case 1:
         strengthBar.style.width = "25%";
         strengthBar.className = "progress-bar bg-danger";
-        strengthText.textContent = "Very Weak — must be at least 12 chars, include a symbol, number, and capital letter";
+        strengthText.textContent = "Very Weak - must be at least 12 chars, include a symbol, number, and capital letter";
         break;
       case 2:
         strengthBar.style.width = "50%";
         strengthBar.className = "progress-bar bg-warning";
-        strengthText.textContent = "Weak — add more variety";
+        strengthText.textContent = "Weak - add more variety";
         break;
       case 3:
         strengthBar.style.width = "75%";
         strengthBar.className = "progress-bar bg-info";
-        strengthText.textContent = "Good — one more element to go!";
+        strengthText.textContent = "Good - one more element to go!";
         break;
       case 4:
         strengthBar.style.width = "100%";

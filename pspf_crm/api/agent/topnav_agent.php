@@ -4,7 +4,7 @@
 // ---------------------------------------------------------------------------
 // Normalize the department shown in the name pill.
 //
-// Including pages set $UserDept inconsistently — some from the session
+// Including pages set $UserDept inconsistently - some from the session
 // 'department' key, some from a never-populated 'division_name' key, some only
 // as a lowercase $userDept, and some not at all. That made the department badge
 // appear for certain roles/pages and vanish for others. Resolve it here, once,
@@ -202,7 +202,7 @@ if (empty($UserDept) && isset($conn) && !empty($_SESSION['user']['id'])) {
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="/pspf_crm/api/settings/user_management.php"><i class="bi bi-people me-2"></i>User Management</a></li>
                             <li><a class="dropdown-item" href="/pspf_crm/api/settings/org_structure.php"><i class="bi bi-diagram-3 me-2"></i>Org Structure</a></li>
-                            <li><a class="dropdown-item" href="/pspf_crm/api/settings/system_catalog.php"><i class="bi bi-hdd-stack me-2"></i>System Catalog</a></li>
+                            <li><a class="dropdown-item" href="/pspf_crm/api/settings/form_management.php"><i class="bi bi-ui-checks-grid me-2"></i>Form Management</a></li>
                             <li><a class="dropdown-item" href="/pspf_crm/api/deploy/index.php"><i class="bi bi-rocket-takeoff me-2"></i>Deployments</a></li>
                         <?php endif ?>
                     </ul>

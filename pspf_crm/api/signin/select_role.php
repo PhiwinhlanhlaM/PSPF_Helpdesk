@@ -6,7 +6,7 @@ if (!isset($_SESSION['pending_roles'])) {
     exit;
 }
 
-// it_officer / it_director / supervisor are permissions, not selectable personas — never offer them here.
+// it_officer / it_director / supervisor are permissions, not selectable personas - never offer them here.
 $NON_SELECTABLE_ROLES = ['it_officer', 'it_director', 'supervisor'];
 $roles = array_values(array_diff($_SESSION['pending_roles'], $NON_SELECTABLE_ROLES));
 

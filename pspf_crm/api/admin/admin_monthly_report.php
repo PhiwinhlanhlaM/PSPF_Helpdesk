@@ -493,7 +493,7 @@ $scopeLabel = $isSuperAdmin ? 'All Departments' : $userDept;
             cells.forEach((td, idx) => {
                 if (idx === ratingColIndex) {
                     const filled = td.querySelectorAll('.bi-star-fill').length;
-                    row.push(filled > 0 ? filled : (td.textContent.trim() === '—' ? '' : td.textContent.trim()));
+                    row.push(filled > 0 ? filled : (td.textContent.trim() === '-' ? '' : td.textContent.trim()));
                 } else {
                     row.push(td.textContent.trim());
                 }

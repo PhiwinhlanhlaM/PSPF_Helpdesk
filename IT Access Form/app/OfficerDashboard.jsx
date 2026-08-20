@@ -36,7 +36,7 @@ function ClaimModal({ request, onConfirm, onCancel }) {
 
         <div className="col gap-2" style={{ marginBottom: 20 }}>
           {available.map(s => {
-            const sys = getSystem(s.id);
+            const disp = systemDisplay(s);
             const on = selected.includes(s.id);
             return (
               <label key={s.id} style={{
@@ -48,9 +48,9 @@ function ClaimModal({ request, onConfirm, onCancel }) {
                 <input type="checkbox" checked={on} onChange={() => toggle(s.id)}
                   style={{ width: 16, height: 16, accentColor: "var(--pspf-700, #3d5a7e)" }}/>
                 <div className="col" style={{ flex: 1, minWidth: 0 }}>
-                  <strong style={{ fontSize: 13 }}>{sys ? sys.name : s.id}</strong>
+                  <strong style={{ fontSize: 13 }}>{disp.name}</strong>
                   <span className="muted" style={{ fontSize: 12 }}>
-                    {s.role && s.role}{Array.isArray(s.subValues?.sub_0) && s.subValues.sub_0.length ? " · " + s.subValues.sub_0.join(", ") : ""}
+                    {disp.role}{disp.detail ? " · " + disp.detail : ""}
                   </span>
                 </div>
               </label>
@@ -58,7 +58,7 @@ function ClaimModal({ request, onConfirm, onCancel }) {
           })}
 
           {taken.map(s => {
-            const sys = getSystem(s.id);
+            const disp = systemDisplay(s);
             return (
               <div key={s.id} style={{
                 display: "flex", alignItems: "center", gap: 10,
@@ -68,7 +68,7 @@ function ClaimModal({ request, onConfirm, onCancel }) {
               }}>
                 <Icon name={sysStatus(s) === "actioned" ? "check-circle" : "lock"} size={14}/>
                 <div className="col" style={{ flex: 1, minWidth: 0 }}>
-                  <strong style={{ fontSize: 13 }}>{sys ? sys.name : s.id}</strong>
+                  <strong style={{ fontSize: 13 }}>{disp.name}</strong>
                   <span className="muted" style={{ fontSize: 12 }}>
                     {sysStatus(s) === "actioned" ? "Already actioned" : "Claimed by another officer"}
                   </span>
@@ -243,7 +243,7 @@ function OfficerDashboard() {
                         <td>
                           <div className="row gap-1" style={{ flexWrap: "wrap" }}>
                             {r.systems.slice(0, 2).map(s => (
-                              <span key={s.id} className="badge badge-gray">{getSystem(s.id).name.split(" ")[0]}</span>
+                              <span key={s.id} className="badge badge-gray">{systemDisplay(s).name.split(" ")[0]}</span>
                             ))}
                             {r.systems.length > 2 && <span className="badge badge-gray">+{r.systems.length - 2}</span>}
                           </div>
@@ -348,14 +348,14 @@ function DetailPanel({ request, onClose, onClaim, onSign }) {
           <span className="section-title">Requested systems</span>
           <div className="col gap-2">
             {request.systems.map(s => {
-              const sys = getSystem(s.id);
+              const disp = systemDisplay(s);
               return (
                 <div key={s.id} className="sys-mini">
-                  <div className="sys-mini-icon"><Icon name={sys.icon} size={14}/></div>
+                  <div className="sys-mini-icon"><Icon name={disp.icon} size={14}/></div>
                   <div className="col" style={{ flex: 1, minWidth: 0 }}>
-                    <strong style={{ fontSize: 13, fontWeight: 550 }}>{sys.name}</strong>
+                    <strong style={{ fontSize: 13, fontWeight: 550 }}>{disp.name}</strong>
                     <span className="muted" style={{ fontSize: 12 }}>
-                      {s.role}{Array.isArray(s.subValues) && s.subValues.length ? " · " + s.subValues.join(", ") : (typeof s.subValues === "string" ? " · " + s.subValues : "")}
+                      {disp.role}{disp.detail ? " · " + disp.detail : ""}
                     </span>
                   </div>
                 </div>

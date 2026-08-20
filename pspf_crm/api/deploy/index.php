@@ -9,7 +9,7 @@ enforceActiveUser($conn);
 enforcePasswordPolicy($conn);
 
 // ---------------------------------------------------------------------------
-// AUTHORIZATION — the Deploy dashboard is superadmin-only.
+// AUTHORIZATION - the Deploy dashboard is superadmin-only.
 // The page AND every mutating action are gated (held-role check). Hiding the UI
 // is never sufficient: each POST re-checks so a crafted request from a lower-
 // privilege account cannot queue or approve a deploy.
@@ -68,7 +68,7 @@ function flash_redirect(string $kind, string $msg): void {
 }
 
 // ---------------------------------------------------------------------------
-// POST HANDLING — superadmin already enforced. Every branch is CSRF-checked.
+// POST HANDLING - superadmin already enforced. Every branch is CSRF-checked.
 // The dashboard writes INTENT only; it never executes anything.
 // ---------------------------------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -107,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($req['commit_sha'])) {
             flash_redirect('error', 'This request has no target commit; cannot approve.');
         }
-        // Never approve over drift — the runner would refuse anyway, but block early.
+        // Never approve over drift - the runner would refuse anyway, but block early.
         $drift = json_decode($req['drift_report'] ?? '[]', true);
         if (is_array($drift) && count($drift) > 0) {
             flash_redirect('error', 'Cannot approve: live has ' . count($drift) . ' file(s) edited outside the pipeline (drift). Reconcile live into the repo, then re-check.');
@@ -144,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // ---------------------------------------------------------------------------
-// READ — flash, runner health, current actionable request, history.
+// READ - flash, runner health, current actionable request, history.
 // ---------------------------------------------------------------------------
 $flash = $_SESSION['deploy_flash'] ?? null;
 unset($_SESSION['deploy_flash']);
@@ -315,7 +315,7 @@ function statusBadge(string $s): string {
                         <dt class="col-4">Author</dt>
                         <dd class="col-8"><?= e($current['commit_author'] ?? '') ?></dd>
                         <dt class="col-4">Requested by</dt>
-                        <dd class="col-8"><?= e($current['requested_by'] ? ('user #' . $current['requested_by']) : '—') ?></dd>
+                        <dd class="col-8"><?= e($current['requested_by'] ? ('user #' . $current['requested_by']) : '-') ?></dd>
                     </dl>
                 </div>
                 <div class="col-lg-6">
@@ -390,11 +390,11 @@ function statusBadge(string $s): string {
                 <td><?= (int)$h['id'] ?></td>
                 <td><?= e($h['type']) ?></td>
                 <td><?= statusBadge($h['status']) ?></td>
-                <td class="commit-sha"><?= e($h['commit_sha'] ? substr($h['commit_sha'],0,8) : '—') ?></td>
-                <td class="text-truncate" style="max-width:260px;" title="<?= e($h['commit_msg'] ?? '') ?>"><?= e($h['commit_msg'] ?? '—') ?></td>
-                <td><?= e($h['requested_name'] ?? '—') ?></td>
+                <td class="commit-sha"><?= e($h['commit_sha'] ? substr($h['commit_sha'],0,8) : '-') ?></td>
+                <td class="text-truncate" style="max-width:260px;" title="<?= e($h['commit_msg'] ?? '') ?>"><?= e($h['commit_msg'] ?? '-') ?></td>
+                <td><?= e($h['requested_name'] ?? '-') ?></td>
                 <td>
-                    <?= e($h['decided_name'] ?? '—') ?>
+                    <?= e($h['decided_name'] ?? '-') ?>
                     <?php if (!empty($h['decision_reason'])): ?>
                         <i class="bi bi-info-circle text-muted" title="<?= e($h['decision_reason']) ?>"></i>
                     <?php endif; ?>

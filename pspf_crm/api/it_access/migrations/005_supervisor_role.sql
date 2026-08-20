@@ -1,9 +1,9 @@
 -- =====================================================================
--- IT Access — supervisor permission role
+-- IT Access - supervisor permission role
 -- Target database: pspf_helpdesk
 --
 -- Adds the `supervisor` role. A supervisor approves an IT access request
--- BEFORE it reaches the ICT team — the new first step in the chain once the
+-- BEFORE it reaches the ICT team - the new first step in the chain once the
 -- form opens to all users (feedback item 4). A superadmin grants this role to
 -- selected people in Settings -> User Management; it appears there
 -- automatically because that page lists every role (no allow-list to edit).
@@ -25,5 +25,5 @@
 INSERT INTO `roles` (`id`, `name`, `description`)
 SELECT (SELECT COALESCE(MAX(`id`), -1) + 1 FROM `roles`),
        'supervisor',
-       'Supervisor — approves IT access requests from their reports before ICT'
+       'Supervisor - approves IT access requests from their reports before ICT'
 WHERE NOT EXISTS (SELECT 1 FROM `roles` r WHERE r.`name` = 'supervisor');

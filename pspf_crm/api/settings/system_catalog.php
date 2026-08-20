@@ -1,11 +1,11 @@
 <?php
 /**
- * IT Access — System Catalog management. Superadmin only.
+ * IT Access - System Catalog management. Superadmin only.
  *
  * Lets a superadmin manage the systems offered on the IT Access request form:
  * name, description, icon, roles, and sub-options (the extra questions asked
  * per system). The catalog is shared, so the same list will drive the ticket
- * Title dropdown — there is no second hardcoded copy to keep in step.
+ * Title dropdown - there is no second hardcoded copy to keep in step.
  *
  * All reads/writes go through the JSON API (it_access/catalog.php and
  * catalog_admin.php), which re-checks the superadmin role on every request.
@@ -22,7 +22,7 @@ enforceActiveUser($conn);
 enforcePasswordPolicy($conn);
 
 // ---------------------------------------------------------------------------
-// AUTHORIZATION — superadmin only, checked on held roles (it_officer /
+// AUTHORIZATION - superadmin only, checked on held roles (it_officer /
 // it_director are permission roles that are never the active persona).
 // The API enforces this again on every write.
 // ---------------------------------------------------------------------------
@@ -97,12 +97,19 @@ $csrfToken = $_SESSION['csrf_token'] ?? '';
 </head>
 <body>
 
-<?php include '../agent/topnav.php'; ?>
+<?php
+// When embedded in the Form Management tab shell (?embed=1), hide the shared
+// topnav and the page's own big title - the parent page already shows both.
+$embed = isset($_GET['embed']) && $_GET['embed'] === '1';
+if (!$embed) include '../agent/topnav.php';
+?>
 
-<div class="container-xl mt-4 mb-5">
+<div class="container-xl <?= $embed ? 'mt-2' : 'mt-4' ?> mb-5">
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-1">
         <div>
+            <?php if (!$embed): ?>
             <h1 class="settings-title mb-1">System Catalog</h1>
+            <?php endif ?>
             <p class="text-muted mb-0">
                 The systems people can request on the IT Access form. Changes take effect immediately
                 on new requests; requests already submitted keep the details they were made with.
@@ -165,7 +172,7 @@ $csrfToken = $_SESSION['csrf_token'] ?? '';
           <div class="col-12">
             <label class="form-label" for="fDesc">Description</label>
             <input type="text" class="form-control" id="fDesc" maxlength="500"
-                   placeholder="What this system is for — shown under the name on the request form">
+                   placeholder="What this system is for - shown under the name on the request form">
           </div>
         </div>
 
@@ -288,7 +295,7 @@ $csrfToken = $_SESSION['csrf_token'] ?? '';
           <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
             <div class="flex-grow-1" style="min-width:16rem">
               <div class="sys-name">${esc(s.name)}</div>
-              <div class="text-muted small mb-2">${esc(s.desc || '—')}</div>
+              <div class="text-muted small mb-2">${esc(s.desc || '-')}</div>
               <div>${roles}${subs}</div>
               ${used ? `<div class="text-muted usage-note mt-2">
                           <i class="bi bi-link-45deg"></i> used by ${used} request${used === 1 ? '' : 's'}
@@ -302,7 +309,7 @@ $csrfToken = $_SESSION['csrf_token'] ?? '';
                 ? `<button class="btn btn-sm btn-outline-secondary" data-retire="${esc(s.id)}">Retire</button>`
                 : `<button class="btn btn-sm btn-outline-success" data-restore="${esc(s.id)}">Restore</button>`}
               <button class="btn btn-sm btn-outline-danger" data-delete="${esc(s.id)}"
-                      ${used ? 'disabled title="Used by existing requests — retire it instead"' : ''}>
+                      ${used ? 'disabled title="Used by existing requests - retire it instead"' : ''}>
                 <i class="bi bi-trash"></i>
               </button>
             </div>
@@ -357,7 +364,7 @@ $csrfToken = $_SESSION['csrf_token'] ?? '';
         </div>
       </div>
       ${sub?.key ? `<div class="form-text mt-1"><i class="bi bi-lock-fill"></i>
-                      Existing question — past requests reference it, so its answers stay linked.</div>` : ''}`;
+                      Existing question - past requests reference it, so its answers stay linked.</div>` : ''}`;
     const kindSel = d.querySelector('.sub-kind');
     const optsIn  = d.querySelector('.sub-opts');
     kindSel.onchange = () => {
@@ -377,7 +384,7 @@ $csrfToken = $_SESSION['csrf_token'] ?? '';
     $('fIcon').value = sys?.icon || 'archive';
     $('fMultiRole').checked = !!sys?.multiRole;
     $('idNote').textContent = sys
-      ? `Identifier: ${sys.id} — fixed, because past requests reference it.`
+      ? `Identifier: ${sys.id} - fixed, because past requests reference it.`
       : 'An identifier is generated from the name and cannot change later.';
 
     $('rolesWrap').innerHTML = '';

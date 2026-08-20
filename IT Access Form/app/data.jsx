@@ -163,7 +163,7 @@ function setSystemCatalog(systems) {
 }
 
 // Always read the catalog through this, never via a captured SYSTEM_CATALOG
-// reference — the binding is reassigned when the server copy arrives.
+// reference - the binding is reassigned when the server copy arrives.
 function getSystemCatalog() {
   return SYSTEM_CATALOG;
 }
@@ -173,6 +173,50 @@ function getSystem(systemId) {
   // a historical request still renders its id instead of crashing on undefined.
   return SYSTEM_CATALOG.find(s => s.id === systemId)
       || { id: systemId, name: systemId, desc: '', icon: 'archive' };
+}
+
+// Resolve how a requested system should be shown, mirroring the PHP
+// itaSystemDisplay(). For the "other" system the requester's typed values
+// REPLACE the generic "OTHER SYSTEM" label: first sub-value = the system's
+// name, second = its role. Free-text answers are stored positionally
+// (sub_0, sub_1, ...) in catalog sub-option order.
+function systemDisplay(s) {
+  const sys = getSystem(s.id);
+  // Ordered list of sub-values, preserving sub_0, sub_1, ... order.
+  const ordered = [];
+  const sv = s.subValues;
+  if (Array.isArray(sv)) {
+    sv.forEach(v => ordered.push(Array.isArray(v) ? v.filter(Boolean).join(", ") : (v == null ? "" : String(v).trim())));
+  } else if (sv && typeof sv === "object") {
+    Object.keys(sv).sort((a, b) => {
+      const na = parseInt((a.match(/\d+$/) || [])[0], 10);
+      const nb = parseInt((b.match(/\d+$/) || [])[0], 10);
+      return (Number.isInteger(na) ? na : 0) - (Number.isInteger(nb) ? nb : 0);
+    }).forEach(k => {
+      const v = sv[k];
+      ordered.push(Array.isArray(v) ? v.filter(Boolean).join(", ") : (v == null ? "" : String(v).trim()));
+    });
+  } else if (typeof sv === "string" && sv) {
+    ordered.push(sv.trim());
+  }
+
+  if (s.id === "other") {
+    const typedName = ordered[0] || "";
+    const typedRole = ordered[1] || "";
+    return {
+      // Uppercase the typed name to match catalog systems (stored uppercase).
+      name:   typedName ? typedName.toUpperCase() : sys.name,
+      role:   typedRole || s.role || "",
+      detail: ordered.slice(2).filter(Boolean).join(" · "),
+      icon:   sys.icon,
+    };
+  }
+  return {
+    name:   sys.name,
+    role:   s.role || "",
+    detail: ordered.filter(Boolean).join(" · "),
+    icon:   sys.icon,
+  };
 }
 
 function statusMeta(status) {
@@ -193,7 +237,7 @@ function sysStatusMeta(s) {
   switch (sysStatus(s)) {
     case "actioned": return { label: "Granted",  cls: "badge-green" };
     case "dropped":  return { label: "Denied",   cls: "badge-gray"  };
-    case "rejected": return { label: "Declined — your response needed", cls: "badge-amber" };
+    case "rejected": return { label: "Declined - your response needed", cls: "badge-amber" };
     case "claimed":  return { label: "Under review", cls: "badge-blue" };
     default:         return { label: "Pending",  cls: "badge-gray"  };
   }
@@ -265,8 +309,26 @@ function nextStep(req) {
   return null;
 }
 
+// Render a system's sub-values (from list.php) into a compact display string,
+// whatever shape they arrive in: an array (multi-select), a plain string, or an
+// object keyed sub_0/sub_1 (free-text answers, e.g. the "Other" system's name
+// and role). Objects are flattened value-by-value, arrays joined, empties dropped.
+function subValuesLine(subValues) {
+  if (subValues == null) return "";
+  if (Array.isArray(subValues)) return subValues.filter(Boolean).join(", ");
+  if (typeof subValues === "string") return subValues.trim();
+  if (typeof subValues === "object") {
+    return Object.values(subValues)
+      .map(v => Array.isArray(v) ? v.filter(Boolean).join(", ") : (v == null ? "" : String(v).trim()))
+      .filter(Boolean)
+      .join(" · ");
+  }
+  return "";
+}
+
 // Make these globals available to other JSX files.
 Object.assign(window, {
+  subValuesLine, systemDisplay,
   SYSTEM_CATALOG, DEPARTMENTS, PEOPLE,
   setSystemCatalog, getSystemCatalog,
   buildSeedRequests, fmtDateTime, fmtDate, fmtRelative,

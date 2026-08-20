@@ -6,7 +6,7 @@ const { useState } = React;
 //
 // Timezone note: request timestamps arrive from list.php as UTC ISO strings
 // ('...Z'), while the ranges below are built in the director's LOCAL time. That
-// is deliberate — "this month" should mean the month as the director sees it on
+// is deliberate - "this month" should mean the month as the director sees it on
 // their calendar, not the UTC month. Comparison happens on absolute epoch
 // milliseconds (Date.getTime()), so the two representations line up correctly
 // and a request submitted at 23:00 local on the 31st still counts in that month.
@@ -86,7 +86,7 @@ function DirectorDashboard() {
   const recent = state.requests.filter(r => r.status === "provisioned" || r.status === "rejected").slice(0, 5);
 
   // Period-scoped counts. "Awaiting your review" is deliberately NOT date-scoped:
-  // it is a live backlog, not a statistic about a past period — a request that
+  // it is a live backlog, not a statistic about a past period - a request that
   // has been waiting since before the range still needs the director's decision.
   const stats = React.useMemo(() => {
     const submitted = state.requests.filter(r => dirInRange(r.submittedAt, range)).length;
@@ -221,7 +221,7 @@ function DirectorCard({ request, onOpen }) {
 
       <div className="dir-card-systems">
         {request.systems.slice(0, 4).map(s => (
-          <span key={s.id} className="badge badge-gray">{getSystem(s.id).name.split(" ")[0]} · {s.role}</span>
+          <span key={s.id} className="badge badge-gray">{systemDisplay(s).name.split(" ")[0]}{systemDisplay(s).role ? " · " + systemDisplay(s).role : ""}</span>
         ))}
         {request.systems.length > 4 && <span className="badge badge-gray">+{request.systems.length - 4}</span>}
       </div>
@@ -244,7 +244,7 @@ function DirectorSign({ requestId }) {
   const request = state.requests.find(r => r.id === requestId);
   const [stage, setStage] = useState("review"); // review | sign | rejecting | done | submitting
   // NOTE: `stage` values and the backend `action` payload ('approved'/'rejected')
-  // are internal identifiers, not display text — the director-facing wording is
+  // are internal identifiers, not display text - the director-facing wording is
   // "review" but the DB enum and step_role stay unchanged.
   const [signature, setSignature] = useState(null);
   const [confirmed, setConfirmed] = useState(false);
@@ -363,15 +363,15 @@ function DirectorSign({ requestId }) {
           <span className="section-title" style={{ marginTop: 20 }}>Actioned systems</span>
           <div className="col gap-2">
             {request.systems.map(s => {
-              const sys = getSystem(s.id);
+              const disp = systemDisplay(s);
               return (
                 <div key={s.id} className="sys-mini" style={{ background: "var(--green-100)" }}>
                   <Icon name="check" size={14} stroke={2.6} style={{ color: "var(--green-700)", flexShrink: 0 }}/>
-                  <div className="sys-mini-icon" style={{ background: "var(--white)" }}><Icon name={sys.icon} size={14}/></div>
+                  <div className="sys-mini-icon" style={{ background: "var(--white)" }}><Icon name={disp.icon} size={14}/></div>
                   <div className="col" style={{ flex: 1, minWidth: 0 }}>
-                    <strong style={{ fontSize: 13, fontWeight: 550 }}>{sys.name}</strong>
+                    <strong style={{ fontSize: 13, fontWeight: 550 }}>{disp.name}</strong>
                     <span className="muted" style={{ fontSize: 12 }}>
-                      {s.role}{Array.isArray(s.subValues) && s.subValues.length ? " · " + s.subValues.join(", ") : (typeof s.subValues === "string" ? " · " + s.subValues : "")}
+                      {disp.role}{disp.detail ? " · " + disp.detail : ""}
                     </span>
                   </div>
                 </div>
@@ -381,6 +381,8 @@ function DirectorSign({ requestId }) {
 
           <span className="section-title" style={{ marginTop: 20 }}>Justification</span>
           <p className="just-text">{request.justification}</p>
+
+          <CustomFieldsBlock request={request}/>
 
           <span className="section-title" style={{ marginTop: 20 }}>Action chain</span>
           <ApprovalTimeline request={request}/>
@@ -426,8 +428,7 @@ function DirectorSign({ requestId }) {
               </Field>
               <div className="row gap-2" style={{ justifyContent: "flex-end", marginTop: 16 }}>
                 <button className="btn btn-secondary" onClick={() => setStage("review")}>Cancel</button>
-                <button className="btn" disabled={rejectReason.trim().length < 10} onClick={reject}
-                  style={{ background: "var(--red-600)", color: "white" }}>Confirm rejection</button>
+                <button className="btn btn-danger-solid" disabled={rejectReason.trim().length < 10} onClick={reject}>Confirm rejection</button>
               </div>
             </section>
           )}

@@ -1,5 +1,5 @@
 -- =====================================================================
--- IT Access module — BASE schema install (production bootstrap)
+-- IT Access module - BASE schema install (production bootstrap)
 -- Target database: pspf_helpdesk
 --
 -- This is the consolidated, idempotent install for the IT Access request
@@ -19,13 +19,13 @@
 --
 -- Requires MariaDB 10.4+/MySQL 8.0+ (uses ADD COLUMN IF NOT EXISTS).
 -- Depends on an existing `users` table (users.id) and `roles`/`user_roles`
--- (standard CRM auth tables) — those are already on live.
+-- (standard CRM auth tables) - those are already on live.
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
 -- 1. Permission roles the module checks via hasRole().
---    it_officer  — ICT staff who claim/action requests
---    it_director — signs off provisioning
+--    it_officer  - ICT staff who claim/action requests
+--    it_director - signs off provisioning
 --    These are PERMISSION roles (never the active persona). Assign them to
 --    the relevant users afterwards via Settings → User Management.
 --
@@ -37,23 +37,23 @@
 -- ---------------------------------------------------------------------
 INSERT INTO `roles` (`id`, `name`, `description`)
 SELECT (SELECT COALESCE(MAX(`id`), -1) + 1 FROM `roles`),
-       'it_officer', 'ICT officer — claims and actions IT access requests'
+       'it_officer', 'ICT officer - claims and actions IT access requests'
 WHERE NOT EXISTS (SELECT 1 FROM `roles` r WHERE r.`name` = 'it_officer');
 
 INSERT INTO `roles` (`id`, `name`, `description`)
 SELECT (SELECT COALESCE(MAX(`id`), -1) + 1 FROM `roles`),
-       'it_director', 'IT Director — reviews and signs off IT access provisioning'
+       'it_director', 'IT Director - reviews and signs off IT access provisioning'
 WHERE NOT EXISTS (SELECT 1 FROM `roles` r WHERE r.`name` = 'it_director');
 
 -- ---------------------------------------------------------------------
--- 2. users.full_name — captured once via the IT Access form prompt; read by
+-- 2. users.full_name - captured once via the IT Access form prompt; read by
 --    the module (and by User Management). Additive, idempotent.
 -- ---------------------------------------------------------------------
 ALTER TABLE `users`
   ADD COLUMN IF NOT EXISTS `full_name` VARCHAR(150) DEFAULT NULL AFTER `Username`;
 
 -- ---------------------------------------------------------------------
--- 3. it_access_requests — one row per request (REQ-YYYY-NNNN).
+-- 3. it_access_requests - one row per request (REQ-YYYY-NNNN).
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `it_access_requests` (
   `id`            INT(11) NOT NULL AUTO_INCREMENT,
@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS `it_access_requests` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ---------------------------------------------------------------------
--- 4. it_request_systems — the systems requested, each independently
+-- 4. it_request_systems - the systems requested, each independently
 --    claimable/actionable by an IT officer.
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `it_request_systems` (
@@ -103,7 +103,7 @@ CREATE TABLE IF NOT EXISTS `it_request_systems` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ---------------------------------------------------------------------
--- 5. it_request_approvals — the approval/action trail (manager, officer,
+-- 5. it_request_approvals - the approval/action trail (manager, officer,
 --    director), including captured signatures.
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `it_request_approvals` (

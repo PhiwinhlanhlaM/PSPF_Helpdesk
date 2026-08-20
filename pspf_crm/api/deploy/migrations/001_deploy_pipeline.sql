@@ -1,5 +1,5 @@
 -- =====================================================================
--- PSPF Helpdesk — Continuous Delivery pipeline schema
+-- PSPF Helpdesk - Continuous Delivery pipeline schema
 -- Migration 001: deploy_requests + deploy_state
 --
 -- Applies to the pspf_helpdesk database. Manual migration (by policy the
@@ -15,7 +15,7 @@
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
--- deploy_requests — the work queue AND the immutable audit trail.
+-- deploy_requests - the work queue AND the immutable audit trail.
 -- One row per operator action (check for updates / deploy).
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `deploy_requests` (
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS `deploy_requests` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------
--- deploy_state — a tiny single-row marker of the last commit that was
+-- deploy_state - a tiny single-row marker of the last commit that was
 -- successfully deployed to live. Drift is measured against this SHA.
 -- The fixed id=1 row is the singleton; the runner UPSERTs it.
 -- ---------------------------------------------------------------------

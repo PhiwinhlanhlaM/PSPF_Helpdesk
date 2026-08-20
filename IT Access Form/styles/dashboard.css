@@ -1,4 +1,4 @@
-/* Dashboard — table, stat cards, detail panel */
+/* Dashboard - table, stat cards, detail panel */
 .search-input {
   display: flex; align-items: center; gap: 8px;
   background: var(--white);
