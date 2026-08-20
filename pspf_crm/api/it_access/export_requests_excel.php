@@ -1,6 +1,6 @@
 <?php
 /**
- * IT Access — request export (Excel-readable).
+ * IT Access - request export (Excel-readable).
  *
  * Exports the IT access requests for a reporting period as a spreadsheet, using
  * the same period definitions as the director dashboard stats so the two can
@@ -34,7 +34,7 @@ $seesAll    = $isSuper || $isOfficer || $isDirector;
 // Resolve the reporting period.
 //
 // Mirrors dirRangeBounds() in Director.jsx. Timestamps are stored in UTC but
-// the period is expressed in server-local terms — the same convention the
+// the period is expressed in server-local terms - the same convention the
 // dashboard uses, so "this month" means the month on the viewer's calendar.
 // Returns [fromSql, toSql] as 'Y-m-d H:i:s', or null for all time.
 // ---------------------------------------------------------------------
@@ -188,7 +188,7 @@ echo "\xEF\xBB\xBF";
 ?>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <table border="0" cellspacing="0" cellpadding="4">
-  <tr><td colspan="12" style="font-size:15pt;font-weight:bold;">PSPF — IT Access Requests</td></tr>
+  <tr><td colspan="12" style="font-size:15pt;font-weight:bold;">PSPF - IT Access Requests</td></tr>
   <tr>
     <td colspan="12" style="color:#555;">Period: <?= htmlspecialchars($rangeLabels[$range]) ?> (<?= htmlspecialchars($periodText) ?>)</td>
   </tr>
@@ -197,7 +197,7 @@ echo "\xEF\xBB\xBF";
           $_SESSION['user']['full_name'] ?? '',
           $_SESSION['user']['email'] ?? '',
           $_SESSION['user']['username'] ?? ''
-    )) ?><?= $seesAll ? '' : ' — scope: your own requests only' ?></td>
+    )) ?><?= $seesAll ? '' : ' - scope: your own requests only' ?></td>
   </tr>
   <tr><td colspan="12"></td></tr>
   <tr style="background-color:#3D5A7E;color:#ffffff;font-weight:bold;">

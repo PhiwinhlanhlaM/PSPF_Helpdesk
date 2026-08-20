@@ -2,7 +2,7 @@
 /**
  * Generates a PDF for a provisioned IT access request and uploads it to SharePoint.
  * Called internally by approve.php after director approval.
- * Not a public endpoint — included via require_once.
+ * Not a public endpoint - included via require_once.
  *
  * @param mysqli $conn       Active DB connection
  * @param int    $requestId  DB id of the request
@@ -42,26 +42,22 @@ function generateAndUploadPdf(mysqli $conn, int $requestId): ?string {
     $approvals = $aStmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $aStmt->close();
 
-    // Build systems HTML
+    // Build systems HTML. Resolve each system's human display name/role via the
+    // shared helper so the "Other" system shows the requester's typed name in
+    // place of the generic "OTHER SYSTEM" label, consistent with the web views.
+    require_once __DIR__ . '/catalog_shared.php';
+    $pdfCatalog = itaBuildCatalog($conn, true);
     $systemsHtml = '';
     foreach ($systems as $sys) {
-        $sysId   = htmlspecialchars($sys['system_id']);
-        $sysRole = htmlspecialchars($sys['role'] ?? '');
-        $subRaw  = $sys['sub_values'];
-        $subStr  = '';
-        if ($subRaw) {
-            $decoded = json_decode($subRaw, true);
-            if (is_array($decoded)) {
-                $parts = [];
-                foreach ($decoded as $k => $v) {
-                    if (is_array($v))       $parts[] = implode(', ', $v);
-                    elseif (is_string($v))  $parts[] = $v;
-                }
-                $subStr = implode(' · ', array_filter($parts));
-            } else {
-                $subStr = htmlspecialchars($subRaw);
-            }
+        $decodedSub = null;
+        if (!empty($sys['sub_values'])) {
+            $decodedSub = json_decode($sys['sub_values'], true);
+            if ($decodedSub === null) $decodedSub = $sys['sub_values'];
         }
+        $disp    = itaSystemDisplay($sys['system_id'], $sys['role'] ?? '', $decodedSub, $pdfCatalog);
+        $sysId   = htmlspecialchars($disp['name']);
+        $sysRole = htmlspecialchars($disp['role']);
+        $subStr  = $disp['detail'];
         // Per-system outcome (partial-rejection). 'actioned' = granted; 'dropped'
         // = denied (requester accepted the denial or a re-rejected appeal). Older
         // records without these states default to granted, as before.
@@ -104,7 +100,7 @@ function generateAndUploadPdf(mysqli $conn, int $requestId): ?string {
             ? '<div class="approval-reason">Reason: ' . htmlspecialchars($appr['reason']) . '</div>'
             : '';
 
-        // Signature — mPDF cannot use data: URIs; write to a temp file and use file path
+        // Signature - mPDF cannot use data: URIs; write to a temp file and use file path
         $sigHtml = '';
         if ($appr['sig_kind'] === 'drawn' && $appr['sig_data']) {
             $sigHtml = renderDrawnSigAsFile($appr['sig_data'], 300, 80);
@@ -132,7 +128,7 @@ function generateAndUploadPdf(mysqli $conn, int $requestId): ?string {
         </div>';
     }
 
-    // Logo — reference the file by absolute path. mPDF resolves file paths
+    // Logo - reference the file by absolute path. mPDF resolves file paths
     // reliably; base64 data: URIs were not rendering in production (the logo and
     // every signature showed as broken-image boxes).
     // Use the inverted (white) logo so it is visible against the dark header band.
@@ -161,6 +157,22 @@ function generateAndUploadPdf(mysqli $conn, int $requestId): ?string {
     $provAt   = $req['provisioned_at'] ? date('d M Y H:i', strtotime($req['provisioned_at'])) : 'N/A';
     $just     = nl2br(htmlspecialchars($req['justification']));
 
+    // Custom form-field answers, resolved to labelled pairs for a detail block.
+    require_once __DIR__ . '/form_fields_shared.php';
+    $customFieldsHtml = '';
+    $resolvedCustom = itaResolveCustomValues($req['custom_values'] ?? null, itaFormFields($conn, true));
+    if ($resolvedCustom) {
+        $rows = '';
+        foreach ($resolvedCustom as $cf) {
+            $rows .= '<div class="meta-item"><div class="meta-lbl">'
+                . htmlspecialchars($cf['label']) . '</div><div class="meta-val">'
+                . htmlspecialchars($cf['value']) . '</div></div>';
+        }
+        $customFieldsHtml =
+            '<div class="section-heading">Additional Information</div>'
+            . '<div class="meta-grid">' . $rows . '</div>';
+    }
+
     $html = <<<HTML
 <!DOCTYPE html>
 <html>
@@ -181,7 +193,7 @@ function generateAndUploadPdf(mysqli $conn, int $requestId): ?string {
 
   /* ── Header ── */
   .header {
-    background: #3d5c80; /* solid — matches CRM navbar (--pspf-primary) */
+    background: #3d5c80; /* solid - matches CRM navbar (--pspf-primary) */
     color: #ffffff;
     padding: 20px 28px;
   }
@@ -436,6 +448,9 @@ function generateAndUploadPdf(mysqli $conn, int $requestId): ?string {
   <div class="section-heading">Justification</div>
   <div class="just-box">{$just}</div>
 
+  <!-- Additional information (custom fields) -->
+  {$customFieldsHtml}
+
   <!-- Systems -->
   <div class="section-heading">Systems &amp; Access</div>
   <table class="sys-table">
@@ -464,7 +479,7 @@ function generateAndUploadPdf(mysqli $conn, int $requestId): ?string {
 </html>
 HTML;
 
-    // Generate PDF using mPDF — ALWAYS fit to exactly one A4 page.
+    // Generate PDF using mPDF - ALWAYS fit to exactly one A4 page.
     // Strategy: iteratively shrink a global scale factor until the rendered
     // document is a single page, keeping text as large (readable) as possible.
     try {
@@ -472,7 +487,7 @@ HTML;
 
         // Give mPDF an explicit, writable temp dir. The default lives inside
         // vendor/ and can be non-writable on a locked-down live server, which
-        // makes image handling and rendering fail silently — one contributor to
+        // makes image handling and rendering fail silently - one contributor to
         // the broken-image output. A dir under the system temp is always writable.
         $mpdfTempDir = sys_get_temp_dir() . '/ita_mpdf_tmp';
         if (!is_dir($mpdfTempDir)) @mkdir($mpdfTempDir, 0700, true);
@@ -491,7 +506,7 @@ HTML;
         // <style> block AND inline style="" attributes, including signature image
         // heights) by a factor. The template uses ~21 explicit px font-sizes plus
         // many fixed paddings/margins/heights, so scaling only a few rules barely
-        // changes the layout — scaling all px proportionally gives a real
+        // changes the layout - scaling all px proportionally gives a real
         // shrink-to-fit while keeping the design's proportions intact.
         $scaleCss = function (string $html, float $scale): string {
             if ($scale >= 0.999) return $html;
@@ -519,7 +534,7 @@ HTML;
         $renderAt = function (float $scale) use ($html, $mpdfConfig, $refNum, $scaleCss) {
             $scaledHtml = $scaleCss($html, $scale);
             $mpdf = new \Mpdf\Mpdf($mpdfConfig);
-            $mpdf->SetTitle("IT Access Authorization – $refNum");
+            $mpdf->SetTitle("IT Access Authorization - $refNum");
             $mpdf->shrink_tables_to_fit = 1;
             $mpdf->allowCJKorphans      = false;
             $mpdf->WriteHTML($scaledHtml);
@@ -540,7 +555,7 @@ HTML;
         }
         if (getenv('ITA_PDF_DEBUG')) error_log("ITA_PDF: ref=$refNum usedScale=$usedScale pages=$pageCount");
 
-        // All renders are done — remove the temp signature/logo images.
+        // All renders are done - remove the temp signature/logo images.
         itaCleanupPdfTempFiles();
     } catch (\Throwable $e) {
         itaCleanupPdfTempFiles(); // never leak temp images on failure
@@ -668,7 +683,7 @@ function renderDrawnSigAsFile(string $strokesJson, int $w = 300, int $h = 80): s
 
 /**
  * Decode an uploaded data: URI signature, write it to a temp file, and return an
- * <img> tag referencing it by absolute path (same rationale as the drawn case —
+ * <img> tag referencing it by absolute path (same rationale as the drawn case -
  * mPDF renders file paths reliably where data: URIs failed).
  */
 function dataUriToImgTag(string $dataUri, int $maxW = 150, int $maxH = 45): string {

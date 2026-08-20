@@ -1,5 +1,23 @@
 // Screen 1 - Admin: Access Request Form
 
+// Rebuild the { fieldKey: value } custom-answers map from a server-shaped
+// request's resolved customFields ([{key, kind, value}]), so an appeal prefills
+// the "Additional information" inputs. multiselect values arrive as a joined
+// string and are split back to an array; checkbox to a boolean.
+function customValuesFromRequest(req) {
+  const out = {};
+  (req.customFields || []).forEach(cf => {
+    if (cf.kind === "multiselect") {
+      out[cf.key] = cf.value ? cf.value.split(",").map(s => s.trim()).filter(Boolean) : [];
+    } else if (cf.kind === "checkbox") {
+      out[cf.key] = (cf.value === "Yes" || cf.value === "true") ? "true" : "false";
+    } else {
+      out[cf.key] = cf.value || "";
+    }
+  });
+  return out;
+}
+
 // Map a server-shaped request (from list.php) back into the form's local shape,
 // so an appeal opens prefilled with what was submitted before. The requester
 // then edits whatever the rejection flagged.
@@ -11,7 +29,21 @@ function draftFromRequest(req) {
     // subValues came back as a JSON object/array; keep objects, ignore scalars.
     const sv = (s.subValues && typeof s.subValues === "object" && !Array.isArray(s.subValues))
       ? s.subValues : {};
-    systems[s.id] = { role: s.role ?? null, subValues: sv, subTexts: {} };
+    // The server stores free-text answers merged into subValues (keyed sub_N).
+    // Split them back out into subTexts so the form's text inputs prefill on an
+    // appeal; anything the catalog marks as a text sub-option goes to subTexts.
+    const def = getSystem(s.id);
+    const opts = def && def.subOptions
+      ? (Array.isArray(def.subOptions) ? def.subOptions : [def.subOptions])
+      : [];
+    const subValues = {}, subTexts = {};
+    Object.entries(sv).forEach(([key, val]) => {
+      const idx = parseInt((key.match(/\d+$/) || [])[0], 10);
+      const opt = Number.isInteger(idx) ? opts[idx] : null;
+      if (opt && opt.text) subTexts[key] = val == null ? "" : String(val);
+      else subValues[key] = val;
+    });
+    systems[s.id] = { role: s.role ?? null, subValues, subTexts };
   });
   return {
     requestType:    req.requestType || "new",
@@ -49,7 +81,18 @@ function ManagerForm() {
     startDate: "",
     startDateInput: "",
     systems: {}, // { [systemId]: { role?, subValues, subTexts } }
+    customValues: appeal ? customValuesFromRequest(appeal) : {}, // { fieldKey: value }
   }));
+
+  // Superadmin-defined custom fields for the "Additional information" section.
+  // Fetched once on mount; empty until loaded (or if none are defined).
+  const [customFields, setCustomFields] = useState([]);
+  React.useEffect(() => {
+    fetch("/pspf_crm/api/it_access/form_fields.php", { credentials: "include" })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => { if (Array.isArray(d.fields)) setCustomFields(d.fields); })
+      .catch(() => {}); // no custom fields when standalone / unreachable
+  }, []);
   // When set, this submission is an appeal of that request's db id.
   const [appealOf] = useState(() => appeal ? appeal.db_id : null);
   const appealRef = appeal ? appeal.id : null;
@@ -186,6 +229,21 @@ function ManagerForm() {
     }));
   }
 
+  // Set / toggle one custom field's answer. For multiselect, `toggle` flips a
+  // single option in the value array.
+  function setCustom(fieldKey, val) {
+    setForm(f => ({ ...f, customValues: { ...f.customValues, [fieldKey]: val } }));
+    if (errors["cf_" + fieldKey]) setErrors(e => ({ ...e, ["cf_" + fieldKey]: null }));
+  }
+  function toggleCustomMulti(fieldKey, opt) {
+    setForm(f => {
+      const cur = Array.isArray(f.customValues[fieldKey]) ? f.customValues[fieldKey] : [];
+      const next = cur.includes(opt) ? cur.filter(o => o !== opt) : [...cur, opt];
+      return { ...f, customValues: { ...f.customValues, [fieldKey]: next } };
+    });
+    if (errors["cf_" + fieldKey]) setErrors(e => ({ ...e, ["cf_" + fieldKey]: null }));
+  }
+
   function validate() {
     const e = {};
     if (!form.employeeName.trim()) e.employeeName = "Required";
@@ -195,6 +253,18 @@ function ManagerForm() {
     if (Object.keys(form.systems).length === 0) e.systems = "Select at least one system";
     if (!form.justification.trim() || form.justification.trim().length < 10)
       e.justification = "Please provide a clear reason (10+ characters)";
+    // Required custom fields must be answered. Mirrors the server's rule so the
+    // user sees the error inline before the request is rejected server-side.
+    customFields.forEach(cf => {
+      if (!cf.required) return;
+      const v = form.customValues[cf.fieldKey];
+      const empty = cf.kind === "multiselect"
+        ? !(Array.isArray(v) && v.length)
+        : cf.kind === "checkbox"
+        ? !(v === "true" || v === true)
+        : !(v && String(v).trim());
+      if (empty) e["cf_" + cf.fieldKey] = cf.kind === "checkbox" ? "Please tick this box" : "Required";
+    });
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -233,6 +303,7 @@ function ManagerForm() {
           })),
           justification: form.justification.trim(),
           startDate:     form.startDate,
+          customValues:  form.customValues,
           approvals: [{
             role: "manager", personId: me.id,
             at: new Date().toISOString(), action: "approved",
@@ -287,7 +358,7 @@ function ManagerForm() {
 
   function startNew() {
     setSubmitted(null);
-    setForm({ requestType: "new", employeeName: "", employeeId: "", department: "", division: "", title: "", justification: "", startDate: "", startDateInput: "", systems: {} });
+    setForm({ requestType: "new", employeeName: "", employeeId: "", department: "", division: "", title: "", justification: "", startDate: "", startDateInput: "", systems: {}, customValues: {} });
     setErrors({});
     setManagerSignature(null);
     setConfirmedAuth(false);
@@ -304,7 +375,7 @@ function ManagerForm() {
           <h1 className="page-title">{appealOf ? "Appeal request" : "IT Access Request"}</h1>
           <p className="page-subtitle">
             {appealOf
-              ? `Revising ${appealRef}, which was rejected. Update what was flagged, then resubmit — it goes through the approval chain again.`
+              ? `Revising ${appealRef}, which was rejected. Update what was flagged, then resubmit - it goes through the approval chain again.`
               : "Submit on behalf of an employee. Actions route automatically to IT and the Director."}
           </p>
         </div>
@@ -575,6 +646,27 @@ function ManagerForm() {
             </Field>
           </section>
 
+          {/* Additional information - superadmin-defined custom fields. Rendered
+              only when at least one active field exists. */}
+          {customFields.length > 0 && (
+            <section className="card card-pad">
+              <h2 className="card-title">Additional information</h2>
+              <p className="card-subtitle">Extra details required for this request.</p>
+              <div className="col gap-2" style={{ marginTop: 6 }}>
+                {customFields.map(cf => (
+                  <CustomFieldInput
+                    key={cf.fieldKey}
+                    field={cf}
+                    value={form.customValues[cf.fieldKey]}
+                    error={errors["cf_" + cf.fieldKey]}
+                    onChange={v => setCustom(cf.fieldKey, v)}
+                    onToggle={opt => toggleCustomMulti(cf.fieldKey, opt)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* Signature */}
           <section className="card card-pad sign-panel" id="manager-sign-card">
             <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -593,7 +685,7 @@ function ManagerForm() {
 
           <div className="form-actions">
             <button type="button" className="btn btn-ghost" disabled={isSending}
-              onClick={() => { setForm({ requestType: "new", employeeName: "", department: "", title: "", justification: "", startDate: "", startDateInput: "", systems: {} }); setErrors({}); setManagerSignature(null); setConfirmedAuth(false); }}>
+              onClick={() => { setForm({ requestType: "new", employeeName: "", department: "", title: "", justification: "", startDate: "", startDateInput: "", systems: {}, customValues: {} }); setErrors({}); setManagerSignature(null); setConfirmedAuth(false); }}>
               Clear form
             </button>
             <button type="submit" className="btn btn-primary btn-lg" disabled={isSending || !confirmedAuth}>
@@ -634,16 +726,48 @@ function ManagerForm() {
               <div className="col gap-1" style={{ alignItems: "flex-end", flex: 1 }}>
                 {Object.keys(form.systems).length === 0 && <em className="faint">none selected</em>}
                 {Object.entries(form.systems).map(([sysId, v]) => {
-                  const sys = getSystem(sysId);
+                  // Merge subValues + subTexts into the shape systemDisplay expects,
+                  // so the "Other" system's typed name shows in the review pane too.
+                  const merged = { ...(v.subValues || {}), ...(v.subTexts || {}) };
+                  const disp = systemDisplay({ id: sysId, role: v.role, subValues: merged });
                   return (
                     <div key={sysId} className="review-sys">
-                      <strong>{sys.name}</strong>
-                      {v.role && <span className="muted">· {v.role}</span>}
+                      <strong>{disp.name}</strong>
+                      {disp.role && <span className="muted">· {disp.role}</span>}
                     </div>
                   );
                 })}
               </div>
             </div>
+            {customFields.some(cf => {
+              const v = form.customValues[cf.fieldKey];
+              return Array.isArray(v) ? v.length : (v != null && v !== "" && v !== "false");
+            }) && (
+              <>
+                <div className="divider"/>
+                <div className="review-row" style={{ alignItems: "flex-start" }}>
+                  <span className="review-key">Additional</span>
+                  <div className="col gap-1" style={{ alignItems: "flex-end", flex: 1 }}>
+                    {customFields.map(cf => {
+                      const v = form.customValues[cf.fieldKey];
+                      let disp = "";
+                      if (cf.kind === "multiselect") disp = Array.isArray(v) ? v.join(", ") : "";
+                      else if (cf.kind === "checkbox") disp = (v === "true" || v === true) ? "Yes" : "";
+                      else if (cf.kind === "date" && /^\d{4}-\d{2}-\d{2}$/.test(v || "")) {
+                        const [y, m, d] = v.split("-"); disp = `${d}/${m}/${y}`;
+                      }
+                      else disp = v ? String(v) : "";
+                      if (!disp) return null;
+                      return (
+                        <div key={cf.fieldKey} className="review-sys">
+                          <span className="muted">{cf.label}: </span><strong>{disp}</strong>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
             <div className="divider"/>
             <div className="review-row">
               <span className="review-key">Signature</span>
@@ -668,6 +792,106 @@ function Field({ label, required, error, help, children }) {
       {help && !error && <span className="help">{help}</span>}
       {error && <span className="error-text">{error}</span>}
     </div>
+  );
+}
+
+// Renders one superadmin-defined custom field by its kind. Value shape:
+//   text/textarea/number/date/select -> string
+//   multiselect                      -> string[]
+//   checkbox                         -> "true" | "false"
+function CustomFieldInput({ field, value, error, onChange, onToggle }) {
+  const cls = "input" + (error ? " input-error" : "");
+  const opts = Array.isArray(field.options) ? field.options : [];
+
+  if (field.kind === "checkbox") {
+    const on = value === "true" || value === true;
+    return (
+      <div className="field">
+        <label className="confirm-row" style={{ margin: 0 }}>
+          <input type="checkbox" checked={on} onChange={e => onChange(e.target.checked ? "true" : "false")}/>
+          <span>{field.label}{field.required && <span className="req">*</span>}</span>
+        </label>
+        {field.helpText && !error && <span className="help">{field.helpText}</span>}
+        {error && <span className="error-text">{error}</span>}
+      </div>
+    );
+  }
+
+  if (field.kind === "multiselect") {
+    const cur = Array.isArray(value) ? value : [];
+    return (
+      <Field label={field.label} required={field.required} error={error} help={field.helpText}>
+        <div className="chip-group">
+          {opts.map(opt => {
+            const sel = cur.includes(opt);
+            return (
+              <button key={opt} type="button" className={"chip " + (sel ? "active" : "")}
+                onClick={() => onToggle(opt)}>
+                {sel && <Icon name="check" size={11} stroke={2.4}/>}{opt}
+              </button>
+            );
+          })}
+        </div>
+      </Field>
+    );
+  }
+
+  if (field.kind === "select") {
+    return (
+      <Field label={field.label} required={field.required} error={error} help={field.helpText}>
+        <select className={"select" + (error ? " input-error" : "")}
+          value={value || ""} onChange={e => onChange(e.target.value)}>
+          <option value="">Select…</option>
+          {opts.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+        </select>
+      </Field>
+    );
+  }
+
+  if (field.kind === "textarea") {
+    return (
+      <Field label={field.label} required={field.required} error={error} help={field.helpText}>
+        <textarea className={"textarea" + (error ? " input-error" : "")} rows={3}
+          placeholder={field.placeholder || ""} value={value || ""}
+          onChange={e => onChange(e.target.value)}/>
+      </Field>
+    );
+  }
+
+  // Date: dd/mm/yyyy masked text input (matches the core start-date field).
+  // Stores YYYY-MM-DD in `value`; the display is derived from it.
+  if (field.kind === "date") {
+    const display = value && /^\d{4}-\d{2}-\d{2}$/.test(value)
+      ? (() => { const [y, m, d] = value.split("-"); return `${d}/${m}/${y}`; })()
+      : (value || "");
+    return (
+      <Field label={field.label} required={field.required} error={error} help={field.helpText}>
+        <input type="text" inputMode="numeric" maxLength={10} className={cls}
+          placeholder="DD/MM/YYYY" value={display}
+          onChange={e => {
+            const digits = e.target.value.replace(/\D/g, "").slice(0, 8);
+            let f = digits;
+            if (digits.length > 4)      f = `${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4)}`;
+            else if (digits.length > 2) f = `${digits.slice(0,2)}/${digits.slice(2)}`;
+            if (f.length === 10) {
+              const [dd, mm, yyyy] = f.split("/");
+              onChange(`${yyyy}-${mm}-${dd}`);
+            } else {
+              // Keep the partial typed value so the field isn't cleared mid-entry.
+              onChange(f);
+            }
+          }}/>
+      </Field>
+    );
+  }
+
+  // text | number
+  const type = field.kind === "number" ? "number" : "text";
+  return (
+    <Field label={field.label} required={field.required} error={error} help={field.helpText}>
+      <input type={type} className={cls} placeholder={field.placeholder || ""}
+        value={value || ""} onChange={e => onChange(e.target.value)}/>
+    </Field>
   );
 }
 

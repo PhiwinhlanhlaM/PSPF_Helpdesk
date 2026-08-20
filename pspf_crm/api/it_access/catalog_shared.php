@@ -1,12 +1,12 @@
 <?php
 /**
- * IT Access — shared catalog reader.
+ * IT Access - shared catalog reader.
  *
  * Builds the system catalog in the exact shape the React app's SYSTEM_CATALOG
  * constant had, so getSystem() and every consumer keep working unchanged.
  *
  * Lives on its own (rather than inside catalog.php) so the read endpoint and
- * the admin write endpoint share one definition of the shape — a write can
+ * the admin write endpoint share one definition of the shape - a write can
  * then return the updated catalog in the same round trip, and there is no
  * second copy to drift.
  *
@@ -16,7 +16,7 @@
 if (!function_exists('itaBuildCatalog')) {
     /**
      * @param bool $includeInactive  include retired systems (admin editor only)
-     * @param bool $withUsage        attach usageCount — how many stored request
+     * @param bool $withUsage        attach usageCount - how many stored request
      *                               rows reference each system; drives the
      *                               admin UI's "safe to delete?" check
      * @return array<int,array<string,mixed>> systems in SYSTEM_CATALOG shape
@@ -88,5 +88,72 @@ if (!function_exists('itaBuildCatalog')) {
         }
 
         return array_values($systems);
+    }
+}
+
+if (!function_exists('itaSystemDisplay')) {
+    /**
+     * Resolve how one requested system should be shown to a human, at every
+     * touchpoint (email, PDF, and via list.php the three web views).
+     *
+     * For the special "other" system the requester types a free-text system
+     * name and role; those must REPLACE the generic "OTHER SYSTEM" label so the
+     * actual system they named is shown. The form stores free-text answers
+     * positionally (sub_0, sub_1, ...) in the order the catalog defines the
+     * sub-options, so we read them by position: first text sub-option = the
+     * system's display name, second = its role.
+     *
+     * For normal systems the catalog name and the stored role are used as-is,
+     * with any remaining sub-values returned as a detail string.
+     *
+     * @param string            $systemId   e.g. 'other', 'banking'
+     * @param string            $role       stored role text (may be empty)
+     * @param array|string|null $subValues  decoded sub_values (assoc/array) or raw
+     * @param array<int,array<string,mixed>>|null $catalog  itaBuildCatalog() output;
+     *                          pass it to avoid a rebuild per row. When omitted the
+     *                          system id is used as the fallback name.
+     * @return array{name:string, role:string, detail:string}
+     */
+    function itaSystemDisplay(string $systemId, string $role, $subValues, ?array $catalog = null): array {
+        // Normalise sub-values to an ordered list of [value] preserving insertion
+        // order (sub_0, sub_1, ...). Multi-select arrays are joined.
+        $ordered = [];
+        if (is_array($subValues)) {
+            foreach ($subValues as $v) {
+                if (is_array($v))      $ordered[] = implode(', ', array_filter($v, 'strlen'));
+                elseif ($v !== null)   $ordered[] = trim((string)$v);
+                else                   $ordered[] = '';
+            }
+        } elseif (is_string($subValues) && $subValues !== '') {
+            $ordered[] = trim($subValues);
+        }
+
+        // Catalog name lookup (fallback to the id).
+        $catName = $systemId;
+        if ($catalog) {
+            foreach ($catalog as $c) {
+                if (($c['id'] ?? null) === $systemId) { $catName = $c['name'] ?? $systemId; break; }
+            }
+        }
+
+        if ($systemId === 'other') {
+            // First typed value = the system's name; second = its role.
+            // Uppercase the typed name so it matches the catalog systems, which
+            // are stored uppercase (e.g. "BANKING ACCESS"). Roles are left as-is.
+            $typedName = $ordered[0] ?? '';
+            $typedRole = $ordered[1] ?? '';
+            $extra     = array_slice($ordered, 2);
+            return [
+                'name'   => $typedName !== '' ? mb_strtoupper($typedName, 'UTF-8') : $catName,
+                'role'   => $typedRole !== '' ? $typedRole : $role,
+                'detail' => implode(' · ', array_filter($extra, 'strlen')),
+            ];
+        }
+
+        return [
+            'name'   => $catName,
+            'role'   => $role,
+            'detail' => implode(' · ', array_filter($ordered, 'strlen')),
+        ];
     }
 }

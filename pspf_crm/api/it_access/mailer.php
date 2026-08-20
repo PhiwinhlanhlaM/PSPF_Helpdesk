@@ -77,7 +77,7 @@ function itAccessEmailBody(string $heading, array $intro, array $details = [], ?
     $lines = [];
 
     // The heading duplicates the email subject, so it is not repeated in the
-    // body — the message opens directly with the intro paragraphs. ($heading is
+    // body - the message opens directly with the intro paragraphs. ($heading is
     // still accepted for backwards compatibility with callers and to keep the
     // subject/body wording in one place.)
 
@@ -139,7 +139,7 @@ function itAccessEmailBody(string $heading, array $intro, array $details = [], ?
  * @param array<int, array{email:string, name:string}> $recipients
  */
 // ---------------------------------------------------------------------------
-// EMAIL ALLOW-LIST (test-mode guard — now DISABLED for production)
+// EMAIL ALLOW-LIST (test-mode guard - now DISABLED for production)
 //
 // During testing this was populated with a few accounts so real staff were not
 // emailed about test requests. The form is now live, so the list is empty and
@@ -191,6 +191,10 @@ function itAccessSendMail(array $recipients, string $subject, string $body, ?str
 
     try {
         $mail = getMailer();
+        // Send as UTF-8: bodies contain em dashes, curly quotes, etc. Without
+        // this PHPMailer defaults CharSet to iso-8859-1, and a UTF-8 em dash (-)
+        // renders as mojibake ("â€"") in the recipient's mail client.
+        $mail->CharSet = 'UTF-8';
         // IT Access emails are sent under the "IT Access" sender name.
         $mail->setFrom('administrator@pspf.co.sz', 'IT Access');
         foreach ($recipients as $r) {

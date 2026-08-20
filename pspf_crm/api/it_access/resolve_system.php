@@ -1,6 +1,6 @@
 <?php
 /**
- * IT Access — resolve an officer's per-system rejection.
+ * IT Access - resolve an officer's per-system rejection.
  *
  * When an officer rejects some systems on a request, the request pauses at
  * 'awaiting-requester'. The requester must respond to each rejected system:
@@ -11,7 +11,7 @@
  *                     reason is preserved as context. appeal_count is bumped.
  *
  * ONE appeal per system: a system that has already been appealed once
- * (appeal_count >= 1) cannot be appealed again — it may only be accepted. This
+ * (appeal_count >= 1) cannot be appealed again - it may only be accepted. This
  * mirrors the whole-request one-appeal rule (007) and prevents endless loops.
  *
  * Once no rejected-and-unresolved system remains, the request leaves
@@ -127,7 +127,7 @@ if ($act === 'appeal' && (int)$sys['appeal_count'] >= 1) {
 $conn->begin_transaction();
 try {
     if ($act === 'accept') {
-        // Finalize as dropped — not granted. Keep the reject reason for the record.
+        // Finalize as dropped - not granted. Keep the reject reason for the record.
         $u = $conn->prepare(
             "UPDATE it_request_systems SET status = 'dropped'
              WHERE request_id = ? AND system_id = ? AND status = 'rejected'"
@@ -198,7 +198,7 @@ try {
     // notify the officers so the re-review happens.
     if ($act === 'appeal' && in_array($newStatus, ['new', 'claimed'], true)) {
         [$html, $text] = itAccessEmailBody(
-            "IT Access — Appealed System Awaiting Review",
+            "IT Access - Appealed System Awaiting Review",
             ["A requester has appealed a previously declined system. It is back in the ICT queue for review, with the requester's added justification and the original decision attached."],
             [
                 'Reference' => $req['ref_number'],
@@ -206,7 +206,7 @@ try {
             ],
             ['text' => 'Review & claim request', 'url' => itAccessAppUrl()]
         );
-        itAccessSendMail(itAccessOfficers($conn), "IT Access — Appealed System Awaiting Review - {$req['ref_number']}", $html, $text);
+        itAccessSendMail(itAccessOfficers($conn), "IT Access - Appealed System Awaiting Review - {$req['ref_number']}", $html, $text);
     }
 
     // If the request just cleared to the director, notify them.

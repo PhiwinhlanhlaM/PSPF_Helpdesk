@@ -1,5 +1,5 @@
 <?php
-// export_admin_excel.php — server-side Excel export of all tickets (no pagination)
+// export_admin_excel.php - server-side Excel export of all tickets (no pagination)
 session_start();
 require_once '../includes/auth_helpers.php';
 require_once '../includes/role_switcher.php';
@@ -89,7 +89,7 @@ $stmt->close();
 $conn->close();
 
 // ---------------------------
-// Build XLS (HTML table trick — works in Excel 2003+)
+// Build XLS (HTML table trick - works in Excel 2003+)
 // ---------------------------
 $filename = 'tickets_export_' . date('Ymd_His') . '.xls';
 

@@ -30,7 +30,7 @@ if (empty($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $pos
 // 2. One-time submission token: prevents duplicate tickets from a double-click,
 //    back-button re-POST, or refresh-before-redirect. The form embeds a fresh
 //    token; the FIRST POST consumes it. A replay of the same token means the
-//    ticket was already created — so we DON'T insert again; we silently send the
+//    ticket was already created - so we DON'T insert again; we silently send the
 //    user to the SAME success page as the original submission.
 $formToken = $_POST['form_token'] ?? '';
 

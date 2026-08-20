@@ -141,7 +141,7 @@ function OfficerSign({ requestId }) {
           <span className="mono muted" style={{ fontSize: 12 }}>{request.id}</span>
           <h1 className="page-title">Action access request: {request.employee.name}</h1>
           <p className="page-subtitle">
-            {stepLabel} · decide each of your <strong>{myClaimed.length}</strong> claimed system{myClaimed.length === 1 ? "" : "s"} below — grant or reject with a reason — then sign once to confirm.
+            {stepLabel} · decide each of your <strong>{myClaimed.length}</strong> claimed system{myClaimed.length === 1 ? "" : "s"} below - grant or reject with a reason - then sign once to confirm.
           </p>
         </div>
       </div>
@@ -167,13 +167,13 @@ function OfficerSign({ requestId }) {
             <span className="section-title">Systems & roles</span>
             <div className="col gap-2">
               {request.systems.map(s => {
-                const sys = getSystem(s.id);
                 const st = s.status || "pending";
                 const mine = st === "claimed" && s.claimedBy === me.id;
                 const decision = decisionOf(s.id);
-                const subLine = s.role
-                  ? s.role + (Array.isArray(s.subValues) && s.subValues.length ? " · " + s.subValues.join(", ") : (typeof s.subValues === "string" && s.subValues ? " · " + s.subValues : ""))
-                  : (Array.isArray(s.subValues) && s.subValues.length ? s.subValues.join(", ") : (typeof s.subValues === "string" ? s.subValues : ""));
+                const disp = systemDisplay(s);
+                const subLine = disp.role
+                  ? disp.role + (disp.detail ? " · " + disp.detail : "")
+                  : disp.detail;
 
                 // Read-only tag for systems this officer isn't actioning.
                 let tag = null;
@@ -188,9 +188,9 @@ function OfficerSign({ requestId }) {
                 return (
                   <div key={s.id} className="col" style={{ gap: 6 }}>
                     <div className="sys-mini" style={mine ? { background: decision === "reject" ? "var(--red-50, #fef2f2)" : "var(--blue-50, #eff6ff)" } : { opacity: st === "pending" ? 0.6 : 1 }}>
-                      <div className="sys-mini-icon"><Icon name={sys.icon} size={14}/></div>
+                      <div className="sys-mini-icon"><Icon name={disp.icon} size={14}/></div>
                       <div className="col" style={{ flex: 1, minWidth: 0 }}>
-                        <strong style={{ fontSize: 13, fontWeight: 550 }}>{sys.name}</strong>
+                        <strong style={{ fontSize: 13, fontWeight: 550 }}>{disp.name}</strong>
                         <span className="muted" style={{ fontSize: 12 }}>{subLine}</span>
                       </div>
                       {mine ? (
@@ -203,8 +203,8 @@ function OfficerSign({ requestId }) {
                             <Icon name="check" size={12}/> Grant
                           </button>
                           <button type="button"
-                            className={"btn btn-sm " + (decision === "reject" ? "btn-danger" : "btn-ghost")}
-                            style={{ padding: "3px 10px", fontSize: 12, ...(decision === "reject" ? { background: "var(--red-600)", color: "#fff", borderColor: "var(--red-600)" } : {}) }}
+                            className={"btn btn-sm " + (decision === "reject" ? "btn-danger-solid" : "btn-ghost")}
+                            style={{ padding: "3px 10px", fontSize: 12 }}
                             onClick={() => setDecision(s.id, "reject")}>
                             <Icon name="x" size={12}/> Reject
                           </button>
@@ -229,6 +229,8 @@ function OfficerSign({ requestId }) {
 
             <span className="section-title">Justification</span>
             <p className="just-text">{request.justification}</p>
+
+            <CustomFieldsBlock request={request}/>
 
             <div className="divider"/>
 
@@ -284,7 +286,7 @@ function OfficerSign({ requestId }) {
               </Field>
               <div className="row gap-2" style={{ justifyContent: "flex-end", marginTop: 16 }}>
                 <button className="btn btn-secondary" onClick={() => setMode("idle")}>Cancel</button>
-                <button className="btn btn-danger" disabled={rejectReason.trim().length < 10} onClick={reject} style={{ background: "var(--red-600)", color: "white", borderColor: "var(--red-600)" }}>
+                <button className="btn btn-danger-solid" disabled={rejectReason.trim().length < 10} onClick={reject}>
                   Confirm rejection
                 </button>
               </div>

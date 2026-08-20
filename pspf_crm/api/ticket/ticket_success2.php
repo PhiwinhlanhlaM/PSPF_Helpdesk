@@ -104,7 +104,7 @@ if (!empty($ticket['assigned_to'])) {
 }
 
 /* ---------------------------
-   EMAILS — sent only on the winning one-time claim (see above).
+   EMAILS - sent only on the winning one-time claim (see above).
 --------------------------- */
 if ($shouldNotify):
 

@@ -1,5 +1,5 @@
 -- =====================================================================
--- IT Access — reject / appeal loop (feedback item 3)
+-- IT Access - reject / appeal loop (feedback item 3)
 -- Target database: pspf_helpdesk
 --
 -- Today a rejection is a dead end: the reason is stored but the requester is
@@ -8,11 +8,11 @@
 --
 -- Design (agreed):
 --   * An appeal is a NEW request linked to the original via appeal_of. The
---     original — a signed, audit-relevant rejection — is never rewritten.
+--     original - a signed, audit-relevant rejection - is never rewritten.
 --   * An appeal re-enters the chain from the top (supervisor -> ICT -> director),
 --     so it gets a genuinely fresh review rather than going back to the same 'no'.
 --   * ONE appeal only. A request that is itself an appeal (appeal_of IS NOT NULL)
---     cannot be appealed again — so a rejected appeal is final. The link column
+--     cannot be appealed again - so a rejected appeal is final. The link column
 --     is therefore also the limit; no separate counter is needed.
 --
 -- The email gap is closed in approve.php (a rejection now notifies the
@@ -27,7 +27,7 @@
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
--- appeal_of — the request this one is appealing, or NULL for an original.
+-- appeal_of - the request this one is appealing, or NULL for an original.
 --
 -- ON DELETE SET NULL: if the original is ever deleted, the appeal survives as
 -- a standalone request rather than cascading away. Self-referential FK on the

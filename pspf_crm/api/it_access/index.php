@@ -65,7 +65,7 @@ $reactRole = 'manager';
 if (hasRole('it_director'))     $reactRole = 'director';
 elseif (hasRole('it_officer'))  $reactRole = 'officer';
 
-// All CRM roles this user holds — passed to React so the Acting As panel is accurate
+// All CRM roles this user holds - passed to React so the Acting As panel is accurate
 $allCrmRoles = getUserRoles(); // returns array like ['user','it_officer']
 $crmRolesJson = json_encode($allCrmRoles);
 
@@ -94,19 +94,19 @@ $initials = strtoupper(
     <link rel="stylesheet" href="/pspf_crm/api/agent/agent_style.css">
 
     <!-- IT Access Form design system -->
-    <link rel="stylesheet" href="/IT%20Access%20Form/styles/tokens.css?v=24">
-    <link rel="stylesheet" href="/IT%20Access%20Form/styles/shell.css?v=24">
-    <link rel="stylesheet" href="/IT%20Access%20Form/styles/form.css?v=24">
-    <link rel="stylesheet" href="/IT%20Access%20Form/styles/dashboard.css?v=24">
-    <link rel="stylesheet" href="/IT%20Access%20Form/styles/sigpad.css?v=24">
-    <link rel="stylesheet" href="/IT%20Access%20Form/styles/screens.css?v=24">
+    <link rel="stylesheet" href="/IT%20Access%20Form/styles/tokens.css?v=34">
+    <link rel="stylesheet" href="/IT%20Access%20Form/styles/shell.css?v=34">
+    <link rel="stylesheet" href="/IT%20Access%20Form/styles/form.css?v=34">
+    <link rel="stylesheet" href="/IT%20Access%20Form/styles/dashboard.css?v=34">
+    <link rel="stylesheet" href="/IT%20Access%20Form/styles/sigpad.css?v=34">
+    <link rel="stylesheet" href="/IT%20Access%20Form/styles/screens.css?v=34">
 
     <style>
         /* Push React app content below the CRM topnav */
         #root {
             min-height: calc(100vh - 60px);
         }
-        /* When embedded in CRM, hide the brandmark — CRM topnav already has it */
+        /* When embedded in CRM, hide the brandmark - CRM topnav already has it */
         body.crm-embedded .topbar .brandmark {
             display: none !important;
         }
@@ -129,6 +129,7 @@ window.__CRM_USER__ = {
     initials:   "<?= htmlspecialchars($initials, ENT_QUOTES) ?>",
     title:      "",
     role:       "<?= htmlspecialchars($reactRole, ENT_QUOTES) ?>",
+    activeRole: "<?= htmlspecialchars($activeRole, ENT_QUOTES) ?>",
     crmRoles:   <?= $crmRolesJson ?>,
     needsName:  <?= $UserNeedsName ? 'true' : 'false' ?>,
 };
@@ -143,18 +144,19 @@ window.__REACT_INITIAL_ROLE__ = "<?= htmlspecialchars($reactRole, ENT_QUOTES) ?>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
 
 <!-- IT Access Form JSX files (load order matches standalone HTML) -->
-<script type="text/babel" src="/IT%20Access%20Form/app/crm-client.jsx?v=24"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/data.jsx?v=24"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/Icon.jsx?v=24"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/SignaturePad.jsx?v=24"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/AppShell.jsx?v=24"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/ManagerForm.jsx?v=24"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/OfficerDashboard.jsx?v=24"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/OfficerSign.jsx?v=24"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/Director.jsx?v=24"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/ManagerHistory.jsx?v=24"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/RequesterResolve.jsx?v=24"></script>
-<script type="text/babel" src="/IT%20Access%20Form/app/main.jsx?v=24"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/crm-client.jsx?v=34"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/data.jsx?v=34"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/Icon.jsx?v=34"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/SignaturePad.jsx?v=34"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/AppShell.jsx?v=34"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/ManagerForm.jsx?v=34"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/OfficerDashboard.jsx?v=34"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/OfficerSign.jsx?v=34"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/Director.jsx?v=34"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/ManagerHistory.jsx?v=34"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/RequesterResolve.jsx?v=34"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/Analytics.jsx?v=34"></script>
+<script type="text/babel" src="/IT%20Access%20Form/app/main.jsx?v=34"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

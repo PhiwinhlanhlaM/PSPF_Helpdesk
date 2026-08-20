@@ -1,5 +1,5 @@
 -- =====================================================================
--- IT Access — sub-option key ledger (tombstones)
+-- IT Access - sub-option key ledger (tombstones)
 -- Target database: pspf_helpdesk
 --
 -- Guarantees a sub-option key is NEVER reused, even after the sub-option it
@@ -13,7 +13,7 @@
 -- sub-option "Building" (key physical_building), then add a new sub-option
 -- also called "Building", and the key physical_building is free again. Any
 -- historical answer stored under that key silently re-points at the new
--- question — which may ask something entirely different. No error is raised;
+-- question - which may ask something entirely different. No error is raised;
 -- the record just quietly changes meaning. That is precisely the failure this
 -- design set out to prevent, so the ledger closes it.
 --

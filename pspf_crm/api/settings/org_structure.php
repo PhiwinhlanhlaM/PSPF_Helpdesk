@@ -1,6 +1,6 @@
 <?php
 /**
- * Org Structure — division supervisors and delegates. Superadmin only.
+ * Org Structure - division supervisors and delegates. Superadmin only.
  *
  * Sets who approves IT access requests for each division, and who covers when
  * that person is away. A requester's approver is resolved as:
@@ -8,7 +8,7 @@
  *     1. their own supervisor override (set per user, for divisions with
  *        internal tiers such as Benefits)
  *     2. otherwise their division's supervisor (set here)
- *     3. otherwise nobody — the request skips the supervisor step and goes
+ *     3. otherwise nobody - the request skips the supervisor step and goes
  *        straight to the ICT queue, so it never stalls
  *
  * Only users holding the `supervisor` role can be chosen. Grant that role in
@@ -25,7 +25,7 @@ enforceActiveUser($conn);
 enforcePasswordPolicy($conn);
 
 // ---------------------------------------------------------------------------
-// AUTHORIZATION — superadmin only. Checked on held roles, and re-checked on
+// AUTHORIZATION - superadmin only. Checked on held roles, and re-checked on
 // every POST below: hiding the UI is never the access control.
 // ---------------------------------------------------------------------------
 if (!isLoggedIn() || !hasRole('superadmin')) {
@@ -79,7 +79,7 @@ function org_audit(mysqli $conn, int $userId, string $action, string $details): 
 }
 
 // ---------------------------------------------------------------------------
-// POST — assign a division's supervisor / delegate.
+// POST - assign a division's supervisor / delegate.
 // ---------------------------------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!hash_equals($CSRF, $_POST['csrf_token'] ?? '')) {
@@ -87,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $divisionId  = (int)($_POST['division_id'] ?? 0);
-    // Empty string means "clear it" — stored as NULL.
+    // Empty string means "clear it" - stored as NULL.
     $supervisorId = ($_POST['supervisor_id'] ?? '') === '' ? null : (int)$_POST['supervisor_id'];
     $delegateId   = ($_POST['delegate_id']   ?? '') === '' ? null : (int)$_POST['delegate_id'];
 
@@ -95,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         org_flash_redirect('danger', 'Unknown division.');
     }
     if ($supervisorId !== null && $supervisorId === $delegateId) {
-        org_flash_redirect('danger', 'The delegate must be someone other than the supervisor — otherwise there is no cover when they are away.');
+        org_flash_redirect('danger', 'The delegate must be someone other than the supervisor - otherwise there is no cover when they are away.');
     }
 
     // Only users who actually hold the supervisor role may be assigned. This is
@@ -140,7 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $flash = $_SESSION['org_flash'] ?? null;
 unset($_SESSION['org_flash']);
 
-// Everyone holding the supervisor role — the only valid choices.
+// Everyone holding the supervisor role - the only valid choices.
 $supervisors = $conn->query(
     "SELECT u.id, COALESCE(NULLIF(TRIM(u.full_name), ''), u.Username) AS display
      FROM users u
@@ -272,7 +272,7 @@ function disp(?string $full, ?string $uname): string {
                 <div class="col-lg-4">
                     <label class="form-label muted-sm mb-1">Supervisor</label>
                     <select name="supervisor_id" class="form-select form-select-sm" <?= $supervisors ? '' : 'disabled' ?>>
-                        <option value="">— not set (goes straight to ICT) —</option>
+                        <option value="">- not set (goes straight to ICT) -</option>
                         <?php foreach ($supervisors as $s): ?>
                             <option value="<?= (int)$s['id'] ?>" <?= (int)$d['supervisor_id'] === (int)$s['id'] ? 'selected' : '' ?>>
                                 <?= e($s['display']) ?>
@@ -284,7 +284,7 @@ function disp(?string $full, ?string $uname): string {
                 <div class="col-lg-4">
                     <label class="form-label muted-sm mb-1">Delegate <span class="text-muted">(covers absence)</span></label>
                     <select name="delegate_id" class="form-select form-select-sm" <?= $supervisors ? '' : 'disabled' ?>>
-                        <option value="">— none —</option>
+                        <option value="">- none -</option>
                         <?php foreach ($supervisors as $s): ?>
                             <option value="<?= (int)$s['id'] ?>" <?= (int)$d['delegate_id'] === (int)$s['id'] ? 'selected' : '' ?>>
                                 <?= e($s['display']) ?>

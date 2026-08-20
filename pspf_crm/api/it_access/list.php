@@ -9,6 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 require_once '../session_config.php';
 require_once '../db.php';
 require_once '../includes/auth_helpers.php';
+require_once __DIR__ . '/form_fields_shared.php';
 
 if (!isLoggedIn()) {
     http_response_code(401);
@@ -42,7 +43,7 @@ if ($isSuper) {
     $bindTypes   = "ii";
     $bindArgs    = [$userId, $userId];
 } else {
-    // regular user / agent — own requests only
+    // regular user / agent - own requests only
     $whereClause = "r.submitted_by = ?";
     $bindTypes   = "i";
     $bindArgs    = [$userId];
@@ -72,6 +73,7 @@ $sql = "
         r.claimed_by,
         r.provisioned_at,
         r.pdf_filename,
+        r.custom_values,
         s.id              AS sys_row_id,
         s.system_id,
         s.role            AS sys_role,
@@ -116,7 +118,7 @@ $stmt->close();
  *
  * As of the timezone fix, all IT Access timestamps are WRITTEN in UTC
  * (UTC_TIMESTAMP()/gmdate), so here we only need to format them and label them
- * 'Z' — no offset shift. This keeps the time shown right after signing (the
+ * 'Z' - no offset shift. This keeps the time shown right after signing (the
  * browser's new Date().toISOString()) in agreement with the reloaded timeline.
  *
  * Note: rows written before this fix were stored in server-local time and will
@@ -130,6 +132,10 @@ function itaToUtcIso(?string $utcDateTime): ?string {
 // Aggregate flat rows into nested request objects
 $requests = [];
 $requestIndex = []; // ref_number => array index in $requests
+
+// All field definitions (including retired) so a stored answer to a since-
+// retired field still resolves to a label. Fetched once for the whole response.
+$allFormFields = itaFormFields($conn, true);
 
 foreach ($rows as $row) {
     $rid = $row['request_id'];
@@ -164,7 +170,7 @@ foreach ($rows as $row) {
             'submittedAt'   => itaToUtcIso($row['submitted_at']),
             // Appeal linkage. `appealOf` names the rejected request this one
             // appeals; `canAppeal` tells the UI whether the "revise & appeal"
-            // action should be offered — true only for a rejected ORIGINAL that
+            // action should be offered - true only for a rejected ORIGINAL that
             // has not already been appealed (one appeal only).
             'appealOf'       => $row['appeal_of'] ? (int)$row['appeal_of'] : null,
             'appealOfRef'    => $row['appeal_of_ref'] ?: null,
@@ -176,6 +182,8 @@ foreach ($rows as $row) {
             'claimedBy'     => $row['claimed_by'] ? (int)$row['claimed_by'] : null,
             'provisionedAt' => itaToUtcIso($row['provisioned_at']),
             'pdfFilename'   => $row['pdf_filename'] ?? null,
+            // Custom form-field answers, paired with their labels for display.
+            'customFields'  => itaResolveCustomValues($row['custom_values'] ?? null, $allFormFields),
             '_sys_ids'      => [],   // dedup helper
             '_appr_ids'     => [],   // dedup helper
         ];

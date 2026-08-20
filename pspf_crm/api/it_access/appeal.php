@@ -1,9 +1,9 @@
 <?php
 /**
- * IT Access — appeal a rejected request (feedback item 3).
+ * IT Access - appeal a rejected request (feedback item 3).
  *
  * Creates a NEW request linked to a rejected one via appeal_of, carrying the
- * requester's revisions. The original is never modified — it stays as the
+ * requester's revisions. The original is never modified - it stays as the
  * signed record of the rejection. The appeal re-enters the chain from the top
  * (ICT -> director), exactly like a fresh request.
  *
@@ -28,6 +28,7 @@ require_once '../session_config.php';
 require_once '../db.php';
 require_once '../includes/auth_helpers.php';
 require_once __DIR__ . '/mailer.php';
+require_once __DIR__ . '/form_fields_shared.php';
 
 if (!isLoggedIn()) {
     http_response_code(401);
@@ -37,7 +38,7 @@ if (!isLoggedIn()) {
 enforceActiveUser($conn);
 
 // Appealing, like submitting, is limited to supervisor-role holders. (The owner
-// check below still applies — you may only appeal your own rejected request.)
+// check below still applies - you may only appeal your own rejected request.)
 if (!hasRole('supervisor')) {
     http_response_code(403);
     echo json_encode(['error' => 'Only a supervisor may appeal an IT access request']);
@@ -68,7 +69,7 @@ if ($appealOf <= 0) {
 
 // ---------------------------------------------------------------------
 // Validate the original: exists, belongs to this user, is rejected, and has
-// not itself been appealed or is an appeal. All enforced server-side — the UI
+// not itself been appealed or is an appeal. All enforced server-side - the UI
 // only hides the button, it does not gate the action.
 // ---------------------------------------------------------------------
 $origStmt = $conn->prepare(
@@ -95,7 +96,7 @@ if ($orig['status'] !== 'rejected') {
     exit;
 }
 if ($orig['appeal_of'] !== null) {
-    // The original is itself an appeal — a rejected appeal is final.
+    // The original is itself an appeal - a rejected appeal is final.
     http_response_code(409);
     echo json_encode(['error' => 'This was already an appeal, so it cannot be appealed again.']);
     exit;
@@ -140,6 +141,13 @@ if (!$managerApproval || empty($managerApproval['signature'])) {
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $startDate)) {
     $errors[] = 'startDate must be YYYY-MM-DD';
 }
+
+// Custom fields are enforced on appeals too - an appeal is a fresh submission
+// through the same form, and the form prefills these from the original.
+$customSubmitted = is_array($body['customValues'] ?? null) ? $body['customValues'] : [];
+$activeFields    = itaFormFields($conn, false);
+$customValues    = itaValidateCustomValues($customSubmitted, $activeFields, $errors);
+
 if ($errors) {
     http_response_code(422);
     echo json_encode(['error' => implode('; ', $errors)]);
@@ -163,19 +171,20 @@ $empTitle  = htmlspecialchars(trim($emp['title']), ENT_QUOTES, 'UTF-8');
 $justClean = htmlspecialchars($justification, ENT_QUOTES, 'UTF-8');
 
 // The appeal re-enters the ICT queue directly as 'new', exactly like a fresh
-// request — there is no supervisor approval step.
+// request - there is no supervisor approval step.
 $conn->begin_transaction();
 try {
+    $customJson = $customValues ? json_encode($customValues, JSON_UNESCAPED_UNICODE) : null;
     $stmt = $conn->prepare(
         "INSERT INTO it_access_requests
          (ref_number, request_type, employee_name, employee_id, department, division, job_title,
-          start_date, justification, submitted_by, appeal_of, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')"
+          start_date, justification, submitted_by, appeal_of, custom_values, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')"
     );
     $stmt->bind_param(
-        "sssssssssii",
+        "sssssssssiis",
         $refNumber, $requestType, $empName, $empId, $empDept, $empDiv, $empTitle,
-        $startDate, $justClean, $submittedBy, $appealOf
+        $startDate, $justClean, $submittedBy, $appealOf, $customJson
     );
     $stmt->execute();
     $requestId = $conn->insert_id;
@@ -189,7 +198,20 @@ try {
         $sysId   = htmlspecialchars(trim($sys['id'] ?? ''), ENT_QUOTES, 'UTF-8');
         $rawRole = $sys['role'] ?? '';
         $sysRole = htmlspecialchars(is_array($rawRole) ? implode(', ', $rawRole) : trim($rawRole), ENT_QUOTES, 'UTF-8');
-        $subVals = isset($sys['subValues']) ? json_encode($sys['subValues']) : null;
+        // Merge free-text sub-answers (subTexts, e.g. the "Other" system's name
+        // and role) into subValues so they persist and render downstream, same
+        // as submit.php.
+        $merged = [];
+        if (isset($sys['subValues']) && is_array($sys['subValues'])) {
+            $merged = $sys['subValues'];
+        }
+        if (isset($sys['subTexts']) && is_array($sys['subTexts'])) {
+            foreach ($sys['subTexts'] as $k => $v) {
+                $v = is_string($v) ? trim($v) : $v;
+                if ($v !== '' && $v !== null) $merged[$k] = $v;
+            }
+        }
+        $subVals = $merged ? json_encode($merged) : null;
         $syStmt->bind_param("isss", $requestId, $sysId, $sysRole, $subVals);
         $syStmt->execute();
     }
@@ -215,7 +237,7 @@ try {
 
     $conn->commit();
 
-    // Notify the ICT officers — the appeal enters their queue immediately.
+    // Notify the ICT officers - the appeal enters their queue immediately.
     $submitterName = $_SESSION['user']['full_name'] ?? ($_SESSION['user']['username'] ?? 'User');
     $detail = [
         'Reference'   => $refNumber,

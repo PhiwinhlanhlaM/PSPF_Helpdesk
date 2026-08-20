@@ -1,6 +1,6 @@
 <?php
 /**
- * IT Access — system catalog (read).
+ * IT Access - system catalog (read).
  *
  * Serves the catalog from the database in the exact shape the React app's
  * SYSTEM_CATALOG constant used to have, so getSystem() and every consumer
@@ -12,7 +12,7 @@
  *
  *   GET catalog.php          active systems only (what a new request shows)
  *   GET catalog.php?all=1    include retired systems + usage counts
- *                            (superadmin only — for the management UI)
+ *                            (superadmin only - for the management UI)
  */
 
 header('Content-Type: application/json');

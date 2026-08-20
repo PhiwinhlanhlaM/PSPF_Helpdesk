@@ -15,7 +15,7 @@ $isSuper    = in_array($activeRole, ['admin', 'superadmin']);
 $isOfficer  = hasRole('it_officer');
 $isDirector = hasRole('it_director');
 
-// Fetch the request — verify this user is allowed to access it
+// Fetch the request - verify this user is allowed to access it
 $stmt = $conn->prepare("SELECT id, ref_number, submitted_by, claimed_by, status, pdf_filename FROM it_access_requests WHERE id = ?");
 $stmt->bind_param("i", $requestDbId);
 $stmt->execute();
@@ -43,7 +43,7 @@ if ($filename && file_exists($pdfDir . $filename)) {
     exit;
 }
 
-// PDF not yet on disk — generate it now (on-demand)
+// PDF not yet on disk - generate it now (on-demand)
 if ($req['status'] !== 'provisioned') {
     http_response_code(404);
     echo 'PDF is only available for provisioned requests';

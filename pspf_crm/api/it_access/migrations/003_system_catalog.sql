@@ -1,5 +1,5 @@
 -- =====================================================================
--- IT Access — database-backed system catalog
+-- IT Access - database-backed system catalog
 -- Target database: pspf_helpdesk
 --
 -- Moves the system catalog out of the React source (SYSTEM_CATALOG in
@@ -9,8 +9,8 @@
 --
 -- Three tables:
 --   it_systems             one row per system (the catalog entry itself)
---   it_system_roles        the `roles: []` array — access levels per system
---   it_system_suboptions   the `subOptions` — extra questions per system
+--   it_system_roles        the `roles: []` array - access levels per system
+--   it_system_suboptions   the `subOptions` - extra questions per system
 --
 -- WHY SUB-OPTIONS GET A STABLE `sub_key`
 -- --------------------------------------
@@ -19,7 +19,7 @@
 -- it_request_systems.sub_values as JSON. That is safe only while the catalog
 -- is a constant in a source file. Once a superadmin can reorder, insert or
 -- remove a sub-option, every historical record pointing at `sub_1` silently
--- re-maps to a different question — a request that recorded "After hours"
+-- re-maps to a different question - a request that recorded "After hours"
 -- would start reading as "Board room". No error; the data just goes quietly
 -- wrong, which is exactly what an audit would surface.
 --
@@ -28,7 +28,7 @@
 -- without touching stored data. New requests store answers keyed by sub_key.
 --
 -- NOTE ON EXISTING DATA: it_request_systems.system_id is a plain VARCHAR with
--- no foreign key to this catalog, and that decoupling is deliberate and kept —
+-- no foreign key to this catalog, and that decoupling is deliberate and kept -
 -- it is what lets a historical request stay readable after its system is
 -- retired. Consequently nothing at the DB level prevents deleting a system
 -- that old requests reference, so the admin UI offers DEACTIVATE (is_active=0)
@@ -43,7 +43,7 @@
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
--- 1. it_systems — the catalog entry.
+-- 1. it_systems - the catalog entry.
 --
 -- `id` keeps the existing VARCHAR slug ('inpensions', 'ad', ...) rather than
 -- introducing a surrogate key, so the 55 rows of request history already
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS `it_systems` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ---------------------------------------------------------------------
--- 2. it_system_roles — the `roles: []` array.
+-- 2. it_system_roles - the `roles: []` array.
 --
 -- A system with no rows here simply has no role selector (e.g. 'ad',
 -- 'physical'), which matches how ManagerForm.jsx already renders it.
@@ -81,16 +81,16 @@ CREATE TABLE IF NOT EXISTS `it_system_roles` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ---------------------------------------------------------------------
--- 3. it_system_suboptions — the `subOptions` structure.
+-- 3. it_system_suboptions - the `subOptions` structure.
 --
 -- The array-vs-single-object shape in data.jsx disappears here: a system just
 -- has zero, one or many sub-option rows ordered by sort_order. The read API
 -- rebuilds whatever shape the existing JSX expects.
 --
 -- `kind`:
---   'single' — pick exactly one of `options`      (was multi:false)
---   'multi'  — pick any number of `options`       (was multi:true)
---   'text'   — free text, `options` is NULL       (was text:true)
+--   'single' - pick exactly one of `options`      (was multi:false)
+--   'multi'  - pick any number of `options`       (was multi:true)
+--   'text'   - free text, `options` is NULL       (was text:true)
 --
 -- `options` is a JSON array of strings. MariaDB 10.4 aliases JSON to LONGTEXT
 -- and does not enforce CHECK constraints reliably, so validity is enforced by
@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS `it_system_suboptions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- =====================================================================
--- SEED — mirrors SYSTEM_CATALOG in data.jsx exactly as of this migration.
+-- SEED - mirrors SYSTEM_CATALOG in data.jsx exactly as of this migration.
 --
 -- Every INSERT is guarded with NOT EXISTS so re-running never overwrites an
 -- edited catalog. sub_key values are descriptive and permanent; they are the

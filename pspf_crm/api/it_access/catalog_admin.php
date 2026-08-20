@@ -1,6 +1,6 @@
 <?php
 /**
- * IT Access — system catalog (write). Superadmin only.
+ * IT Access - system catalog (write). Superadmin only.
  *
  * Backs the catalog management UI. Every write is CSRF-checked, runs inside a
  * transaction, and is recorded in audit_logs so the audit can answer "who
@@ -142,7 +142,7 @@ try {
             $conn->begin_transaction();
 
             if ($isNew) {
-                // Derive a slug and make it unique. The slug is permanent — it
+                // Derive a slug and make it unique. The slug is permanent - it
                 // is what request history will reference forever.
                 $base = itaSlug($name);
                 if ($base === '') $base = 'system';
@@ -266,7 +266,7 @@ try {
 
                 $key = trim((string)($so['key'] ?? ''));
                 if ($key !== '' && isset($existing[$key])) {
-                    // Update in place — key preserved, so stored answers still map.
+                    // Update in place - key preserved, so stored answers still map.
                     $up = $conn->prepare(
                         "UPDATE it_system_suboptions SET label = ?, kind = ?, options = ?, sort_order = ?
                          WHERE system_id = ? AND sub_key = ?"
@@ -343,7 +343,7 @@ try {
 
         // -------------------------------------------------------------
         // Retire / restore. Retiring hides a system from new requests but
-        // leaves history able to resolve its name — this is the safe
+        // leaves history able to resolve its name - this is the safe
         // alternative to deletion and the one the UI steers toward.
         // -------------------------------------------------------------
         case 'deactivate':
@@ -358,7 +358,7 @@ try {
             $changed = $stmt->affected_rows;
             $stmt->close();
             if ($changed === 0) {
-                // Either unknown id, or already in that state — distinguish.
+                // Either unknown id, or already in that state - distinguish.
                 $chk = $conn->prepare("SELECT 1 FROM it_systems WHERE id = ? LIMIT 1");
                 $chk->bind_param("s", $id);
                 $chk->execute();
@@ -372,7 +372,7 @@ try {
         }
 
         // -------------------------------------------------------------
-        // Hard delete — only when nothing references the system.
+        // Hard delete - only when nothing references the system.
         //
         // system_id carries no FK (deliberately, so retired systems stay
         // readable in history), which means the database will not stop this.
@@ -387,7 +387,7 @@ try {
                 http_response_code(409);
                 echo json_encode([
                     'error' => "This system is used by {$uses} existing request" . ($uses === 1 ? '' : 's')
-                             . " and cannot be deleted. Retire it instead — it will disappear from new"
+                             . " and cannot be deleted. Retire it instead - it will disappear from new"
                              . " requests while past records keep showing it.",
                     'usageCount' => $uses,
                 ]);
@@ -409,7 +409,7 @@ try {
         }
 
         // -------------------------------------------------------------
-        // Reorder. Touches sort_order only — never stored data.
+        // Reorder. Touches sort_order only - never stored data.
         // -------------------------------------------------------------
         case 'reorder': {
             $order = is_array($body['order'] ?? null) ? $body['order'] : [];

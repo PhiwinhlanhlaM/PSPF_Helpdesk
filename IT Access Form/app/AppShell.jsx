@@ -99,7 +99,7 @@ function appReducer(state, action) {
     case "clear-appeal-draft":
       return { ...state, appealDraft: null };
     // The catalog itself lives in a module binding (see data.jsx), not in
-    // state — this counter exists purely to trigger a re-render once the
+    // state - this counter exists purely to trigger a re-render once the
     // server copy has replaced the fallback.
     case "catalog-loaded":
       return { ...state, catalogVersion: state.catalogVersion + 1 };
@@ -193,7 +193,7 @@ function AppProvider({ children, initialRole }) {
 
     // The system catalog is superadmin-managed and served from the DB. Replace
     // the fallback constant with the live copy, then bump catalogVersion so
-    // views re-render — setSystemCatalog mutates a module binding, which React
+    // views re-render - setSystemCatalog mutates a module binding, which React
     // cannot see on its own.
     fetch("/pspf_crm/api/it_access/catalog.php", { credentials: "include" })
       .then(r => r.ok ? r.json() : Promise.reject())
@@ -232,6 +232,7 @@ function defaultRouteForRole(role) {
   if (role === "manager")    return { name: "manager-form" };
   if (role === "officer")    return { name: "officer-dashboard" };
   if (role === "director")   return { name: "director-dashboard" };
+  if (role === "analytics")  return { name: "analytics" };
   return { name: "manager-form" };
 }
 
@@ -251,9 +252,10 @@ function meForRole(role) {
 function getAvailableRoles() {
   const u = window.__CRM_USER__;
   if (!u) return [ // standalone demo: show all areas
-    { value: "manager",  label: "Requests" },
-    { value: "officer",  label: "IT Review" },
-    { value: "director", label: "Director" },
+    { value: "manager",   label: "Requests" },
+    { value: "officer",   label: "IT Review" },
+    { value: "director",  label: "Director" },
+    { value: "analytics", label: "Analytics" },
   ];
   const areas = [];
   const crmRoles = u.crmRoles || [];
@@ -266,6 +268,13 @@ function getAvailableRoles() {
   }
   if (crmRoles.includes("it_director")) {
     areas.push({ value: "director", label: "Director" });
+  }
+  // Analytics is a shared oversight page for the IT chain + admins. Server-side
+  // stats.php enforces the same gate; this only controls tab visibility.
+  const isAdminish = crmRoles.includes("superadmin") || crmRoles.includes("admin")
+      || u.activeRole === "superadmin" || u.activeRole === "admin";
+  if (crmRoles.includes("it_officer") || crmRoles.includes("it_director") || isAdminish) {
+    areas.push({ value: "analytics", label: "Analytics" });
   }
   return areas;
 }
@@ -281,7 +290,7 @@ function buildNotifications(requests, role, me) {
       else if (r.status === "rejected")
         items.push({ id: r.id + "-rej", kind: "error", title: "Request rejected", body: `${r.employee.name} · ${r.id}`, at: r.approvals.slice(-1)[0]?.at || r.submittedAt, requestId: r.id, route: "manager-history" });
       else if (r.status === "awaiting-requester")
-        items.push({ id: r.id + "-actn", kind: "amber", title: "Action needed — access declined", body: `${r.employee.name} · ${r.id}`, at: r.submittedAt, requestId: r.id, route: "requester-resolve" });
+        items.push({ id: r.id + "-actn", kind: "amber", title: "Action needed - access declined", body: `${r.employee.name} · ${r.id}`, at: r.submittedAt, requestId: r.id, route: "requester-resolve" });
       else if (r.status === "awaiting-director")
         items.push({ id: r.id + "-dir", kind: "info", title: "Awaiting director", body: `${r.employee.name} · ${r.id}`, at: r.submittedAt, requestId: r.id, route: "manager-history" });
       else if (r.status === "new" || r.status === "claimed")
@@ -392,6 +401,10 @@ function TopBar() {
     : role === "officer"
     ? [
         { name: "officer-dashboard", label: "Dashboard" },
+      ]
+    : role === "analytics"
+    ? [
+        { name: "analytics", label: "Dashboard" },
       ]
     : [
         { name: "director-dashboard", label: "Pending review" },
@@ -526,11 +539,35 @@ function RouteView() {
     case "officer-sign":      return <OfficerSign requestId={state.routeParams.requestId}/>;
     case "director-dashboard":return <DirectorDashboard />;
     case "director-sign":     return <DirectorSign requestId={state.routeParams.requestId}/>;
+    case "analytics":         return <Analytics />;
     default:                  return <ManagerForm/>;
   }
+}
+
+// Shared read-only display of a request's custom form-field answers. Renders
+// nothing when the request has none, so callers can drop it in unconditionally.
+// `request.customFields` is [{key,label,kind,value}] from list.php.
+function CustomFieldsBlock({ request, compact }) {
+  const fields = (request.customFields || []).filter(cf => cf.value !== "" && cf.value != null);
+  if (!fields.length) return null;
+  return (
+    <>
+      <div className="divider"/>
+      <span className="section-title">Additional information</span>
+      <div className="kv-grid" style={{ gridTemplateColumns: compact ? "1fr" : "160px 1fr", marginTop: 8 }}>
+        {fields.map(cf => (
+          <React.Fragment key={cf.key}>
+            <span className="muted" style={{ fontSize: 12.5 }}>{cf.label}</span>
+            <span style={{ fontSize: 13 }}>{cf.value}</span>
+          </React.Fragment>
+        ))}
+      </div>
+    </>
+  );
 }
 
 window.AppProvider = AppProvider;
 window.useApp = useApp;
 window.TopBar = TopBar;
 window.RouteView = RouteView;
+window.CustomFieldsBlock = CustomFieldsBlock;

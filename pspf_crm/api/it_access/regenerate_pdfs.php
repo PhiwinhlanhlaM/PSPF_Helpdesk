@@ -1,6 +1,6 @@
 <?php
 /**
- * One-off maintenance script — regenerate the authorization PDF for every
+ * One-off maintenance script - regenerate the authorization PDF for every
  * PROVISIONED IT access request and re-upload it to SharePoint.
  *
  * WHY: earlier PDFs embedded the logo and signatures as base64 data: URIs,
@@ -18,7 +18,7 @@
  *
  * RUN ON THE LIVE BOX (needs mPDF in vendor/ + the live sharepoint_config.php):
  *   cd C:\xampp\htdocs\pspf_crm\api\it_access
- *   C:\xampp\php\php.exe regenerate_pdfs.php            (preview — lists what would run)
+ *   C:\xampp\php\php.exe regenerate_pdfs.php            (preview - lists what would run)
  *   C:\xampp\php\php.exe regenerate_pdfs.php --apply    (regenerate + upload all)
  *   C:\xampp\php\php.exe regenerate_pdfs.php --apply --ref=REQ-2026-0004
  */
@@ -64,7 +64,7 @@ $stmt->close();
 
 $total = count($rows);
 echo "===========================================================\n";
-echo " IT Access — regenerate provisioned authorization PDFs\n";
+echo " IT Access - regenerate provisioned authorization PDFs\n";
 echo " Mode : " . ($apply ? "APPLY (will regenerate + upload)" : "PREVIEW (no changes)") . "\n";
 if ($refFilter !== null) echo " Filter: ref = {$refFilter}\n";
 echo " Found : {$total} provisioned request(s)\n";
@@ -106,14 +106,14 @@ foreach ($rows as $r) {
         if ($newName && $newName !== $r['pdf_filename']) {
             $ok++;
             if ($spId) { $spOk++; echo "OK  (pdf: {$newName}, SharePoint: {$spId})\n"; }
-            else       { echo "OK  (pdf: {$newName}) — SharePoint upload FAILED, PDF saved locally\n"; }
+            else       { echo "OK  (pdf: {$newName}) - SharePoint upload FAILED, PDF saved locally\n"; }
         } else {
             $fail++;
-            echo "FAILED — generator returned no new PDF (check php error_log)\n";
+            echo "FAILED - generator returned no new PDF (check php error_log)\n";
         }
     } catch (\Throwable $e) {
         $fail++;
-        echo "ERROR — " . $e->getMessage() . "\n";
+        echo "ERROR - " . $e->getMessage() . "\n";
     }
 }
 
@@ -122,4 +122,4 @@ echo " Regenerated : {$ok}/{$total}\n";
 echo " Uploaded to SharePoint: {$spOk}/{$ok}\n";
 if ($fail) echo " FAILED      : {$fail} (see C:\\xampp\\php\\logs or php error_log)\n";
 echo "-----------------------------------------------------------\n";
-echo ($fail === 0 ? "Done.\n" : "Completed with errors — review the failures above.\n");
+echo ($fail === 0 ? "Done.\n" : "Completed with errors - review the failures above.\n");

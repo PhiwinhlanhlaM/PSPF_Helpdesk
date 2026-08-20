@@ -1,6 +1,6 @@
-/* PSPF IT Access — design tokens */
+/* PSPF IT Access - design tokens */
 :root {
-  /* Brand — sampled from Public Service Pensions Fund logo */
+  /* Brand - sampled from Public Service Pensions Fund logo */
   --pspf-900: #1f3450;
   --pspf-800: #2a4868;
   --pspf-700: #3d5a7e;   /* primary mark */
@@ -12,7 +12,7 @@
   --pspf-100: #eef2f7;
   --pspf-50:  #f6f8fb;
 
-  /* Accents — kept restrained to feel modern-enterprise */
+  /* Accents - kept restrained to feel modern-enterprise */
   --green-700: #0f7a4a;
   --green-600: #15915a;
   --green-100: #e3f5ec;
@@ -26,7 +26,7 @@
   --blue-600: #2563eb;
   --blue-100: #e3ecfb;
 
-  /* Neutrals — Linear/Notion-ish warm slate */
+  /* Neutrals - Linear/Notion-ish warm slate */
   --ink-900: #0e1726;
   --ink-800: #1c2839;
   --ink-700: #344256;
@@ -60,7 +60,7 @@
   --r-xl: 16px;
   --r-pill: 999px;
 
-  /* Shadows — soft, layered */
+  /* Shadows - soft, layered */
   --shadow-xs: 0 1px 2px rgba(14, 23, 38, 0.04), 0 0 0 1px rgba(14, 23, 38, 0.04);
   --shadow-sm: 0 1px 2px rgba(14, 23, 38, 0.06), 0 1px 3px rgba(14, 23, 38, 0.05);
   --shadow-md: 0 4px 8px -2px rgba(14, 23, 38, 0.06), 0 2px 4px -2px rgba(14, 23, 38, 0.04);
@@ -169,6 +169,26 @@ a.btn-secondary, a.btn-secondary:hover, a.btn-secondary:focus { color: var(--ink
 a.btn-ghost, a.btn-ghost:hover, a.btn-ghost:focus { color: var(--ink-700) !important; }
 .btn-danger, .btn-danger:hover, .btn-danger:focus,
 a.btn-danger, a.btn-danger:hover, a.btn-danger:focus { color: var(--red-700) !important; }
+
+/* Solid-red destructive button (Reject / Confirm rejection). The embedded CRM
+   page loads Bootstrap + style5.css, whose .btn rules force a dark label that
+   beat inline styles. Pin the fill AND white text with !important so the label
+   and its stroke="currentColor" icon stay visible on the red fill. */
+.btn-danger-solid,
+.btn-danger-solid:hover,
+.btn-danger-solid:focus,
+a.btn-danger-solid,
+a.btn-danger-solid:hover,
+a.btn-danger-solid:focus {
+  background: var(--red-600) !important;
+  border-color: var(--red-600) !important;
+  color: #fff !important;
+}
+.btn-danger-solid:hover:not(:disabled),
+a.btn-danger-solid:hover:not(:disabled) {
+  background: var(--red-700) !important;
+  border-color: var(--red-700) !important;
+}
 
 .btn-lg { padding: 11px 18px; font-size: 14px; }
 .btn-sm { padding: 5px 10px; font-size: 12px; }
