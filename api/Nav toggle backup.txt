@@ -1,0 +1,13 @@
+<!-- Orders Dropdown -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                       <i class="bi bi-bag me-1"></i> Orders
+                   </a>
+                   <ul class="dropdown-menu">
+                     <li><a class="dropdown-item" href="/pspf_crm/api/order/food_order.php"><i class="bi bi-cart-plus me-2"></i>New Order</a></li>
+                       <?php if (hasRoleInDepartment('admin', 'ICT')): ?>
+                          <li><hr class="dropdown-divider"></li>
+                           <li><a class="dropdown-item" href="/pspf_crm/api/order/all_orders.php"><i class="bi bi-gear me-2"></i>Manage Orders</a></li>
+                        <?php endif; ?>
+                    </ul>
+                </li>
