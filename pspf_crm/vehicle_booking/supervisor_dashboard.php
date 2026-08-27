@@ -115,14 +115,66 @@ $statusBadge = [
                 <td><?= htmlspecialchars($req['time_required']) ?></td>
                 <td><?= htmlspecialchars($req['registration'] ?? '—') ?></td>
                 <td><?= htmlspecialchars($req['purpose']) ?></td>
-                <td>
-                    <a href="supervisor_approve_request.php?id=<?= $req['request_id'] ?>" class="btn btn-success btn-sm">Approve</a>
-                    <a href="supervisor_reject_request.php?id=<?= $req['request_id'] ?>" class="btn btn-danger btn-sm">Reject</a>
+                <td class="text-center">
+                    <button type="button" class="btn btn-outline-primary btn-sm"
+                            data-bs-toggle="modal" data-bs-target="#requestModal<?= $req['request_id'] ?>"
+                            title="View & action request">
+                        <i class="fa fa-eye"></i> View
+                    </button>
                 </td>
             </tr>
             <?php endforeach; ?>
         </tbody>
     </table>
+
+    <!-- ── Request detail / action modals ─────────────────────────────── -->
+    <?php foreach ($pendingRows as $req): ?>
+    <div class="modal fade" id="requestModal<?= $req['request_id'] ?>" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title"><i class="fa fa-car me-2"></i>Request #<?= $req['request_id'] ?> &mdash; Details</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="row g-3">
+              <div class="col-md-6"><small class="text-muted">Requester</small><div class="fw-semibold"><?= htmlspecialchars($req['requester_name']) ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Department</small><div class="fw-semibold"><?= htmlspecialchars($req['department']) ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Destination</small><div class="fw-semibold"><?= htmlspecialchars($req['destination']) ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Purpose</small><div class="fw-semibold"><?= htmlspecialchars($req['purpose']) ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Date Required</small><div class="fw-semibold"><?= htmlspecialchars($req['date_required']) ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Time Required</small><div class="fw-semibold"><?= htmlspecialchars($req['time_required']) ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Passengers</small><div class="fw-semibold"><?= htmlspecialchars($req['passengers']) ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Expected Return</small><div class="fw-semibold"><?= htmlspecialchars($req['expected_return_date']) ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Vehicle</small><div class="fw-semibold"><?= htmlspecialchars($req['registration'] ?? '—') ?></div></div>
+            </div>
+
+            <!-- Rejection reason (revealed on demand) -->
+            <div class="collapse mt-4" id="rejectBox<?= $req['request_id'] ?>">
+              <hr>
+              <form method="POST" action="supervisor_approve_request.php?id=<?= $req['request_id'] ?>">
+                <input type="hidden" name="action" value="reject">
+                <label class="form-label fw-bold text-danger">Reason for Rejection</label>
+                <textarea name="rejection_reason" class="form-control mb-2" rows="3"
+                          placeholder="Enter a reason for rejecting this request" required></textarea>
+                <button type="submit" class="btn btn-danger"><i class="fa fa-times me-1"></i>Confirm Rejection</button>
+              </form>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-danger"
+                    data-bs-toggle="collapse" data-bs-target="#rejectBox<?= $req['request_id'] ?>">
+              <i class="fa fa-times-circle me-1"></i>Reject
+            </button>
+            <form method="POST" action="supervisor_approve_request.php?id=<?= $req['request_id'] ?>" class="d-inline">
+              <input type="hidden" name="action" value="approve">
+              <button type="submit" class="btn btn-success"><i class="fa fa-check-circle me-1"></i>Approve</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    <?php endforeach; ?>
     <?php endif; ?>
 
     <!-- ── Awaiting driver confirmation (FYI) ────────────────────────── -->

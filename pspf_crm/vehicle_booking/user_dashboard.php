@@ -113,6 +113,12 @@ $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <td><?= htmlspecialchars($req['destination']) ?></td>
                     <td><?= $req['registration'] ?? 'Pending Allocation' ?></td>
                     <td>
+                        <button type="button" class="btn btn-outline-primary btn-sm mb-2"
+                                data-bs-toggle="modal" data-bs-target="#requestModal<?= $req['request_id'] ?>"
+                                title="View request details">
+                            <i class="fa fa-eye"></i> View
+                        </button>
+                        <br>
                         <?php
                         $status = $req['status'] ?? 'unknown';
 
@@ -157,6 +163,58 @@ $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </table>
     </div>
 
+    <!-- ── Request detail modals (read-only) ──────────────────────────── -->
+    <?php
+    $statusLabels = [
+        'pending_driver'     => ['secondary', 'Awaiting Driver Approval'],
+        'pending_supervisor' => ['info',      'Awaiting Supervisor Approval'],
+        'pending_hrm'        => ['primary',   'Awaiting HRM Approval'],
+        'approved'           => ['success',   'Approved'],
+        'rejected'           => ['danger',    'Rejected'],
+        'closed'             => ['dark',      'Trip Completed'],
+    ];
+    foreach ($requests as $req):
+        [$badgeColor, $badgeText] = $statusLabels[$req['status']] ?? ['light text-dark', 'Unknown'];
+    ?>
+    <div class="modal fade" id="requestModal<?= $req['request_id'] ?>" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content text-start">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title"><i class="fa fa-car me-2"></i>Request #<?= $req['request_id'] ?> &mdash; Details</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3"><span class="badge bg-<?= $badgeColor ?>"><?= $badgeText ?></span></div>
+            <div class="row g-3">
+              <div class="col-md-6"><small class="text-muted">Department</small><div class="fw-semibold"><?= htmlspecialchars($req['department']) ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Destination</small><div class="fw-semibold"><?= htmlspecialchars($req['destination']) ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Purpose</small><div class="fw-semibold"><?= htmlspecialchars($req['purpose']) ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Passengers</small><div class="fw-semibold"><?= htmlspecialchars($req['passengers']) ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Date Required</small><div class="fw-semibold"><?= htmlspecialchars($req['date_required']) ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Time Required</small><div class="fw-semibold"><?= htmlspecialchars($req['time_required']) ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Expected Return</small><div class="fw-semibold"><?= htmlspecialchars($req['expected_return_date']) ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Assigned Vehicle</small><div class="fw-semibold"><?= htmlspecialchars($req['registration'] ?? 'Pending Allocation') ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Date Requested</small><div class="fw-semibold"><?= htmlspecialchars(date('Y-m-d', strtotime($req['created_at']))) ?></div></div>
+            </div>
+            <?php if ($req['status'] === 'rejected' && !empty($req['rejection_reason'])): ?>
+            <div class="alert alert-danger mt-3 mb-0">
+              <strong>Rejection Reason:</strong> <?= htmlspecialchars($req['rejection_reason']) ?>
+            </div>
+            <?php endif; ?>
+          </div>
+          <div class="modal-footer">
+            <?php if ($req['status'] === 'approved'): ?>
+              <a href="return_form.php?id=<?= $req['request_id'] ?>" class="btn btn-warning">
+                <i class="fa fa-undo me-1"></i>Return Vehicle
+              </a>
+            <?php endif; ?>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <?php endforeach; ?>
+
     <!-- Pagination -->
     <?php if ($total_pages > 1): ?>
     <nav class="mt-4">
@@ -173,6 +231,7 @@ $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <?php endif; ?>
 
 </div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <?php if (!empty($activeEscalations)): ?>
 <div class="modal fade" id="escalationModal" tabindex="-1">
   <div class="modal-dialog modal-lg">
