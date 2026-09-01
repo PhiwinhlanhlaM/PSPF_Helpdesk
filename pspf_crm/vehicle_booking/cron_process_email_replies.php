@@ -5,12 +5,12 @@
  * two minutes:
  *
  *   * /2 * * * * php /var/www/pspf_crm/vehicle_booking/cron_process_email_replies.php >> /var/log/vbk_email.log 2>&1
- *   (remove the space in "* /2" — cron uses "*\/2")
+ *   (remove the space in "* /2", cron uses "*\/2")
  *
  * The token embedded in each email's subject is the security anchor: it is
  * single-use, tied to one approver and one stage, and expiring. The sender
  * address is checked as a second factor, and an action only applies while the
- * request is still awaiting that stage — so replays, stale replies, or two
+ * request is still awaiting that stage, so replays, stale replies, or two
  * supervisors both replying can never double-action a request.
  */
 
@@ -64,7 +64,7 @@ foreach ($ids as $num) {
 
     $parsedSubject = parseEmailActionSubject($subject);
     if (!$parsedSubject) {
-        // Not one of our approval threads — leave it untouched for a human.
+        // Not one of our approval threads, leave it untouched for a human.
         continue;
     }
 
@@ -85,7 +85,7 @@ foreach ($ids as $num) {
     $result = applyEmailAction($conn, $parsedSubject['token'], $senderEmail, $command['action'], $command['reason'], $command['vehicle'] ?? '');
 
     vbk_reply($senderEmail,
-        "Vehicle Request #{$parsedSubject['request_id']} — " . ($result['status'] === 'applied' ? 'Recorded' : 'No change'),
+        "Vehicle Request #{$parsedSubject['request_id']}, " . ($result['status'] === 'applied' ? 'Recorded' : 'No change'),
         $result['message'],
         $replyTo);
 

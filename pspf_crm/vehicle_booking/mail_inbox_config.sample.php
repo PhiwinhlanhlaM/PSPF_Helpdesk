@@ -4,7 +4,7 @@
  *
  * Copy this file to  mail_inbox_config.php  (which is git-ignored so the real
  * password is never committed) and fill in the values for the dedicated
- * booking mailbox — Vehicle.booking@pspf.co.sz.
+ * booking mailbox, Vehicle.booking@pspf.co.sz.
  *
  * The cron poller (cron_process_email_replies.php) reads this mailbox over IMAP;
  * 'reply_to' is stamped on outgoing approval emails so approvers' replies land
