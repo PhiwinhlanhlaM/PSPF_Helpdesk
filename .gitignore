@@ -41,6 +41,7 @@ vendor/
 pspf_crm/api/db.php
 pspf_crm/api/mail_config.php
 pspf_crm/api/sharepoint_config.php
+pspf_crm/vehicle_booking/mail_inbox_config.php
 
 # XAMPP's own web root — not part of this application.
 xampp/
