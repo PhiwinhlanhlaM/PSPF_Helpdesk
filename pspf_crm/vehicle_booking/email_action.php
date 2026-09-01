@@ -48,6 +48,17 @@ function emailActionStageConfig(): array
             'reject_stage'    => 'hrm_rejected',
             'label'           => 'HRM',
         ],
+        // The driver stage is special: "approval" means assigning a specific
+        // vehicle, so it is handled separately in applyEmailAction() and only
+        // uses expected_status / reject_* from here.
+        'driver' => [
+            'expected_status' => 'pending_driver',
+            'reject_log'      => 'Driver rejected request (via email)',
+            'reject_stage'    => 'driver_rejected',
+            'assign_log'      => 'Driver approved and assigned vehicle (via email)',
+            'assign_stage'    => 'driver_approved',
+            'label'           => 'Driver',
+        ],
     ];
 }
 
@@ -97,8 +108,18 @@ function emailActionSubjectMarker(int $request_id, string $token): string
  * The instruction block appended to an approval email body so the approver
  * knows exactly how to reply.
  */
-function emailActionInstructions(): string
+function emailActionInstructions(string $stage = 'supervisor'): string
 {
+    if ($stage === 'driver') {
+        return
+            "<br><hr>" .
+            "<strong>To action this request by email</strong> (works off the PSPF network):<br>" .
+            "Simply <strong>reply to this email</strong> with one of:<br>" .
+            "&nbsp;&nbsp;&bull; <strong>ASSIGN</strong> followed by the vehicle registration, e.g. <em>ASSIGN SD123AM</em><br>" .
+            "&nbsp;&nbsp;&bull; <strong>REJECT</strong> followed by the reason, e.g. <em>REJECT no driver available</em><br>" .
+            "<small>Keep the subject line unchanged so we can match your reply. " .
+            "This request can also be actioned on the dashboard when on the network.</small>";
+    }
     return
         "<br><hr>" .
         "<strong>To action this request by email</strong> (works off the PSPF network):<br>" .
@@ -125,7 +146,8 @@ function parseEmailActionSubject(string $subject): ?array
  * Read the approver's command from the reply body.
  * Uses the first line that starts with a keyword, skipping blank and quoted
  * (">") lines so signatures and quoted history don't interfere.
- * Returns ['action'=>'approve'|'reject','reason'=>string] or null.
+ * Returns ['action'=>'approve'|'reject'|'assign','reason'=>string,'vehicle'=>string]
+ * or null. 'vehicle' carries the registration for an ASSIGN (driver) command.
  */
 function parseEmailActionBody(string $body): ?array
 {
@@ -139,17 +161,27 @@ function parseEmailActionBody(string $body): ?array
         if ($line === '' || $line[0] === '>') {
             continue; // blank or quoted history
         }
+        // Driver assignment: "ASSIGN <registration>" (also accept "APPROVE <reg>").
+        if (preg_match('/^(assign|approve)\b[:\s-]*(.+)$/i', $line, $m) && trim($m[2]) !== '') {
+            return ['action' => 'assign', 'reason' => '', 'vehicle' => trim($m[2])];
+        }
         if (preg_match('/^(approve|approved|yes|ok|okay)\b/i', $line)) {
-            return ['action' => 'approve', 'reason' => ''];
+            return ['action' => 'approve', 'reason' => '', 'vehicle' => ''];
         }
         if (preg_match('/^(reject|rejected|decline|declined|no)\b[:\s-]*(.*)$/i', $line, $m)) {
-            return ['action' => 'reject', 'reason' => trim($m[2])];
+            return ['action' => 'reject', 'reason' => trim($m[2]), 'vehicle' => ''];
         }
         // First meaningful line was not a recognised command — stop looking so we
         // don't accidentally match a keyword buried in prose further down.
         break;
     }
     return null;
+}
+
+/** Normalise a registration for tolerant matching (drop spaces/dashes, upper-case). */
+function normaliseRegistration(string $reg): string
+{
+    return strtoupper(preg_replace('/[\s\-]+/', '', $reg));
 }
 
 /**
@@ -160,7 +192,7 @@ function parseEmailActionBody(string $body): ?array
  *   wrong_sender | wrong_stage . 'message' is a human-readable line suitable
  *   for the confirmation reply sent back to the approver.
  */
-function applyEmailAction(PDO $conn, string $token, string $senderEmail, string $action, string $reason = ''): array
+function applyEmailAction(PDO $conn, string $token, string $senderEmail, string $action, string $reason = '', string $vehicle = ''): array
 {
     $token = strtolower(trim($token));
     $senderEmail = strtolower(trim($senderEmail));
@@ -207,16 +239,27 @@ function applyEmailAction(PDO $conn, string $token, string $senderEmail, string 
         return ['status' => 'already_actioned', 'message' => "Request #{$row['request_id']} has already progressed and no longer needs your action."];
     }
 
-    // 4. Claim the token atomically so two concurrent replies can't both act.
+    $request_id = (int) $row['request_id'];
+    $approver_id = (int) $approver['user_id'];
+
+    // ── Driver stage: assign a specific vehicle, or reject ────────────────
+    if ($stageKey === 'driver') {
+        return applyDriverEmailAction($conn, $token, $request_id, $approver_id, $cfg, $action, $reason, $vehicle);
+    }
+
+    // ── Supervisor / HRM stage ────────────────────────────────────────────
+    // A bare "APPROVE <word>" can be parsed as an assign; for these stages it
+    // just means approve.
+    if ($action === 'assign') {
+        $action = 'approve';
+    }
+
+    // Claim the token atomically so two concurrent replies can't both act.
     $decision = ($action === 'approve') ? 'approved' : 'rejected';
     if (!markTokenUsed($conn, $token, $decision)) {
         return ['status' => 'already_actioned', 'message' => "Request #{$row['request_id']} has already been actioned. No change was made."];
     }
 
-    $request_id = (int) $row['request_id'];
-    $approver_id = (int) $approver['user_id'];
-
-    // 5. Apply the same changes the web handlers make.
     if ($action === 'approve') {
         $conn->prepare("
             UPDATE vehicle_requests
@@ -249,6 +292,102 @@ function applyEmailAction(PDO $conn, string $token, string $senderEmail, string 
     sendRequestEmail($conn, $request_id, $cfg['reject_stage']);
 
     return ['status' => 'applied', 'message' => "Thank you. You have REJECTED request #{$request_id}." . ($reason !== '' ? " Reason recorded: {$reason}" : '')];
+}
+
+/**
+ * Apply a driver's emailed decision: assign a named vehicle (which also confirms
+ * availability and moves the request to pending_supervisor) or reject it.
+ * Mirrors driver_approve_request.php / driver_reject_request.php.
+ *
+ * The vehicle is validated BEFORE the token is consumed, so a mistyped or
+ * unavailable registration leaves the token usable and the driver can simply
+ * reply again.
+ */
+function applyDriverEmailAction(PDO $conn, string $token, int $request_id, int $driver_id, array $cfg, string $action, string $reason, string $vehicle): array
+{
+    if ($action === 'reject') {
+        if (!markTokenUsed($conn, $token, 'rejected')) {
+            return ['status' => 'already_actioned', 'message' => "Request #{$request_id} has already been actioned. No change was made."];
+        }
+        $conn->prepare("
+            UPDATE vehicle_requests
+            SET status = 'rejected', rejection_reason = ?, updated_at = NOW()
+            WHERE request_id = ?
+        ")->execute([$reason, $request_id]);
+        $conn->prepare("
+            INSERT INTO request_logs (request_id, action_by, action, created_at)
+            VALUES (?, ?, ?, NOW())
+        ")->execute([$request_id, $driver_id, $cfg['reject_log']]);
+        sendRequestEmail($conn, $request_id, $cfg['reject_stage']);
+        return ['status' => 'applied', 'message' => "Thank you. You have declined request #{$request_id}." . ($reason !== '' ? " Reason recorded: {$reason}" : '')];
+    }
+
+    // Assign — a registration is required.
+    if (trim($vehicle) === '') {
+        return ['status' => 'need_vehicle', 'message' =>
+            "To assign a vehicle to request #{$request_id}, reply with ASSIGN followed by the registration, e.g. ASSIGN SD123AM.<br><br>" .
+            availableVehiclesHtml($conn)];
+    }
+
+    $norm = normaliseRegistration($vehicle);
+    $stmt = $conn->prepare("
+        SELECT vehicle_id, registration, status
+        FROM vehicles
+        WHERE UPPER(REPLACE(REPLACE(registration, ' ', ''), '-', '')) = ?
+        LIMIT 1
+    ");
+    $stmt->execute([$norm]);
+    $veh = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$veh) {
+        return ['status' => 'vehicle_not_found', 'message' =>
+            "We couldn't find a vehicle with registration \"" . htmlspecialchars($vehicle) . "\" for request #{$request_id}.<br><br>" .
+            availableVehiclesHtml($conn)];
+    }
+    if (strtolower((string) $veh['status']) !== 'available') {
+        return ['status' => 'vehicle_unavailable', 'message' =>
+            "Vehicle {$veh['registration']} is not currently available for request #{$request_id}.<br><br>" .
+            availableVehiclesHtml($conn)];
+    }
+
+    // Everything checks out — claim the token, then assign.
+    if (!markTokenUsed($conn, $token, 'assigned')) {
+        return ['status' => 'already_actioned', 'message' => "Request #{$request_id} has already been actioned. No change was made."];
+    }
+
+    $conn->prepare("
+        UPDATE vehicle_requests
+        SET driver_id = ?, vehicle_id = ?, status = 'pending_supervisor', updated_at = NOW()
+        WHERE request_id = ?
+    ")->execute([$driver_id, $veh['vehicle_id'], $request_id]);
+
+    $conn->prepare("UPDATE vehicles SET status = 'allocated', updated_at = NOW() WHERE vehicle_id = ?")
+         ->execute([$veh['vehicle_id']]);
+
+    $conn->prepare("
+        INSERT INTO request_logs (request_id, action_by, action, created_at)
+        VALUES (?, ?, ?, NOW())
+    ")->execute([$request_id, $driver_id, $cfg['assign_log']]);
+
+    sendRequestEmail($conn, $request_id, $cfg['assign_stage']);
+
+    return ['status' => 'applied', 'message' => "Thank you. Vehicle {$veh['registration']} has been assigned to request #{$request_id}, which now goes to the supervisor for approval."];
+}
+
+/** HTML list of currently available vehicles, for guidance in reply emails. */
+function availableVehiclesHtml(PDO $conn): string
+{
+    $rows = $conn->query("SELECT registration, make, model FROM vehicles WHERE status = 'available' ORDER BY registration")
+                 ->fetchAll(PDO::FETCH_ASSOC);
+    if (!$rows) {
+        return "There are no available vehicles at the moment.";
+    }
+    $out = "Available vehicles:<br>";
+    foreach ($rows as $r) {
+        $label = trim("{$r['make']} {$r['model']}");
+        $out .= "&nbsp;&nbsp;&bull; <strong>{$r['registration']}</strong>" . ($label !== '' ? " ({$label})" : '') . "<br>";
+    }
+    return $out;
 }
 
 /**

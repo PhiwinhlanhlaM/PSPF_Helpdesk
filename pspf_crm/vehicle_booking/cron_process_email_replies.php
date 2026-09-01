@@ -82,7 +82,7 @@ foreach ($ids as $num) {
         continue;
     }
 
-    $result = applyEmailAction($conn, $parsedSubject['token'], $senderEmail, $command['action'], $command['reason']);
+    $result = applyEmailAction($conn, $parsedSubject['token'], $senderEmail, $command['action'], $command['reason'], $command['vehicle'] ?? '');
 
     vbk_reply($senderEmail,
         "Vehicle Request #{$parsedSubject['request_id']} — " . ($result['status'] === 'applied' ? 'Recorded' : 'No change'),

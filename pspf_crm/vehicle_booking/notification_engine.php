@@ -138,6 +138,33 @@ function notifyAllDrivers($conn, $subject, $message) {
 }
 }
 
+/**
+ * Notify every active driver that a new request needs a vehicle assigned,
+ * giving each their own reply-by-email token. The driver replies
+ * "ASSIGN <registration>" (or "REJECT <reason>") from anywhere; the first to
+ * assign wins and the request moves to supervisor approval. The email lists the
+ * currently available vehicles so the driver knows which registrations are valid.
+ */
+function notifyDriversForAssignment($conn, $request_id, $subjectBase, $intro, $requestDetails) {
+    $replyTo   = emailActionReplyTo();
+    $available = availableVehiclesHtml($conn);
+    $stmt = $conn->prepare("SELECT user_id, email FROM users WHERE role = 'driver' AND active = 1");
+    $stmt->execute();
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $drv) {
+        $token  = issueEmailActionToken($conn, $request_id, 'driver', (int) $drv['user_id']);
+        $marker = emailActionSubjectMarker($request_id, $token);
+        sendMailTo(
+            $drv['email'],
+            "$subjectBase $marker",
+            $intro . $requestDetails .
+            "<br>" . $available .
+            "<br><a href='" . buildApprovalLink('driver', $request_id) . "'>Review &amp; Assign on the dashboard</a>" .
+            emailActionInstructions('driver'),
+            $replyTo
+        );
+    }
+}
+
 
 /**
  * Send email notifications based on workflow stage
@@ -184,18 +211,16 @@ function sendRequestEmail($conn, $request_id, $stage) {
         // ── New request submitted ──────────────────────────────────────
         case 'request_submitted':
 
-            // Notify driver
-			// sendMailTo(
-              //      $driver['email'],
-            notifyAllDrivers(
-               $conn,
-             
-                    "New Vehicle Request - Action Required (#$request_id)",
-                    "A new vehicle request has been submitted and requires your availability confirmation.<br><br>" .
-                    $requestDetails .
-                    "<br><a href='" . buildApprovalLink('driver', $request_id) . "'>Review &amp; Confirm Availability</a>"
-               );
-            
+            // Notify drivers — each with a reply-by-email token so they can assign
+            // a vehicle (or reject) off-network by replying ASSIGN <registration>.
+            notifyDriversForAssignment(
+                $conn,
+                $request_id,
+                "New Vehicle Request - Action Required (#$request_id)",
+                "A new vehicle request has been submitted and requires you to assign a vehicle.<br><br>",
+                $requestDetails
+            );
+
 
             // Notify supervisors in the request's department — FYI, whoever is available can act when driver confirms
           //  notifyAllSupervisors(
