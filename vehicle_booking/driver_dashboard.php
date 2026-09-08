@@ -29,12 +29,16 @@ $activeEscalations = $escalations->fetchAll(PDO::FETCH_ASSOC);
 
 // Fetch pending requests
 $pendingStmt = $conn->query("
-    SELECT vr.*, u.name AS requester_name 
+    SELECT vr.*, u.name AS requester_name
     FROM vehicle_requests vr
     JOIN users u ON vr.requester_id = u.user_id
     WHERE vr.status = 'pending_driver'
     ORDER BY vr.created_at DESC
 ");
+$pendingRows = $pendingStmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Vehicles available for assignment (used in the approval modal)
+$vehicles = $conn->query("SELECT * FROM vehicles")->fetchAll(PDO::FETCH_ASSOC);
 
 // Fetch already approved by driver
 $approvedStmt = $conn->query("
@@ -90,21 +94,84 @@ $approvedStmt = $conn->query("
             </tr>
         </thead>
         <tbody>
-            <?php while($req = $pendingStmt->fetch(PDO::FETCH_ASSOC)): ?>
+            <?php foreach($pendingRows as $req): ?>
             <tr>
                 <td><?= htmlspecialchars($req['requester_name']) ?></td>
                 <td><?= htmlspecialchars($req['department']) ?></td>
                 <td><?= htmlspecialchars($req['destination']) ?></td>
                 <td><?= htmlspecialchars($req['date_required']) ?></td>
                 <td><?= htmlspecialchars($req['purpose']) ?></td>
-                <td>
-                    <a href="driver_approve_request.php?id=<?= $req['request_id'] ?>" class="btn btn-success btn-sm">Approve & Assign</a>
-                    <a href="driver_reject_request.php?id=<?= $req['request_id'] ?>" class="btn btn-danger btn-sm">Reject</a>
+                <td class="text-center">
+                    <button type="button" class="btn btn-outline-primary btn-sm"
+                            data-bs-toggle="modal" data-bs-target="#requestModal<?= $req['request_id'] ?>"
+                            title="View & action request">
+                        <i class="fa fa-eye"></i> View
+                    </button>
                 </td>
             </tr>
-            <?php endwhile; ?>
+            <?php endforeach; ?>
         </tbody>
     </table>
+
+    <!-- ── Request detail / action modals ─────────────────────────────── -->
+    <?php foreach ($pendingRows as $req): ?>
+    <div class="modal fade" id="requestModal<?= $req['request_id'] ?>" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header card-color text-white">
+            <h5 class="modal-title"><i class="fa fa-car me-2"></i>Request #<?= $req['request_id'] ?> &mdash; Approve &amp; Assign</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="row g-3">
+              <div class="col-md-6"><small class="text-muted">Requester</small><div class="fw-semibold"><?= htmlspecialchars($req['requester_name']) ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Department</small><div class="fw-semibold"><?= htmlspecialchars($req['department']) ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Destination</small><div class="fw-semibold"><?= htmlspecialchars($req['destination']) ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Purpose</small><div class="fw-semibold"><?= htmlspecialchars($req['purpose']) ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Date Required</small><div class="fw-semibold"><?= htmlspecialchars($req['date_required']) ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Time Required</small><div class="fw-semibold"><?= htmlspecialchars($req['time_required']) ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Passengers</small><div class="fw-semibold"><?= htmlspecialchars($req['passengers']) ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Expected Return</small><div class="fw-semibold"><?= htmlspecialchars($req['expected_return_date']) ?></div></div>
+            </div>
+
+            <hr>
+            <!-- Approve & assign a vehicle -->
+            <form method="POST" action="driver_approve_request.php?id=<?= $req['request_id'] ?>" id="approveForm<?= $req['request_id'] ?>">
+              <label class="form-label fw-bold">Assign Vehicle</label>
+              <select name="vehicle_id" class="form-select" required>
+                <option value="">-- Select Available Vehicle --</option>
+                <?php foreach ($vehicles as $v): ?>
+                  <option value="<?= $v['vehicle_id'] ?>">
+                    <?= htmlspecialchars($v['registration']) ?> (<?= htmlspecialchars($v['make']) ?> <?= htmlspecialchars($v['model']) ?>)
+                  </option>
+                <?php endforeach; ?>
+              </select>
+            </form>
+
+            <!-- Rejection reason (revealed on demand) -->
+            <div class="collapse mt-4" id="rejectBox<?= $req['request_id'] ?>">
+              <hr>
+              <form method="POST" action="driver_reject_request.php?id=<?= $req['request_id'] ?>">
+                <label class="form-label fw-bold text-danger">Reason for Rejection</label>
+                <textarea name="rejection_reason" class="form-control mb-2" rows="3"
+                          placeholder="Enter a reason for rejecting this request" required></textarea>
+                <button type="submit" class="btn btn-danger"><i class="fa fa-times me-1"></i>Confirm Rejection</button>
+              </form>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-danger"
+                    data-bs-toggle="collapse" data-bs-target="#rejectBox<?= $req['request_id'] ?>">
+              <i class="fa fa-times-circle me-1"></i>Reject
+            </button>
+            <button type="submit" form="approveForm<?= $req['request_id'] ?>" class="btn btn-success">
+              <i class="fa fa-check-circle me-1"></i>Approve &amp; Assign
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <?php endforeach; ?>
 </div>
 </div>
 </div>
@@ -150,6 +217,7 @@ $approvedStmt = $conn->query("
 
 </body>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 
 function goBack() {
