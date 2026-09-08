@@ -1,16 +1,70 @@
 <?php
 require_once 'mail_config.php';
+require_once 'email_action.php';
 
 /**
- * Send email using PHPMailer
+ * Send email using PHPMailer.
+ *
+ * $replyTo, when supplied, directs replies to a different address than the
+ * "From" (used so approval emails can be answered into the booking mailbox
+ * that cron_process_email_replies.php polls, while still appearing to come
+ * from the usual sender).
  */
-function sendMailTo($email, $subject, $message) {
+function sendMailTo($email, $subject, $message, $replyTo = null) {
     $mail = getMailer();
     $mail->addAddress($email);
+    if ($replyTo) {
+        $mail->addReplyTo($replyTo);
+    }
     $mail->isHTML(true);
     $mail->Subject = $subject;
     $mail->Body = nl2br($message);
     return $mail->send();
+}
+
+/**
+ * Notify every active supervisor in a department that a request needs approval,
+ * giving each their own single-use reply-by-email token so we can record who
+ * acted. The first supervisor to approve/reject wins; the others' tokens become
+ * inert once the request leaves the pending_supervisor state.
+ */
+function notifySupervisorsForApproval($conn, $request_id, $department, $subjectBase, $intro, $requestDetails) {
+    $replyTo = emailActionReplyTo();
+    $stmt = $conn->prepare("SELECT user_id, email FROM users WHERE role = 'supervisor' AND active = 1 AND department = ?");
+    $stmt->execute([$department]);
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $sup) {
+        $token  = issueEmailActionToken($conn, $request_id, 'supervisor', (int) $sup['user_id']);
+        $marker = emailActionSubjectMarker($request_id, $token);
+        sendMailTo(
+            $sup['email'],
+            "$subjectBase $marker",
+            $intro . $requestDetails .
+            "<br><a href='" . buildApprovalLink('supervisor', $request_id) . "'>Approve / Reject on the dashboard</a>" .
+            emailActionInstructions(),
+            $replyTo
+        );
+    }
+}
+
+/**
+ * Notify the active HRM approver, with a reply-by-email token.
+ */
+function notifyHrmForApproval($conn, $request_id, $subjectBase, $intro, $requestDetails) {
+    $replyTo = emailActionReplyTo();
+    $stmt = $conn->prepare("SELECT user_id, email FROM users WHERE role = 'hrm' AND active = 1");
+    $stmt->execute();
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $hrm) {
+        $token  = issueEmailActionToken($conn, $request_id, 'hrm', (int) $hrm['user_id']);
+        $marker = emailActionSubjectMarker($request_id, $token);
+        sendMailTo(
+            $hrm['email'],
+            "$subjectBase $marker",
+            $intro . $requestDetails .
+            "<br><a href='" . buildApprovalLink('hrm', $request_id) . "'>Approve / Reject on the dashboard</a>" .
+            emailActionInstructions(),
+            $replyTo
+        );
+    }
 }
 
 /**
@@ -50,7 +104,7 @@ function formatRequestDetails($request) {
         $details .= "<strong>Assigned Vehicle:</strong> {$vehicleLabel} ({$request['vehicle_registration']})<br>";
 
         if (!empty($request['driver_name'])) {
-            $details .= "<strong>Assigned By:</strong> {$request['driver_name']}<br>";
+            $details .= "<strong>Assigned Driver:</strong> {$request['driver_name']}<br>";
         }
     }
 
@@ -59,7 +113,7 @@ function formatRequestDetails($request) {
 
 /**
  * Send an email to all active supervisors in a given department.
- * Every supervisor in that department sees the request — whoever is available can act.
+ * Every supervisor in that department sees the request, whoever is available can act.
  */
 function notifyAllSupervisors($conn, $department, $subject, $message) {
     $stmt = $conn->prepare("SELECT email FROM users WHERE role = 'supervisor' AND active = 1 AND department = ?");
@@ -84,6 +138,33 @@ function notifyAllDrivers($conn, $subject, $message) {
 }
 }
 
+/**
+ * Notify every active driver that a new request needs a vehicle assigned,
+ * giving each their own reply-by-email token. The driver replies
+ * "ASSIGN <registration>" (or "REJECT <reason>") from anywhere; the first to
+ * assign wins and the request moves to supervisor approval. The email lists the
+ * currently available vehicles so the driver knows which registrations are valid.
+ */
+function notifyDriversForAssignment($conn, $request_id, $subjectBase, $intro, $requestDetails) {
+    $replyTo   = emailActionReplyTo();
+    $available = availableVehiclesHtml($conn);
+    $stmt = $conn->prepare("SELECT user_id, email FROM users WHERE role = 'driver' AND active = 1");
+    $stmt->execute();
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $drv) {
+        $token  = issueEmailActionToken($conn, $request_id, 'driver', (int) $drv['user_id']);
+        $marker = emailActionSubjectMarker($request_id, $token);
+        sendMailTo(
+            $drv['email'],
+            "$subjectBase $marker",
+            $intro . $requestDetails .
+            "<br>" . $available .
+            "<br><a href='" . buildApprovalLink('driver', $request_id) . "'>Review &amp; Assign on the dashboard</a>" .
+            emailActionInstructions('driver'),
+            $replyTo
+        );
+    }
+}
+
 
 /**
  * Send email notifications based on workflow stage
@@ -91,7 +172,7 @@ function notifyAllDrivers($conn, $subject, $message) {
 function sendRequestEmail($conn, $request_id, $stage) {
 
     // Fetch full request + requester details, plus the assigned vehicle and
-    // driver (both NULL until the driver assigns a car — LEFT JOINs keep the
+    // driver (both NULL until the driver assigns a car, LEFT JOINs keep the
     // pre-assignment emails working).
     $stmt = $conn->prepare("
         SELECT vr.*,
@@ -127,23 +208,21 @@ function sendRequestEmail($conn, $request_id, $stage) {
 
     switch ($stage) {
 
-        // ── New request submitted ──────────────────────────────────────
+        // -- New request submitted --------------------------------------
         case 'request_submitted':
 
-            // Notify driver
-			// sendMailTo(
-              //      $driver['email'],
-            notifyAllDrivers(
-               $conn,
-             
-                    "New Vehicle Request - Action Required (#$request_id)",
-                    "A new vehicle request has been submitted and requires your availability confirmation.<br><br>" .
-                    $requestDetails .
-                    "<br><a href='" . buildApprovalLink('driver', $request_id) . "'>Review &amp; Confirm Availability</a>"
-               );
-            
+            // Notify drivers, each with a reply-by-email token so they can assign
+            // a vehicle (or reject) off-network by replying ASSIGN <registration>.
+            notifyDriversForAssignment(
+                $conn,
+                $request_id,
+                "New Vehicle Request - Action Required (#$request_id)",
+                "A new vehicle request has been submitted and requires you to assign a vehicle.<br><br>",
+                $requestDetails
+            );
 
-            // Notify supervisors in the request's department — FYI, whoever is available can act when driver confirms
+
+            // Notify supervisors in the request's department, FYI, whoever is available can act when driver confirms
           //  notifyAllSupervisors(
                // $conn,
               //  $request['department'],
@@ -163,7 +242,7 @@ function sendRequestEmail($conn, $request_id, $stage) {
             );
             break;
 
-        // ── Driver approved → now needs supervisor sign-off ───────────
+        // -- Driver approved -> now needs supervisor sign-off -----------
         case 'driver_approved':
 
             // Notify requester
@@ -175,18 +254,19 @@ function sendRequestEmail($conn, $request_id, $stage) {
                 "<br><a href='" . buildRequestLink($request_id) . "'>View Request</a>"
             );
 
-            // Notify supervisors in the request's department — action required, first available approves
-            notifyAllSupervisors(
+            // Notify supervisors in the request's department, action required, first available approves.
+            // Each supervisor gets their own reply-by-email token so they can act off-network.
+            notifySupervisorsForApproval(
                 $conn,
+                $request_id,
                 $request['department'],
                 "Vehicle Request Requires Supervisor Approval (#$request_id)",
-                "A vehicle request has been confirmed by the driver and requires supervisor approval.<br><br>" .
-                $requestDetails .
-                "<br><a href='" . buildApprovalLink('supervisor', $request_id) . "'>Approve / Reject</a>"
+                "A vehicle request has been confirmed by the driver and requires supervisor approval.<br><br>",
+                $requestDetails
             );
             break;
 
-        // ── Driver rejected ────────────────────────────────────────────
+        // -- Driver rejected --------------------------------------------
         case 'driver_rejected':
             sendMailTo(
                 $request['requester_email'],
@@ -198,7 +278,7 @@ function sendRequestEmail($conn, $request_id, $stage) {
             );
             break;
 
-        // ── Supervisor approved → HRM sign-off ────────────────────────
+        // -- Supervisor approved -> HRM sign-off ------------------------
         case 'supervisor_approved':
 
             sendMailTo(
@@ -209,18 +289,17 @@ function sendRequestEmail($conn, $request_id, $stage) {
                 "<br><a href='" . buildRequestLink($request_id) . "'>View Request</a>"
             );
 
-            if ($hrm) {
-                sendMailTo(
-                    $hrm['email'],
-                    "Vehicle Request Requires HRM Authorisation (#$request_id)",
-                    "A vehicle request has been approved by the supervisor and requires your authorisation.<br><br>" .
-                    $requestDetails .
-                    "<br><a href='" . buildApprovalLink('hrm', $request_id) . "'>Approve / Reject</a>"
-                );
-            }
+            // HRM authorisation, with a reply-by-email token so it can be actioned off-network.
+            notifyHrmForApproval(
+                $conn,
+                $request_id,
+                "Vehicle Request Requires HRM Authorisation (#$request_id)",
+                "A vehicle request has been approved by the supervisor and requires your authorisation.<br><br>",
+                $requestDetails
+            );
             break;
 
-        // ── Supervisor rejected ────────────────────────────────────────
+        // -- Supervisor rejected ----------------------------------------
         case 'supervisor_rejected':
             sendMailTo(
                 $request['requester_email'],
@@ -232,7 +311,7 @@ function sendRequestEmail($conn, $request_id, $stage) {
             );
             break;
 
-        // ── HRM approved (fully authorised) ───────────────────────────
+        // -- HRM approved (fully authorised) ---------------------------
         case 'hrm_approved':
             sendMailTo(
                 $request['requester_email'],
@@ -243,7 +322,7 @@ function sendRequestEmail($conn, $request_id, $stage) {
             );
             break;
 
-        // ── HRM rejected ──────────────────────────────────────────────
+        // -- HRM rejected ----------------------------------------------
         case 'hrm_rejected':
             sendMailTo(
                 $request['requester_email'],
@@ -353,7 +432,7 @@ function sendVehicleReturnEmail($conn, $request_id) {
         <hr>
         <h4>Trip Details</h4>
         <strong>Requester:</strong> {$data['requester_name']}<br>
-        <strong>Allocated By:</strong> {$data['driver_name']}<br>
+        // <strong>Driver:</strong> {$data['driver_name']}<br>
         <strong>Vehicle:</strong> {$data['vehicle_name']} ({$data['registration_number']})<br>
         <strong>Destination:</strong> {$data['destination']}<br>
         <strong>Purpose:</strong> {$data['purpose']}<br>
