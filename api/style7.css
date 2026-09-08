@@ -1,0 +1,341 @@
+:root {
+    --primary-color: #ecfdf5;
+    --success-color: #7FC8F8;
+    --success-light: #3D5C80;
+    --card-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+    --border-radius: 12px;
+    --text-primary: #111827;
+    --text-secondary: #6b7280;
+    --surface-white: #ffffff;
+    --surface-light: #f9fafb;
+}
+
+.success-container {
+    height: 100vh;
+    max-height: 100vh;
+    padding: 1.5rem;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-light);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+.success-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.3fr;
+    gap: 2rem;
+    max-width: 1400px;
+    width: 100%;
+    margin: 0 auto;
+    align-items: stretch;
+    height: 92vh;
+    max-height: 92vh;
+}
+
+.success-side {
+    background: var(--surface-white);
+    border-radius: var(--border-radius);
+    padding: 2.5rem;
+    box-shadow: var(--card-shadow);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+    min-height: 0;
+}
+
+.success-side::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--success-color), #3D5C80);
+}
+
+.success-icon {
+    font-size: 3rem;
+    margin-bottom: 1.5rem;
+    color: var(--success-color);
+    text-align: center;
+}
+
+.success-side h1 {
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+    text-align: center;
+}
+
+.success-side .lead {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+}
+
+.ticket-id-display {
+    background: var(--success-light);
+    border-radius: var(--border-radius);
+    padding: 1rem 1.5rem;
+    display: inline-block;
+    margin: 1.5rem 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    border: 1px solid #d1fae5;
+    text-align: center;
+    width: 100%;
+    color: var(--success-color);
+}
+
+.info-box {
+    background: var(--surface-light);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+    border: 1px solid #e5e7eb;
+    width: 100%;
+}
+
+.info-box h5 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.info-box ul {
+    list-style: none;
+    padding-left: 0.5rem;
+    margin: 0;
+}
+
+.info-box li {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.info-box li:before {
+    content: "✓";
+    color: var(--success-color);
+    font-weight: 600;
+}
+
+.details-side {
+    background: var(--success-light);
+    border-radius: var(--border-radius);
+    padding: 2.5rem;
+    box-shadow: var(--card-shadow);
+    overflow-y: auto;
+    min-height: 0;
+    max-height: 100%;
+    border: 1px solid #e5e7eb;
+}
+
+.details-content {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.section-title {
+    color: var(--text-primary);
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.detail-card {
+    background: var(--surface-white);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border: 1px solid #e5e7eb;
+    transition: all 0.2s ease;
+}
+
+.detail-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
+}
+
+.detail-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.detail-value {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    font-weight: 400;
+    word-break: break-word;
+}
+
+.priority-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-weight: 500;
+    font-size: 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.bg-success {
+    background: #10b981;
+    color: white;
+}
+
+.bg-warning {
+    background: #f59e0b;
+    color: white;
+}
+
+.bg-danger {
+    background: #ef4444;
+    color: white;
+}
+
+.bg-secondary {
+    background: #6b7280;
+    color: white;
+}
+
+.btn-modern {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 0.625rem 1.25rem;
+    border-radius: 6px;
+    font-weight: 500;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+}
+
+
+.btn-modern-outline {
+    background: transparent;
+    border: 1px solid #d1d5db;
+    color: var(--text-primary);
+}
+
+.btn-modern-outline:hover {
+    background: #f9fafb;
+    border-color: var(--text-secondary);
+}
+
+.action-buttons {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 2rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* Custom scrollbar */
+.details-side::-webkit-scrollbar {
+    width: 6px;
+}
+
+.details-side::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.details-side::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.details-side::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .success-grid {
+        gap: 1.5rem;
+        padding: 1rem;
+    }
+}
+
+@media (max-width: 992px) {
+    .success-container {
+        height: auto;
+        min-height: 100vh;
+        padding: 1rem;
+    }
+    
+    .success-grid {
+        grid-template-columns: 1fr;
+        height: auto;
+        gap: 1.5rem;
+    }
+    
+    .success-side {
+        padding: 2rem;
+    }
+    
+    .details-side {
+        padding: 2rem;
+        overflow-y: visible;
+    }
+}
+
+@media (max-width: 768px) {
+    .success-side, .details-side {
+        padding: 1.5rem;
+    }
+    
+    .success-icon {
+        font-size: 2.5rem;
+    }
+    
+    .success-side h1 {
+        font-size: 1.5rem;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .btn-modern {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Remove confetti and bounce animations from HTML */
