@@ -113,7 +113,7 @@ function formatRequestDetails($request) {
 
 /**
  * Send an email to all active supervisors in a given department.
- * Every supervisor in that department sees the request — whoever is available can act.
+ * Every supervisor in that department sees the request, whoever is available can act.
  */
 function notifyAllSupervisors($conn, $department, $subject, $message) {
     $stmt = $conn->prepare("SELECT email FROM users WHERE role = 'supervisor' AND active = 1 AND department = ?");
@@ -172,7 +172,7 @@ function notifyDriversForAssignment($conn, $request_id, $subjectBase, $intro, $r
 function sendRequestEmail($conn, $request_id, $stage) {
 
     // Fetch full request + requester details, plus the assigned vehicle and
-    // driver (both NULL until the driver assigns a car — LEFT JOINs keep the
+    // driver (both NULL until the driver assigns a car, LEFT JOINs keep the
     // pre-assignment emails working).
     $stmt = $conn->prepare("
         SELECT vr.*,
@@ -208,10 +208,10 @@ function sendRequestEmail($conn, $request_id, $stage) {
 
     switch ($stage) {
 
-        // ── New request submitted ──────────────────────────────────────
+        // -- New request submitted --------------------------------------
         case 'request_submitted':
 
-            // Notify drivers — each with a reply-by-email token so they can assign
+            // Notify drivers, each with a reply-by-email token so they can assign
             // a vehicle (or reject) off-network by replying ASSIGN <registration>.
             notifyDriversForAssignment(
                 $conn,
@@ -222,7 +222,7 @@ function sendRequestEmail($conn, $request_id, $stage) {
             );
 
 
-            // Notify supervisors in the request's department — FYI, whoever is available can act when driver confirms
+            // Notify supervisors in the request's department, FYI, whoever is available can act when driver confirms
           //  notifyAllSupervisors(
                // $conn,
               //  $request['department'],
@@ -242,7 +242,7 @@ function sendRequestEmail($conn, $request_id, $stage) {
             );
             break;
 
-        // ── Driver approved → now needs supervisor sign-off ───────────
+        // -- Driver approved -> now needs supervisor sign-off -----------
         case 'driver_approved':
 
             // Notify requester
@@ -254,7 +254,7 @@ function sendRequestEmail($conn, $request_id, $stage) {
                 "<br><a href='" . buildRequestLink($request_id) . "'>View Request</a>"
             );
 
-            // Notify supervisors in the request's department — action required, first available approves.
+            // Notify supervisors in the request's department, action required, first available approves.
             // Each supervisor gets their own reply-by-email token so they can act off-network.
             notifySupervisorsForApproval(
                 $conn,
@@ -266,7 +266,7 @@ function sendRequestEmail($conn, $request_id, $stage) {
             );
             break;
 
-        // ── Driver rejected ────────────────────────────────────────────
+        // -- Driver rejected --------------------------------------------
         case 'driver_rejected':
             sendMailTo(
                 $request['requester_email'],
@@ -278,7 +278,7 @@ function sendRequestEmail($conn, $request_id, $stage) {
             );
             break;
 
-        // ── Supervisor approved → HRM sign-off ────────────────────────
+        // -- Supervisor approved -> HRM sign-off ------------------------
         case 'supervisor_approved':
 
             sendMailTo(
@@ -289,7 +289,7 @@ function sendRequestEmail($conn, $request_id, $stage) {
                 "<br><a href='" . buildRequestLink($request_id) . "'>View Request</a>"
             );
 
-            // HRM authorisation — with a reply-by-email token so it can be actioned off-network.
+            // HRM authorisation, with a reply-by-email token so it can be actioned off-network.
             notifyHrmForApproval(
                 $conn,
                 $request_id,
@@ -299,7 +299,7 @@ function sendRequestEmail($conn, $request_id, $stage) {
             );
             break;
 
-        // ── Supervisor rejected ────────────────────────────────────────
+        // -- Supervisor rejected ----------------------------------------
         case 'supervisor_rejected':
             sendMailTo(
                 $request['requester_email'],
@@ -311,7 +311,7 @@ function sendRequestEmail($conn, $request_id, $stage) {
             );
             break;
 
-        // ── HRM approved (fully authorised) ───────────────────────────
+        // -- HRM approved (fully authorised) ---------------------------
         case 'hrm_approved':
             sendMailTo(
                 $request['requester_email'],
@@ -322,7 +322,7 @@ function sendRequestEmail($conn, $request_id, $stage) {
             );
             break;
 
-        // ── HRM rejected ──────────────────────────────────────────────
+        // -- HRM rejected ----------------------------------------------
         case 'hrm_rejected':
             sendMailTo(
                 $request['requester_email'],

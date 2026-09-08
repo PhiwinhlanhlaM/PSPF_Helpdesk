@@ -1,7 +1,7 @@
 # Reply-by-email approvals (Driver, Supervisor & HRM)
 
 Lets drivers, supervisors and HRM action vehicle requests by **replying to the
-notification email** — so they can act while off the PSPF network. The website
+notification email**, so they can act while off the PSPF network. The website
 stays internal-only; only email crosses the network boundary. A cron job running
 **inside** the network reads the booking mailbox and applies the decision.
 
@@ -22,7 +22,7 @@ email that the dashboard buttons run.
 
 The driver's email lists the currently **available** vehicles so they know which
 registrations are valid. `ASSIGN` also confirms the vehicle is free, marks it
-`allocated`, records the driver, and moves the request to supervisor approval —
+`allocated`, records the driver, and moves the request to supervisor approval -
 exactly as the dashboard does. A mistyped or unavailable registration gets a
 reply with the valid list and the token stays usable, so the driver can just
 reply again.
@@ -37,22 +37,22 @@ reply again.
 
 ## One-time setup
 
-1. **Database** — create the token table:
+1. **Database**, create the token table:
    ```sh
    mysql -u root vehicle_requisition < sql/email_action_tokens.sql
    ```
-2. **PHP IMAP extension** — required by the poller:
+2. **PHP IMAP extension**, required by the poller:
    ```sh
    # Debian/Ubuntu
    sudo apt-get install php-imap && sudo phpenmod imap && sudo systemctl restart apache2
    ```
    (On XAMPP/Windows, uncomment `extension=imap` in php.ini and restart Apache.)
-3. **Inbox config** — copy the sample and fill it in:
+3. **Inbox config**, copy the sample and fill it in:
    ```sh
    cp mail_inbox_config.sample.php mail_inbox_config.php
    # then edit host/port/ssl/username/password for Vehicle.booking@pspf.co.sz
    ```
-4. **Cron** — run the poller every couple of minutes:
+4. **Cron**, run the poller every couple of minutes:
    ```cron
    */2 * * * * php /path/to/pspf_crm/vehicle_booking/cron_process_email_replies.php >> /var/log/vbk_email.log 2>&1
    ```
@@ -60,19 +60,19 @@ reply again.
 ## Testing checklist
 
 - [ ] `php -m | grep imap` shows the extension.
-- [ ] Run the poller by hand: `php cron_process_email_replies.php` — it should
+- [ ] Run the poller by hand: `php cron_process_email_replies.php`, it should
       connect and print `processed 0 reply message(s).`
-- [ ] Submit a test request → driver gets an email listing available vehicles.
-      Reply `ASSIGN <registration>` → vehicle is marked allocated, request moves
+- [ ] Submit a test request -> driver gets an email listing available vehicles.
+      Reply `ASSIGN <registration>` -> vehicle is marked allocated, request moves
       to `pending_supervisor`, confirmation comes back.
-- [ ] Reply `ASSIGN <bad reg>` → get the available-vehicle list back and the
+- [ ] Reply `ASSIGN <bad reg>` -> get the available-vehicle list back and the
       token still works (reply again with a valid one).
-- [ ] Reply `APPROVE` from the supervisor's address → request moves to
+- [ ] Reply `APPROVE` from the supervisor's address -> request moves to
       `pending_hrm`.
-- [ ] Reply `REJECT not needed` as HRM → request becomes `rejected` with the
+- [ ] Reply `REJECT not needed` as HRM -> request becomes `rejected` with the
       reason recorded and logged in `request_logs`.
-- [ ] Reply from a different address → no action, "did not come from…" notice.
-- [ ] Reply twice → second reply gets "already been actioned".
+- [ ] Reply from a different address -> no action, "did not come from..." notice.
+- [ ] Reply twice -> second reply gets "already been actioned".
 
 ## Files
 

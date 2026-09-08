@@ -171,7 +171,7 @@ function parseEmailActionBody(string $body): ?array
         if (preg_match('/^(reject|rejected|decline|declined|no)\b[:\s-]*(.*)$/i', $line, $m)) {
             return ['action' => 'reject', 'reason' => trim($m[2]), 'vehicle' => ''];
         }
-        // First meaningful line was not a recognised command — stop looking so we
+        // First meaningful line was not a recognised command, stop looking so we
         // don't accidentally match a keyword buried in prose further down.
         break;
     }
@@ -242,12 +242,12 @@ function applyEmailAction(PDO $conn, string $token, string $senderEmail, string 
     $request_id = (int) $row['request_id'];
     $approver_id = (int) $approver['user_id'];
 
-    // ── Driver stage: assign a specific vehicle, or reject ────────────────
+    // Driver stage: assign a specific vehicle, or reject.
     if ($stageKey === 'driver') {
         return applyDriverEmailAction($conn, $token, $request_id, $approver_id, $cfg, $action, $reason, $vehicle);
     }
 
-    // ── Supervisor / HRM stage ────────────────────────────────────────────
+    // Supervisor / HRM stage.
     // A bare "APPROVE <word>" can be parsed as an assign; for these stages it
     // just means approve.
     if ($action === 'assign') {
@@ -322,7 +322,7 @@ function applyDriverEmailAction(PDO $conn, string $token, int $request_id, int $
         return ['status' => 'applied', 'message' => "Thank you. You have declined request #{$request_id}." . ($reason !== '' ? " Reason recorded: {$reason}" : '')];
     }
 
-    // Assign — a registration is required.
+    // Assign, a registration is required.
     if (trim($vehicle) === '') {
         return ['status' => 'need_vehicle', 'message' =>
             "To assign a vehicle to request #{$request_id}, reply with ASSIGN followed by the registration, e.g. ASSIGN SD123AM.<br><br>" .
@@ -350,7 +350,7 @@ function applyDriverEmailAction(PDO $conn, string $token, int $request_id, int $
             availableVehiclesHtml($conn)];
     }
 
-    // Everything checks out — claim the token, then assign.
+    // Everything checks out, claim the token, then assign.
     if (!markTokenUsed($conn, $token, 'assigned')) {
         return ['status' => 'already_actioned', 'message' => "Request #{$request_id} has already been actioned. No change was made."];
     }
