@@ -1,0 +1,75 @@
+# Composer / PHP dependencies (restore with `composer install`)
+vendor/
+**/vendor/
+
+# IDE / editor
+.vs/
+.idea/
+.vscode/
+*.suo
+*.user
+
+# Generated uploads / user data (not source)
+**/uploads/
+
+# Database dumps (but DO track versioned migration SQL — it is source, not data)
+*.sql
+!**/migrations/*.sql
+
+# Development-only test scripts. These are ad-hoc test runners, DB probes and
+# a login-as-anyone helper — never source, and must never reach the repo or a
+# production server. Kept locally for testing only.
+**/test_*.php
+**/*_test.php
+
+# Logs & temp
+*.log
+**/tmp/
+
+# =====================================================================
+# The working tree is the XAMPP htdocs folder, so that deploy.ps1 finds
+# `pspf_crm/` and `IT Access Form/` at the repository root. htdocs also
+# contains XAMPP's own files, live secrets and ad-hoc backups; none of
+# that is application source, and none of it belongs in the repository.
+# =====================================================================
+
+# Live secrets and per-environment config. The deploy pipeline treats
+# these as protected and never overwrites them — each environment keeps
+# its own copy. .env.example IS tracked as the committed template.
+.env
+!.env.example
+pspf_crm/api/db.php
+pspf_crm/api/mail_config.php
+pspf_crm/api/sharepoint_config.php
+pspf_crm/vehicle_booking/mail_inbox_config.php
+
+# XAMPP's own web root — not part of this application.
+xampp/
+dashboard/
+webalizer/
+img/
+mysql_data/
+applications.html
+bitnami.css
+favicon.ico
+/index.php
+
+# Ad-hoc backups, staging copies and archives taken during development.
+*_backup_*/
+_it_access_stage_*/
+*.zip
+
+# Local Docker / orchestration scaffolding (not deployed).
+docker-compose.yml
+Dockerfile
+DOCKER_README.md
+init-db/
+nginx/
+pdf-tool-php/
+pspf_helpdesk/
+logs/
+mail/
+
+# OS noise
+Thumbs.db
+desktop.ini

@@ -1,0 +1,338 @@
+// Shared data, constants, helpers, and state context for the PSPF IT Access prototype.
+
+// The system catalog is managed by a superadmin and served by
+// /pspf_crm/api/it_access/catalog.php. AppShell fetches it on mount and calls
+// setSystemCatalog(), so the list here is only a fallback for the brief moment
+// before that resolves (and for rendering standalone, outside the CRM).
+//
+// Consumers must go through getSystem() / getSystemCatalog() rather than
+// closing over SYSTEM_CATALOG directly, or they will pin the fallback and
+// never see the real catalog.
+let SYSTEM_CATALOG = [
+  {
+    id: "inpensions",
+    name: "INPENSIONS",
+    desc: "Pension member records, contributions, benefit calculations",
+    icon: "shield",
+    roles: ["Capturer", "Viewer", "Authorizer", "Admin"],
+  },
+  {
+    id: "smartstream",
+    name: "SMARTSTREAM / SAGE300",
+    desc: "Financial management & general ledger",
+    icon: "bank",
+    roles: ["Capturer", "Viewer", "Authorizer", "Admin"],
+  },
+  {
+    id: "ad",
+    name: "ACTIVE DIRECTORY & EMAIL ACCESS",
+    desc: "Windows login, Outlook mailbox, Teams, OneDrive",
+    icon: "key",
+    subOptions: { label: "Duration", multi: false, options: ["Normal hours", "After hours"] },
+  },
+  {
+    id: "physical",
+    name: "PHYSICAL ACCESS",
+    desc: "Door and room access",
+    icon: "door",
+    subOptions: [
+      { label: "Room", multi: true, options: ["Server room", "Board room"] },
+      { label: "Duration", multi: false, options: ["Normal hours", "After hours"] },
+    ],
+  },
+  {
+    id: "telephone",
+    name: "TELEPHONE SYSTEM ACCESS",
+    desc: "PABX dialing privileges",
+    icon: "phone",
+    subOptions: { label: "Level", multi: false, options: ["Local", "Cell", "SA", "International"] },
+  },
+  {
+    id: "datastor",
+    name: "DATASTOR ACCESS",
+    desc: "Document management archive",
+    icon: "archive",
+    roles: ["Capturer", "Viewer", "Authorizer", "Admin"],
+    subOptions: { label: "Stor (folder/path)", multi: false, text: true },
+  },
+  {
+    id: "banking",
+    name: "BANKING ACCESS",
+    desc: "Payment processing & reconciliation",
+    icon: "bank",
+    roles: ["Capturer", "Viewer", "Authorizer", "Admin"],
+    subOptions: { label: "Platform", multi: true, options: ["FNB", "STD", "MTN MoMo", "Nedbank", "E-Mali", "Eswatini Bank"] },
+  },
+  {
+    id: "helpdesk",
+    name: "HELPDESK / CRM",
+    desc: "PSPF internal helpdesk and CRM access",
+    icon: "shield-check",
+    roles: ["User", "Agent", "Admin", "Superadmin"],
+    multiRole: true,
+  },
+  {
+    id: "trust",
+    name: "TRUST ACCESS",
+    desc: "Trust fund administration",
+    icon: "scale",
+    roles: ["Capturer", "Viewer", "Authorizer", "Admin"],
+  },
+  {
+    id: "biometric",
+    name: "BIOMETRIC ACCESS",
+    desc: "Biometric device operator access",
+    icon: "key",
+    roles: ["Operator", "Approver", "Admin"],
+  },
+  {
+    id: "other",
+    name: "OTHER SYSTEM",
+    desc: "Any system not listed above",
+    icon: "archive",
+    subOptions: [
+      { label: "System name", multi: false, text: true },
+      { label: "Role / access level", multi: false, text: true },
+    ],
+  },
+];
+
+const DEPARTMENTS = ["Finance", "ICT", "Corporate Services", "Operations", "Internal Auditing", "Investments"];
+
+// Identities always come from the embedding CRM (window.__CRM_USER__) and from
+// each request's server-provided names. These neutral fallbacks exist only so the
+// app does not crash if rendered standalone; no demo personal names are used.
+const PEOPLE = {
+  managers: [{ id: "m1", name: "Requestor", email: "", title: "Requesting Admin", initials: "RA" }],
+  officers: [{ id: "o1", name: "IT Officer", email: "", title: "IT Officer", initials: "IO", isSelf: true }],
+  director: { id: "d1", name: "IT Director", email: "", title: "Director of ICT", initials: "ID" },
+};
+
+function buildSeedRequests() {
+  return [];
+}
+
+// ---------- Helpers ----------
+function fmtDateTime(iso) {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${dd}/${mm}/${yyyy} · ${hh}:${mi}`;
+}
+function fmtDate(iso) {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+function fmtRelative(iso) {
+  if (!iso) return "-";
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 60) return "just now";
+  if (diff < 3600) return Math.floor(diff/60) + "m ago";
+  if (diff < 86400) return Math.floor(diff/3600) + "h ago";
+  return Math.floor(diff/86400) + "d ago";
+}
+
+// Display name of a request's submitter, always from the server-provided
+// submittedByName (saved full name, else email local-part, else username).
+function submitterName(req) {
+  return req.submittedByName || "-";
+}
+
+function getPerson(personId) {
+  if (!personId) return null;
+  if (personId === PEOPLE.director.id) return PEOPLE.director;
+  return [...PEOPLE.managers, ...PEOPLE.officers].find(p => p.id === personId) || null;
+}
+
+// Replace the catalog with the server's copy. Called once by AppShell after
+// catalog.php responds. Ignores an empty/failed response so the fallback above
+// keeps the form usable rather than rendering an empty system list.
+function setSystemCatalog(systems) {
+  if (Array.isArray(systems) && systems.length > 0) {
+    SYSTEM_CATALOG = systems;
+    window.SYSTEM_CATALOG = systems;
+  }
+}
+
+// Always read the catalog through this, never via a captured SYSTEM_CATALOG
+// reference - the binding is reassigned when the server copy arrives.
+function getSystemCatalog() {
+  return SYSTEM_CATALOG;
+}
+
+function getSystem(systemId) {
+  // Fall back to a stub for a system that has since been deleted outright, so
+  // a historical request still renders its id instead of crashing on undefined.
+  return SYSTEM_CATALOG.find(s => s.id === systemId)
+      || { id: systemId, name: systemId, desc: '', icon: 'archive' };
+}
+
+// Resolve how a requested system should be shown, mirroring the PHP
+// itaSystemDisplay(). For the "other" system the requester's typed values
+// REPLACE the generic "OTHER SYSTEM" label: first sub-value = the system's
+// name, second = its role. Free-text answers are stored positionally
+// (sub_0, sub_1, ...) in catalog sub-option order.
+function systemDisplay(s) {
+  const sys = getSystem(s.id);
+  // Ordered list of sub-values, preserving sub_0, sub_1, ... order.
+  const ordered = [];
+  const sv = s.subValues;
+  if (Array.isArray(sv)) {
+    sv.forEach(v => ordered.push(Array.isArray(v) ? v.filter(Boolean).join(", ") : (v == null ? "" : String(v).trim())));
+  } else if (sv && typeof sv === "object") {
+    Object.keys(sv).sort((a, b) => {
+      const na = parseInt((a.match(/\d+$/) || [])[0], 10);
+      const nb = parseInt((b.match(/\d+$/) || [])[0], 10);
+      return (Number.isInteger(na) ? na : 0) - (Number.isInteger(nb) ? nb : 0);
+    }).forEach(k => {
+      const v = sv[k];
+      ordered.push(Array.isArray(v) ? v.filter(Boolean).join(", ") : (v == null ? "" : String(v).trim()));
+    });
+  } else if (typeof sv === "string" && sv) {
+    ordered.push(sv.trim());
+  }
+
+  if (s.id === "other") {
+    const typedName = ordered[0] || "";
+    const typedRole = ordered[1] || "";
+    return {
+      // Uppercase the typed name to match catalog systems (stored uppercase).
+      name:   typedName ? typedName.toUpperCase() : sys.name,
+      role:   typedRole || s.role || "",
+      detail: ordered.slice(2).filter(Boolean).join(" · "),
+      icon:   sys.icon,
+    };
+  }
+  return {
+    name:   sys.name,
+    role:   s.role || "",
+    detail: ordered.filter(Boolean).join(" · "),
+    icon:   sys.icon,
+  };
+}
+
+function statusMeta(status) {
+  switch (status) {
+    case "new":                 return { label: "New",                cls: "badge-blue",  dot: true };
+    case "claimed":             return { label: "Under review",       cls: "badge-blue",  dot: true };
+    case "awaiting-officer-2":  return { label: "Under review",       cls: "badge-blue",  dot: true };
+    case "awaiting-requester":  return { label: "Action needed",      cls: "badge-amber", dot: true };
+    case "awaiting-director":   return { label: "Awaiting director",  cls: "badge-amber", dot: true };
+    case "provisioned":         return { label: "Provisioned",        cls: "badge-green", dot: false };
+    case "rejected":            return { label: "Rejected",           cls: "badge-red",   dot: false };
+    default:                    return { label: status,               cls: "badge-gray",  dot: true };
+  }
+}
+
+// Per-system status label for display (granted/denied/awaiting etc.).
+function sysStatusMeta(s) {
+  switch (sysStatus(s)) {
+    case "actioned": return { label: "Granted",  cls: "badge-green" };
+    case "dropped":  return { label: "Denied",   cls: "badge-gray"  };
+    case "rejected": return { label: "Declined - your response needed", cls: "badge-amber" };
+    case "claimed":  return { label: "Under review", cls: "badge-blue" };
+    default:         return { label: "Pending",  cls: "badge-gray"  };
+  }
+}
+
+// Action chain: Admin -> IT Officer -> Director (single officer sufficient).
+// The person shown for each step is the REAL actor: the request submitter for
+// the manager step, and the actual approver (from the approval record) for the
+// officer/director steps. No demo seed people are used.
+function chainSteps(req) {
+  return [
+    { key: "manager",   label: "Requester",           person: { name: req.submittedByName || "-" } },
+    { key: "officer-1", label: "IT Officer (Action)", person: null },
+    { key: "director",  label: "Director of ICT",     person: null },
+  ].map(step => {
+    const approval = req.approvals.find(a => a.role === step.key);
+    // Once a step has been actioned, show whoever actually actioned it.
+    const person = approval && approval.personName
+      ? { name: approval.personName }
+      : step.person;
+    return { ...step, person, approval };
+  });
+}
+
+// ---- Per-system claim/action helpers ----
+// Each system carries: status ('pending'|'claimed'|'actioned'), claimedBy, actionedBy.
+// Older records without these fields are treated as plain 'pending'.
+function sysStatus(s)  { return s.status || "pending"; }
+
+// Systems still free for any officer to claim.
+function claimableSystems(req) {
+  return (req.systems || []).filter(s => sysStatus(s) === "pending");
+}
+// Systems this officer has claimed but not yet actioned (i.e. needs to sign for).
+function systemsToAction(req, officerId) {
+  return (req.systems || []).filter(s => sysStatus(s) === "claimed" && s.claimedBy === officerId);
+}
+// Can this officer claim anything on this request right now?
+function canOfficerClaim(req) {
+  return ["new", "claimed"].includes(req.status) && claimableSystems(req).length > 0;
+}
+// Does this officer have claimed-but-unactioned systems to sign for?
+function canOfficerSign(req, officerId) {
+  return req.status === "claimed" && systemsToAction(req, officerId).length > 0;
+}
+
+// ---- Partial-rejection (per-system) helpers ----
+// Systems an officer rejected that are now waiting on the requester to accept
+// or appeal. A system can be appealed only once (appealCount < 1).
+function systemsAwaitingRequester(req) {
+  return (req.systems || []).filter(s => sysStatus(s) === "rejected");
+}
+// Does this request need the requester (owner) to respond to any rejection?
+function needsRequesterResponse(req) {
+  return req.status === "awaiting-requester" && systemsAwaitingRequester(req).length > 0;
+}
+// Can this specific rejected system still be appealed, or only accepted?
+function canAppealSystem(s) {
+  return sysStatus(s) === "rejected" && (s.appealCount || 0) < 1;
+}
+
+// What's the next pending step? Single officer sufficient, no officer-2 required.
+function nextStep(req) {
+  if (req.status === "rejected" || req.status === "provisioned") return null;
+  const order = ["manager", "officer-1", "director"];
+  for (const k of order) {
+    if (!req.approvals.find(a => a.role === k && a.action === "approved")) return k;
+  }
+  return null;
+}
+
+// Render a system's sub-values (from list.php) into a compact display string,
+// whatever shape they arrive in: an array (multi-select), a plain string, or an
+// object keyed sub_0/sub_1 (free-text answers, e.g. the "Other" system's name
+// and role). Objects are flattened value-by-value, arrays joined, empties dropped.
+function subValuesLine(subValues) {
+  if (subValues == null) return "";
+  if (Array.isArray(subValues)) return subValues.filter(Boolean).join(", ");
+  if (typeof subValues === "string") return subValues.trim();
+  if (typeof subValues === "object") {
+    return Object.values(subValues)
+      .map(v => Array.isArray(v) ? v.filter(Boolean).join(", ") : (v == null ? "" : String(v).trim()))
+      .filter(Boolean)
+      .join(" · ");
+  }
+  return "";
+}
+
+// Make these globals available to other JSX files.
+Object.assign(window, {
+  subValuesLine, systemDisplay,
+  SYSTEM_CATALOG, DEPARTMENTS, PEOPLE,
+  setSystemCatalog, getSystemCatalog,
+  buildSeedRequests, fmtDateTime, fmtDate, fmtRelative,
+  getPerson, getSystem, statusMeta, sysStatusMeta, chainSteps, nextStep, submitterName,
+  sysStatus, claimableSystems, systemsToAction, canOfficerClaim, canOfficerSign,
+  systemsAwaitingRequester, needsRequesterResponse, canAppealSystem,
+});
