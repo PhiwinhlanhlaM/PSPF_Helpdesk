@@ -20,14 +20,17 @@ require __DIR__ . '/db.php';
 require __DIR__ . '/notification_engine.php'; // loads email_action.php + sendMailTo()
 require __DIR__ . '/graph_client.php';
 
+// Timestamp stamped on every log line so the log shows when each run happened.
+$ts = '[ ' . date('d/m/Y @ H:i') . ']';
+
 // --- Preconditions ---------------------------------------------------------
 if (!function_exists('curl_init')) {
-    fwrite(STDERR, "[vbk] PHP cURL extension is not enabled. Enable extension=curl in php.ini.\n");
+    fwrite(STDERR, "[vbk] PHP cURL extension is not enabled. Enable extension=curl in php.ini. $ts\n");
     exit(1);
 }
 $cfg = emailInboxConfig();
 if (!$cfg || empty($cfg['tenant_id']) || empty($cfg['client_id']) || empty($cfg['client_secret']) || empty($cfg['mailbox'])) {
-    fwrite(STDERR, "[vbk] mail_inbox_config.php is missing Graph settings (tenant_id / client_id / client_secret / mailbox). Copy mail_inbox_config.sample.php and fill it in.\n");
+    fwrite(STDERR, "[vbk] mail_inbox_config.php is missing Graph settings (tenant_id / client_id / client_secret / mailbox). Copy mail_inbox_config.sample.php and fill it in. $ts\n");
     exit(1);
 }
 
@@ -38,7 +41,7 @@ $replyTo = emailActionReplyTo() ?: $mailbox;
 try {
     $token = graphGetToken($cfg);
 } catch (\Throwable $e) {
-    fwrite(STDERR, "[vbk] token error: " . $e->getMessage() . "\n");
+    fwrite(STDERR, "[vbk] token error: " . $e->getMessage() . " $ts\n");
     exit(1);
 }
 
@@ -52,12 +55,12 @@ $list = $base . '/mailFolders/Inbox/messages?'
 try {
     [$code, $data] = graphApi($token, 'GET', $list);
 } catch (\Throwable $e) {
-    fwrite(STDERR, "[vbk] Graph request error: " . $e->getMessage() . "\n");
+    fwrite(STDERR, "[vbk] Graph request error: " . $e->getMessage() . " $ts\n");
     exit(1);
 }
 if ($code !== 200 || !isset($data['value'])) {
     $err = $data['error']['message'] ?? "HTTP $code";
-    fwrite(STDERR, "[vbk] Graph list failed: $err\n");
+    fwrite(STDERR, "[vbk] Graph list failed: $err $ts\n");
     exit(1);
 }
 
@@ -99,7 +102,7 @@ foreach ($data['value'] as $msg) {
     error_log("[vbk] request #{$parsed['request_id']} from {$sender}: {$command['action']} -> {$result['status']}");
 }
 
-echo "[vbk] processed {$processed} reply message(s).\n";
+echo "[vbk] processed {$processed} reply message(s). $ts\n";
 
 // --- Helpers ---------------------------------------------------------------
 
