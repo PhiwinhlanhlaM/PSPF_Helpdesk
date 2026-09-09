@@ -38,7 +38,7 @@ $dashboard = $dashboardMap[$role] ?? 'user_dashboard.php';
                     <a class="nav-link" href="http://hpkprd/pspf_crm/api/signin/index.php"><i class="fa fa-tachometer-alt nav-icon"></i>Helpdesk</a>
                 </li>
 
-                <?php if ($role === 'user'): ?>
+                <?php if ($role === 'user' || $role === 'driver'): ?>
                     <li class="nav-item">
                         <a class="nav-link" href="request_form.php"><i class="fa fa-plus-circle nav-icon"></i>New Request</a>
                     </li>
