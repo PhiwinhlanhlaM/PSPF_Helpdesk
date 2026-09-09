@@ -66,6 +66,10 @@ $approvedStmt = $conn->query("
 	<div class="settings-header">   
           <h1 class="settings-title">Welcome, <?= $_SESSION['name'] ?> (Driver)</h1>
           <div class="settings-actions">
+            <!-- New Request Button -->
+              <a href="request_form.php" class="btn btn-primary">
+                  <i class="fa fa-plus-circle"></i> New Request
+              </a>
             <!-- Back Button -->
               <button onclick="goBack()" class="btn btn-outline-secondary back-btn">
                   <i class="bi bi-arrow-left"></i> Back
