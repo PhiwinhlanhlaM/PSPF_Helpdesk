@@ -35,33 +35,79 @@ reply again.
   replays, stale replies, or two supervisors both replying can't double-action.
 - The real password lives only in `mail_inbox_config.php`, which is git-ignored.
 
-## One-time setup
+## Reading the mailbox: two methods
+
+The mailbox lives in Microsoft 365, which blocks password-based IMAP, so the
+default method is **Graph** (`method => 'graph'`), read over HTTPS with an
+app-only OAuth token. A password-IMAP poller is kept for the case of a local /
+in-house mailbox (`method => 'imap'`).
+
+| | Graph (365) | IMAP (local mailbox) |
+|---|---|---|
+| Poller | `cron_process_email_replies_graph.php` | `cron_process_email_replies.php` |
+| Auth | app-only OAuth token | mailbox password |
+| Needs | Entra app registration | IMAP enabled + reachable |
+| PHP ext | cURL | IMAP |
+
+## One-time setup (Graph / 365)
 
 1. **Database**, create the token table:
    ```sh
    mysql -u root vehicle_requisition < sql/email_action_tokens.sql
    ```
-2. **PHP IMAP extension**, required by the poller:
+2. **Entra app registration** (365 admin) - see the next section. It yields a
+   **tenant ID, client ID, and client secret**.
+3. **PHP cURL extension** enabled (XAMPP: ensure `extension=curl` is on in
+   php.ini, and `curl.cainfo` points at a `cacert.pem` so TLS verification works).
+4. **Config**, copy the sample and fill in the Graph values:
    ```sh
-   # Debian/Ubuntu
-   sudo apt-get install php-imap && sudo phpenmod imap && sudo systemctl restart apache2
+   copy mail_inbox_config.sample.php mail_inbox_config.php
+   # set method=graph, tenant_id, client_id, client_secret, mailbox, reply_to
    ```
-   (On XAMPP/Windows, uncomment `extension=imap` in php.ini and restart Apache.)
-3. **Inbox config**, copy the sample and fill it in:
-   ```sh
-   cp mail_inbox_config.sample.php mail_inbox_config.php
-   # then edit host/port/ssl/username/password for Vehicle.booking@pspf.co.sz
-   ```
-4. **Cron**, run the poller every couple of minutes:
+5. **Schedule** the poller every couple of minutes. On Windows (Task Scheduler),
+   program `C:\xampp\php\php.exe`, arguments the full path to
+   `cron_process_email_replies_graph.php`. On Linux cron:
    ```cron
-   */2 * * * * php /path/to/pspf_crm/vehicle_booking/cron_process_email_replies.php >> /var/log/vbk_email.log 2>&1
+   */2 * * * * php /path/to/vehicle_booking/cron_process_email_replies_graph.php >> /var/log/vbk_email.log 2>&1
    ```
+
+## Microsoft 365 app registration (hand to your 365 / Entra admin)
+
+Standard "let a service read one shared mailbox" pattern:
+
+1. **Entra admin center -> App registrations -> New registration.** Name e.g.
+   `PSPF Vehicle Booking Mail Reader`, single tenant, no redirect URI. Copy the
+   **Application (client) ID** and **Directory (tenant) ID**.
+2. **Certificates & secrets -> New client secret.** Copy the secret **value**
+   (shown once).
+3. **API permissions -> Add -> Microsoft Graph -> Application permissions ->
+   `Mail.ReadWrite`**, then **Grant admin consent**. (ReadWrite so the poller can
+   mark replies read; Mail.Read alone can read but not mark.)
+4. **Restrict the app to only this mailbox** (Exchange Online PowerShell), so it
+   cannot read any other mailbox in the tenant:
+   ```powershell
+   New-DistributionGroup -Name "VBK-MailReader-Scope" -Type Security `
+     -Members Vehicle.booking@pspf.co.sz `
+     -PrimarySmtpAddress vbk-mailreader-scope@pspf.co.sz
+
+   New-ApplicationAccessPolicy -AppId <CLIENT_ID> `
+     -PolicyScopeGroupId vbk-mailreader-scope@pspf.co.sz `
+     -AccessRight RestrictAccess `
+     -Description "Restrict Vehicle Booking app to the booking mailbox only"
+
+   Test-ApplicationAccessPolicy -Identity Vehicle.booking@pspf.co.sz -AppId <CLIENT_ID>  # Granted
+   Test-ApplicationAccessPolicy -Identity anyone.else@pspf.co.sz    -AppId <CLIENT_ID>   # Denied
+   ```
+5. Return **tenant ID, client ID, client secret**, and confirm the mailbox
+   address. No mailbox password is needed.
 
 ## Testing checklist
 
-- [ ] `php -m | grep imap` shows the extension.
-- [ ] Run the poller by hand: `php cron_process_email_replies.php`, it should
-      connect and print `processed 0 reply message(s).`
+- [ ] `php -m` shows `curl` (Graph) or `imap` (IMAP method).
+- [ ] Run the poller by hand: `php cron_process_email_replies_graph.php` (Graph)
+      or `php cron_process_email_replies.php` (IMAP). It should connect and print
+      `processed 0 reply message(s).` A token/permission error here means the app
+      registration or config needs a fix.
 - [ ] Submit a test request -> driver gets an email listing available vehicles.
       Reply `ASSIGN <registration>` -> vehicle is marked allocated, request moves
       to `pending_supervisor`, confirmation comes back.
@@ -81,5 +127,7 @@ reply again.
 | `sql/email_action_tokens.sql` | Token table |
 | `email_action.php` | Token issuing, reply parsing, `applyEmailAction()` |
 | `notification_engine.php` | Emits tokens + `Reply-To` on approval emails |
-| `cron_process_email_replies.php` | IMAP poller |
+| `graph_client.php` | Microsoft Graph token + HTTPS helper (app-only) |
+| `cron_process_email_replies_graph.php` | Graph poller (Microsoft 365) |
+| `cron_process_email_replies.php` | IMAP poller (local mailbox alternative) |
 | `mail_inbox_config.sample.php` | Config template (copy to `mail_inbox_config.php`) |
