@@ -8,7 +8,7 @@ stays internal-only; only email crosses the network boundary. A cron job running
 ## How it works
 
 Every notification email's subject carries a hidden, single-use token:
-`... [VBK-<request_id>-<32 hex>]`. The recipient replies with a one-word command
+`... [VBK-<request_id>-<10-char code>]`. The recipient replies with a one-word command
 on the first line, and `cron_process_email_replies.php` (inside the network)
 polls `Vehicle.booking@pspf.co.sz` over IMAP, matches the token, verifies the
 sender, and runs the **same** DB update + `request_logs` insert + next-stage
