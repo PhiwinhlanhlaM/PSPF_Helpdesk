@@ -147,7 +147,7 @@ function notifyAllDrivers($conn, $subject, $message) {
  */
 function notifyDriversForAssignment($conn, $request_id, $subjectBase, $intro, $requestDetails) {
     $replyTo   = emailActionReplyTo();
-    $available = availableVehiclesHtml($conn);
+    $available = availableVehiclesHtml($conn, (int) $request_id);
     $stmt = $conn->prepare("SELECT user_id, email FROM users WHERE role = 'driver' AND active = 1");
     $stmt->execute();
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $drv) {

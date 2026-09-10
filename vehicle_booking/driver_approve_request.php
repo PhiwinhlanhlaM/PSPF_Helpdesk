@@ -25,27 +25,49 @@ $stmt = $conn->prepare("
 $stmt->execute([$request_id]);
 $request = $stmt->fetch(PDO::FETCH_ASSOC);
 
-// Available vehicles
-$vehicles = $conn->query("SELECT * FROM vehicles")->fetchAll(PDO::FETCH_ASSOC);
+// Only offer vehicles that are free for THIS request's date/time window, so the
+// driver can't pick a car that is already booked for an overlapping trip.
+$vehicles = availableVehiclesForRequest($conn, (int) $request_id);
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $vehicle_id = $_POST['vehicle_id'];
+    $vehicle_id = (int) $_POST['vehicle_id'];
 
-    // Update request: assign driver and vehicle
-    $conn->prepare("
-        UPDATE vehicle_requests
-        SET driver_id = ?, vehicle_id = ?, status = 'pending_supervisor', updated_at = NOW()
-        WHERE request_id = ?
-    ")->execute([$_SESSION['user_id'], $vehicle_id, $request_id]);
+    // Re-check availability and assign in one transaction with the conflicting
+    // allocation rows locked, so a car can never be assigned to two overlapping
+    // requests even if two drivers submit at the same moment.
+    $conn->beginTransaction();
+    try {
+        if (!isVehicleAvailableForRequest($conn, $vehicle_id, (int) $request_id, true)) {
+            $conn->rollBack();
+            $_SESSION['message'] = "That vehicle is no longer available for the requested dates. Please choose another.";
+            $_SESSION['message_type'] = "danger";
+            header("Location: driver_approve_request.php?id=" . urlencode($request_id));
+            exit();
+        }
 
-    // Update vehicle status
-    $conn->prepare("UPDATE vehicles SET status='allocated', updated_at=NOW() WHERE vehicle_id=?")->execute([$vehicle_id]);
+        // Update request: assign driver and vehicle
+        $conn->prepare("
+            UPDATE vehicle_requests
+            SET driver_id = ?, vehicle_id = ?, status = 'pending_supervisor', updated_at = NOW()
+            WHERE request_id = ?
+        ")->execute([$_SESSION['user_id'], $vehicle_id, $request_id]);
 
-    // Log action
-    $conn->prepare("
-        INSERT INTO request_logs (request_id, action_by, action, created_at)
-        VALUES (?, ?, 'Driver approved and assigned vehicle', NOW())
-    ")->execute([$request_id, $_SESSION['user_id']]);
+        // Update vehicle status
+        $conn->prepare("UPDATE vehicles SET status='allocated', updated_at=NOW() WHERE vehicle_id=?")->execute([$vehicle_id]);
+
+        // Log action
+        $conn->prepare("
+            INSERT INTO request_logs (request_id, action_by, action, created_at)
+            VALUES (?, ?, 'Driver approved and assigned vehicle', NOW())
+        ")->execute([$request_id, $_SESSION['user_id']]);
+
+        $conn->commit();
+    } catch (\Throwable $e) {
+        if ($conn->inTransaction()) {
+            $conn->rollBack();
+        }
+        throw $e;
+    }
 
     // Notify supervisor
     sendRequestEmail($conn, $request_id, 'driver_approved');

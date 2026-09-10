@@ -16,6 +16,8 @@
  * time, by which point notification_engine.php has loaded.
  */
 
+require_once __DIR__ . '/vehicle_availability.php';
+
 // How long an emailed approval token stays valid.
 if (!defined('EMAIL_TOKEN_TTL_DAYS')) {
     define('EMAIL_TOKEN_TTL_DAYS', 7);
@@ -326,7 +328,7 @@ function applyDriverEmailAction(PDO $conn, string $token, int $request_id, int $
     if (trim($vehicle) === '') {
         return ['status' => 'need_vehicle', 'message' =>
             "To assign a vehicle to request #{$request_id}, reply with ASSIGN followed by the registration, e.g. ASSIGN SD123AM.<br><br>" .
-            availableVehiclesHtml($conn)];
+            availableVehiclesHtml($conn, $request_id)];
     }
 
     $norm = normaliseRegistration($vehicle);
@@ -342,32 +344,50 @@ function applyDriverEmailAction(PDO $conn, string $token, int $request_id, int $
     if (!$veh) {
         return ['status' => 'vehicle_not_found', 'message' =>
             "We couldn't find a vehicle with registration \"" . htmlspecialchars($vehicle) . "\" for request #{$request_id}.<br><br>" .
-            availableVehiclesHtml($conn)];
-    }
-    if (strtolower((string) $veh['status']) !== 'available') {
-        return ['status' => 'vehicle_unavailable', 'message' =>
-            "Vehicle {$veh['registration']} is not currently available for request #{$request_id}.<br><br>" .
-            availableVehiclesHtml($conn)];
+            availableVehiclesHtml($conn, $request_id)];
     }
 
-    // Everything checks out, claim the token, then assign.
-    if (!markTokenUsed($conn, $token, 'assigned')) {
-        return ['status' => 'already_actioned', 'message' => "Request #{$request_id} has already been actioned. No change was made."];
+    // Availability is decided by the requested date/time window, not the global
+    // status flag: the vehicle must be free for THIS request's window and not
+    // already committed to an overlapping trip. The check and the assignment run
+    // in one transaction with the conflicting rows locked, so two drivers can't
+    // both claim the same car for overlapping windows.
+    $conn->beginTransaction();
+    try {
+        if (!isVehicleAvailableForRequest($conn, (int) $veh['vehicle_id'], $request_id, true)) {
+            $conn->rollBack();
+            return ['status' => 'vehicle_unavailable', 'message' =>
+                "Vehicle {$veh['registration']} is not available for the dates requested on request #{$request_id}. It is already booked for an overlapping period.<br><br>" .
+                availableVehiclesHtml($conn, $request_id)];
+        }
+
+        // Everything checks out, claim the token, then assign.
+        if (!markTokenUsed($conn, $token, 'assigned')) {
+            $conn->rollBack();
+            return ['status' => 'already_actioned', 'message' => "Request #{$request_id} has already been actioned. No change was made."];
+        }
+
+        $conn->prepare("
+            UPDATE vehicle_requests
+            SET driver_id = ?, vehicle_id = ?, status = 'pending_supervisor', updated_at = NOW()
+            WHERE request_id = ?
+        ")->execute([$driver_id, $veh['vehicle_id'], $request_id]);
+
+        $conn->prepare("UPDATE vehicles SET status = 'allocated', updated_at = NOW() WHERE vehicle_id = ?")
+             ->execute([$veh['vehicle_id']]);
+
+        $conn->prepare("
+            INSERT INTO request_logs (request_id, action_by, action, created_at)
+            VALUES (?, ?, ?, NOW())
+        ")->execute([$request_id, $driver_id, $cfg['assign_log']]);
+
+        $conn->commit();
+    } catch (\Throwable $e) {
+        if ($conn->inTransaction()) {
+            $conn->rollBack();
+        }
+        throw $e;
     }
-
-    $conn->prepare("
-        UPDATE vehicle_requests
-        SET driver_id = ?, vehicle_id = ?, status = 'pending_supervisor', updated_at = NOW()
-        WHERE request_id = ?
-    ")->execute([$driver_id, $veh['vehicle_id'], $request_id]);
-
-    $conn->prepare("UPDATE vehicles SET status = 'allocated', updated_at = NOW() WHERE vehicle_id = ?")
-         ->execute([$veh['vehicle_id']]);
-
-    $conn->prepare("
-        INSERT INTO request_logs (request_id, action_by, action, created_at)
-        VALUES (?, ?, ?, NOW())
-    ")->execute([$request_id, $driver_id, $cfg['assign_log']]);
 
     sendRequestEmail($conn, $request_id, $cfg['assign_stage']);
 
@@ -375,12 +395,27 @@ function applyDriverEmailAction(PDO $conn, string $token, int $request_id, int $
 }
 
 /** HTML list of currently available vehicles, for guidance in reply emails. */
-function availableVehiclesHtml(PDO $conn): string
+/**
+ * HTML list of vehicles a driver can validly assign.
+ *
+ * When $request_id is given (the normal case for assignment emails), the list
+ * is limited to vehicles that are free for THAT request's date/time window, so
+ * a driver is only ever offered cars that can actually be booked without
+ * clashing. Without a request id it falls back to the current-status view.
+ */
+function availableVehiclesHtml(PDO $conn, ?int $request_id = null): string
 {
-    $rows = $conn->query("SELECT registration, make, model FROM vehicles WHERE status = 'available' ORDER BY registration")
-                 ->fetchAll(PDO::FETCH_ASSOC);
+    if ($request_id !== null) {
+        $rows = availableVehiclesForRequest($conn, $request_id);
+        $emptyMsg = "There are no vehicles available for the requested date and time.";
+    } else {
+        $rows = $conn->query("SELECT registration, make, model FROM vehicles WHERE status = 'available' ORDER BY registration")
+                     ->fetchAll(PDO::FETCH_ASSOC);
+        $emptyMsg = "There are no available vehicles at the moment.";
+    }
+
     if (!$rows) {
-        return "There are no available vehicles at the moment.";
+        return $emptyMsg;
     }
     $out = "Available vehicles:<br>";
     foreach ($rows as $r) {
