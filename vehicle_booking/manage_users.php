@@ -50,6 +50,7 @@ $users = $conn->query("SELECT * FROM users ORDER BY role, name");
     <a href="admin_dashboard.php" class="btn btn-secondary btn-sm mb-3">← Back</a>
     <a href="add_users.php" class="btn btn-primary mb-3">Add User</a>
 
+    <div class="table-responsive">
     <table class="table table-striped">
         <thead class="table-dark">
             <tr>
@@ -58,30 +59,31 @@ $users = $conn->query("SELECT * FROM users ORDER BY role, name");
                 <th>Department</th>
                 <th>Role</th>
                 <th>Actions</th>
-                <th>Status</th> 
+                <th>Status</th>
             </tr>
         </thead>
         <tbody>
         <?php while($u = $users->fetch(PDO::FETCH_ASSOC)): ?>
             <tr>
                 <td><?= htmlspecialchars($u['name']) ?></td>
-                <td><?= htmlspecialchars($u['email']) ?></td>
+                <td class="cell-truncate" title="<?= htmlspecialchars($u['email']) ?>"><?= htmlspecialchars($u['email']) ?></td>
                 <td><?= htmlspecialchars($u['department']) ?></td>
-                <td><span class="badge bg-info"><?= htmlspecialchars($u['role']) ?></span></td>
-                <td>
+                <td class="col-nowrap"><span class="badge bg-info"><?= htmlspecialchars($u['role']) ?></span></td>
+                <td class="col-nowrap">
                     <a href="edit_users.php?id=<?= $u['user_id'] ?>" class="btn btn-warning btn-sm">Edit</a>
                     <a href="delete_user.php?id=<?= $u['user_id'] ?>" class="btn btn-danger btn-sm"
                        onclick="return confirm('Are you sure you want to deactivate this user?')">Deactivate</a>
                        <a href="delete_user.php?id=<?= $u['user_id'] ?>" class="btn btn-success"
                        onclick="return confirm('Are you sure you want to Activate this user?')">Activate</a>
                 </td>
-                          <td>
+                          <td class="col-nowrap">
     <?= $u['active'] ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Deactivated</span>' ?>
 </td>
             </tr>
         <?php endwhile; ?>
         </tbody>
     </table>
+    </div>
        <!-- Pagination Links -->
     <nav aria-label="Page navigation example">
         <ul class="pagination justify-content-center">

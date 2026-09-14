@@ -109,6 +109,7 @@ foreach ($rows as $row) {
     <?php if (empty($requests)): ?>
         <p>No requests found.</p>
     <?php else: ?>
+        <div class="table-responsive">
         <table>
             <thead>
                 <tr>
@@ -129,9 +130,9 @@ foreach ($rows as $row) {
                     <td><?= htmlspecialchars($m['request_id']) ?></td>
                     <td><?= htmlspecialchars($m['requester_name']) ?></td>
                     <td><?= htmlspecialchars($m['department']) ?></td>
-                    <td><?= htmlspecialchars($m['destination']) ?></td>
-                    <td><?= htmlspecialchars($m['date_required']) ?></td>
-                    <td>
+                    <td class="cell-truncate" title="<?= htmlspecialchars($m['destination']) ?>"><?= htmlspecialchars($m['destination']) ?></td>
+                    <td class="col-nowrap"><?= htmlspecialchars($m['date_required']) ?></td>
+                    <td class="col-nowrap">
                         <span class="status-badge status-<?= strtolower(str_replace('_', '-', $m['status'])) ?>">
                             <?= htmlspecialchars(str_replace('_', ' ', ucfirst($m['status']))) ?>
                         </span>
@@ -147,6 +148,7 @@ foreach ($rows as $row) {
             <?php endforeach; ?>
             </tbody>
         </table>
+        </div>
 
         <!-- Pagination Controls -->
         <div class="pagination-container">

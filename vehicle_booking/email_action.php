@@ -178,10 +178,16 @@ function parseEmailActionBody(string $body): ?array
     return null;
 }
 
-/** Normalise a registration for tolerant matching (drop spaces/dashes, upper-case). */
+/**
+ * Normalise a registration for tolerant matching: drop every character that is
+ * not a letter or digit, then upper-case. This ignores spaces (including the
+ * non-breaking spaces Outlook/Graph HTML replies insert), dashes, dots and any
+ * other punctuation, so "YSD 429 AM", "ysd-429-am" and "YSD429AM" all match the
+ * stored registration regardless of how it was typed or spaced.
+ */
 function normaliseRegistration(string $reg): string
 {
-    return strtoupper(preg_replace('/[\s\-]+/', '', $reg));
+    return strtoupper(preg_replace('/[^A-Za-z0-9]+/', '', $reg));
 }
 
 /**
@@ -329,15 +335,22 @@ function applyDriverEmailAction(PDO $conn, string $token, int $request_id, int $
             availableVehiclesHtml($conn)];
     }
 
+    // Match tolerantly: normalise both the emailed registration and each stored
+    // registration with the SAME function so spacing/punctuation differences can
+    // never cause a miss. A vehicle fleet is small, so scanning all rows is cheap
+    // and far more robust than trying to reproduce the normalisation in SQL.
     $norm = normaliseRegistration($vehicle);
-    $stmt = $conn->prepare("
-        SELECT vehicle_id, registration, status
-        FROM vehicles
-        WHERE UPPER(REPLACE(REPLACE(registration, ' ', ''), '-', '')) = ?
-        LIMIT 1
-    ");
-    $stmt->execute([$norm]);
-    $veh = $stmt->fetch(PDO::FETCH_ASSOC);
+    $veh = null;
+    if ($norm !== '') {
+        $rows = $conn->query("SELECT vehicle_id, registration, status FROM vehicles")
+                     ->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as $candidate) {
+            if (normaliseRegistration((string) $candidate['registration']) === $norm) {
+                $veh = $candidate;
+                break;
+            }
+        }
+    }
 
     if (!$veh) {
         return ['status' => 'vehicle_not_found', 'message' =>
