@@ -25,6 +25,7 @@ $vehicles = $conn->query("SELECT * FROM vehicles ORDER BY status, registration")
     <a href="admin_dashboard.php" class="btn btn-secondary btn-sm mb-3">← Back</a>
     <a href="add_vehicle.php" class="btn btn-primary mb-3">Add Vehicle</a>
 
+    <div class="table-responsive">
     <table class="table table-striped">
         <thead class="table-dark">
             <tr>
@@ -41,12 +42,12 @@ $vehicles = $conn->query("SELECT * FROM vehicles ORDER BY status, registration")
                 <td><?= htmlspecialchars($v['registration']) ?></td>
                 <td><?= htmlspecialchars($v['make']) ?></td>
                 <td><?= htmlspecialchars($v['model']) ?></td>
-                <td>
+                <td class="col-nowrap">
                     <span class="badge bg-<?= $v['status']=='available'?'success':'danger' ?>">
                         <?= ucfirst($v['status']) ?>
                     </span>
                 </td>
-                <td>
+                <td class="col-nowrap">
                     <a href="edit_vehicle.php?id=<?= $v['vehicle_id'] ?>" class="btn btn-warning btn-sm">Edit</a>
                     <a href="delete_vehicle.php?id=<?= $v['vehicle_id'] ?>" class="btn btn-danger btn-sm"
                        onclick="return confirm('Are you sure you want to delete this vehicle?')">Delete</a>
@@ -55,6 +56,7 @@ $vehicles = $conn->query("SELECT * FROM vehicles ORDER BY status, registration")
         <?php endwhile; ?>
         </tbody>
     </table>
+    </div>
 </div>
 </body>
   <?php include '../vehicle_booking/footer.php'; ?>

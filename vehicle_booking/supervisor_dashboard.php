@@ -94,6 +94,7 @@ $statusBadge = [
     <?php if (empty($pendingRows)): ?>
         <div class="alert alert-info">No requests currently awaiting your approval.</div>
     <?php else: ?>
+    <div class="table-responsive">
     <table class="table table-striped table-hover">
         <thead class="table-dark">
             <tr>
@@ -110,12 +111,12 @@ $statusBadge = [
             <?php foreach ($pendingRows as $req): ?>
             <tr>
                 <td><?= htmlspecialchars($req['requester_name']) ?></td>
-                <td><?= htmlspecialchars($req['destination']) ?></td>
-                <td><?= htmlspecialchars($req['date_required']) ?></td>
-                <td><?= htmlspecialchars($req['time_required']) ?></td>
+                <td class="cell-truncate" title="<?= htmlspecialchars($req['destination']) ?>"><?= htmlspecialchars($req['destination']) ?></td>
+                <td class="col-nowrap"><?= htmlspecialchars($req['date_required']) ?></td>
+                <td class="col-nowrap"><?= htmlspecialchars($req['time_required']) ?></td>
                 <td><?= htmlspecialchars($req['registration'] ?? '—') ?></td>
-                <td><?= htmlspecialchars($req['purpose']) ?></td>
-                <td class="text-center">
+                <td class="cell-truncate" title="<?= htmlspecialchars($req['purpose']) ?>"><?= htmlspecialchars($req['purpose']) ?></td>
+                <td class="text-center col-nowrap">
                     <button type="button" class="btn btn-outline-primary btn-sm"
                             data-bs-toggle="modal" data-bs-target="#requestModal<?= $req['request_id'] ?>"
                             title="View & action request">
@@ -126,6 +127,7 @@ $statusBadge = [
             <?php endforeach; ?>
         </tbody>
     </table>
+    </div>
 
     <!-- ── Request detail / action modals ─────────────────────────────── -->
     <?php foreach ($pendingRows as $req): ?>
@@ -183,6 +185,7 @@ $statusBadge = [
         Awaiting Driver Confirmation
         <span class="badge bg-secondary ms-2"><?= count($driverRows) ?></span>
     </h4>
+    <div class="table-responsive">
     <table class="table table-bordered">
         <thead class="table-dark">
             <tr>
@@ -197,14 +200,15 @@ $statusBadge = [
             <?php foreach ($driverRows as $req): ?>
             <tr>
                 <td><?= htmlspecialchars($req['requester_name']) ?></td>
-                <td><?= htmlspecialchars($req['destination']) ?></td>
-                <td><?= htmlspecialchars($req['date_required']) ?></td>
-                <td><?= htmlspecialchars($req['purpose']) ?></td>
-                <td><span class="badge bg-secondary">Waiting for driver</span></td>
+                <td class="cell-truncate" title="<?= htmlspecialchars($req['destination']) ?>"><?= htmlspecialchars($req['destination']) ?></td>
+                <td class="col-nowrap"><?= htmlspecialchars($req['date_required']) ?></td>
+                <td class="cell-truncate" title="<?= htmlspecialchars($req['purpose']) ?>"><?= htmlspecialchars($req['purpose']) ?></td>
+                <td class="col-nowrap"><span class="badge bg-secondary">Waiting for driver</span></td>
             </tr>
             <?php endforeach; ?>
         </tbody>
     </table>
+    </div>
     <?php endif; ?>
 
     <!-- ── Processed requests ─────────────────────────────────────────── -->
@@ -213,6 +217,7 @@ $statusBadge = [
     <?php if (empty($processedRows)): ?>
         <div class="alert alert-secondary">No processed requests yet.</div>
     <?php else: ?>
+    <div class="table-responsive">
     <table class="table table-bordered">
         <thead class="table-dark">
             <tr>
@@ -227,10 +232,10 @@ $statusBadge = [
             <?php foreach ($processedRows as $r): ?>
             <tr>
                 <td><?= htmlspecialchars($r['requester_name']) ?></td>
-                <td><?= htmlspecialchars($r['destination']) ?></td>
-                <td><?= htmlspecialchars($r['date_required']) ?></td>
+                <td class="cell-truncate" title="<?= htmlspecialchars($r['destination']) ?>"><?= htmlspecialchars($r['destination']) ?></td>
+                <td class="col-nowrap"><?= htmlspecialchars($r['date_required']) ?></td>
                 <td><?= htmlspecialchars($r['registration'] ?? '—') ?></td>
-                <td>
+                <td class="col-nowrap">
                     <span class="badge bg-<?= $statusBadge[$r['status']] ?? 'secondary' ?>">
                         <?= str_replace('_', ' ', $r['status']) ?>
                     </span>
@@ -239,6 +244,7 @@ $statusBadge = [
             <?php endforeach; ?>
         </tbody>
     </table>
+    </div>
     <?php endif; ?>
 
 </div>

@@ -345,7 +345,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
         <button class="btn btn-danger" onclick="exportPDF()">Export to PDF</button>
     </div>
 
-    <div id="reportTable"></div>
+    <div id="reportTable" class="table-responsive"></div>
     <div id="totalsSection" class="mt-4"></div>
 </div>
 

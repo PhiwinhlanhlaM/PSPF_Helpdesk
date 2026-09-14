@@ -108,9 +108,9 @@ $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <?php foreach ($requests as $req): ?>
                 <tr>
                     <td><?= $req['request_id'] ?></td>
-                    <td><?= date('Y-m-d', strtotime($req['created_at'])) ?></td>
-                    <td><?= htmlspecialchars($req['purpose']) ?></td>
-                    <td><?= htmlspecialchars($req['destination']) ?></td>
+                    <td class="col-nowrap"><?= date('Y-m-d', strtotime($req['created_at'])) ?></td>
+                    <td class="cell-truncate" title="<?= htmlspecialchars($req['purpose']) ?>"><?= htmlspecialchars($req['purpose']) ?></td>
+                    <td class="cell-truncate" title="<?= htmlspecialchars($req['destination']) ?>"><?= htmlspecialchars($req['destination']) ?></td>
                     <td><?= $req['registration'] ?? 'Pending Allocation' ?></td>
                     <td>
                         <button type="button" class="btn btn-outline-primary btn-sm mb-2"

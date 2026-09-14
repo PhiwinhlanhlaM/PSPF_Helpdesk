@@ -752,7 +752,11 @@ body {
     padding: 10px 12px !important;
     border-bottom: 1px solid rgba(0,0,0,0.04) !important;
     vertical-align: middle !important;
-    white-space: nowrap !important;
+    /* Allow long text to wrap instead of forcing a single line
+       (which pushed tables off-screen and required scrolling right). */
+    white-space: normal !important;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 .table-universal tbody tr { transition: background 0.12s ease, transform 0.12s ease }
 .table-universal tbody tr:nth-child(odd) { background: rgba(61,92,128,0.04) }
@@ -779,10 +783,35 @@ body {
 .badge-approved { background: var(--info); color: #000 }
 .badge-rejected { background: var(--danger); color: #fff }
 
+/* ── Tidy tables: clamp long free-text columns, avoid horizontal scroll ──── */
+/* Truncate long description / free-text cells (e.g. Purpose, Destination) to a
+   single line with an ellipsis so tables stay compact and readable. The full
+   text is always available through the row's "View" (eye) button and on hover
+   via the cell's title tooltip. The extra selectors raise specificity so this
+   wins over the .table-universal td wrapping rule above. */
+td.cell-truncate,
+.table-universal td.cell-truncate {
+    max-width: 240px;
+    white-space: nowrap !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Columns that should always stay on one line (dates, status, actions). */
+td.col-nowrap,
+th.col-nowrap,
+.table-universal td.col-nowrap,
+.table-universal th.col-nowrap {
+    white-space: nowrap !important;
+    word-break: normal;
+}
+
 /* Small responsive adjustments */
 @media (max-width: 768px) {
     .table-universal th, .table-universal td { padding: 8px 10px }
     .navbar-brand span { font-size: 13px }
+    td.cell-truncate,
+    .table-universal td.cell-truncate { max-width: 140px; }
 }
 
 /* End universal overrides */

@@ -68,6 +68,7 @@ $stmtProcessed = $conn->query("
         <div class="card-header card-color text-white d-flex justify-content-between align-items-center">
     	<h4>Pending Final Approvals</h4>
 	</div>
+    <div class="table-responsive">
     <table class="table table-striped">
         <thead class="table-dark">
             <tr>
@@ -85,9 +86,9 @@ $stmtProcessed = $conn->query("
                 <td><?= htmlspecialchars($req['requester_name']) ?></td>
                 <td><?= htmlspecialchars($req['department']) ?></td>
                 <td><?= htmlspecialchars($req['registration']) ?></td>
-                <td><?= htmlspecialchars($req['destination']) ?></td>
-                <td><?= htmlspecialchars($req['date_required']) ?></td>
-                <td class="text-center">
+                <td class="cell-truncate" title="<?= htmlspecialchars($req['destination']) ?>"><?= htmlspecialchars($req['destination']) ?></td>
+                <td class="col-nowrap"><?= htmlspecialchars($req['date_required']) ?></td>
+                <td class="text-center col-nowrap">
                     <button type="button" class="btn btn-outline-primary btn-sm"
                             data-bs-toggle="modal" data-bs-target="#requestModal<?= $req['request_id'] ?>"
                             title="View & action request">
@@ -98,6 +99,7 @@ $stmtProcessed = $conn->query("
             <?php endforeach; ?>
         </tbody>
     </table>
+    </div>
 
     <!-- ── Request detail / action modals ─────────────────────────────── -->
     <?php foreach ($pendingRows as $req): ?>
@@ -158,6 +160,7 @@ $stmtProcessed = $conn->query("
         <div class="card-header card-color text-white d-flex justify-content-between align-items-center">
     <h4>Processed Requests</h4>
 </div>
+    <div class="table-responsive">
     <table class="table table-bordered">
         <thead class="table-dark">
             <tr>
@@ -172,8 +175,8 @@ $stmtProcessed = $conn->query("
             <tr>
                 <td><?= htmlspecialchars($r['requester_name']) ?></td>
                 <td><?= htmlspecialchars($r['registration']) ?></td>
-                <td><?= htmlspecialchars($r['destination']) ?></td>
-                <td>
+                <td class="cell-truncate" title="<?= htmlspecialchars($r['destination']) ?>"><?= htmlspecialchars($r['destination']) ?></td>
+                <td class="col-nowrap">
                     <span class="badge bg-<?= $r['status']=='approved'?'success':'danger' ?>">
                         <?= ucfirst($r['status']) ?>
                     </span>
@@ -182,7 +185,8 @@ $stmtProcessed = $conn->query("
             <?php endwhile; ?>
         </tbody>
     </table>
-</div>  
+    </div>
+</div>
 </div> 
 </div>  
 </div> 

@@ -86,6 +86,7 @@ $approvedStmt = $conn->query("
 		</div>
         
         <div class="card-body">
+    <div class="table-responsive">
     <table class="table table-striped table-hover">
         <thead class="table-dark">
             <tr>
@@ -102,10 +103,10 @@ $approvedStmt = $conn->query("
             <tr>
                 <td><?= htmlspecialchars($req['requester_name']) ?></td>
                 <td><?= htmlspecialchars($req['department']) ?></td>
-                <td><?= htmlspecialchars($req['destination']) ?></td>
-                <td><?= htmlspecialchars($req['date_required']) ?></td>
-                <td><?= htmlspecialchars($req['purpose']) ?></td>
-                <td class="text-center">
+                <td class="cell-truncate" title="<?= htmlspecialchars($req['destination']) ?>"><?= htmlspecialchars($req['destination']) ?></td>
+                <td class="col-nowrap"><?= htmlspecialchars($req['date_required']) ?></td>
+                <td class="cell-truncate" title="<?= htmlspecialchars($req['purpose']) ?>"><?= htmlspecialchars($req['purpose']) ?></td>
+                <td class="text-center col-nowrap">
                     <button type="button" class="btn btn-outline-primary btn-sm"
                             data-bs-toggle="modal" data-bs-target="#requestModal<?= $req['request_id'] ?>"
                             title="View & action request">
@@ -116,6 +117,7 @@ $approvedStmt = $conn->query("
             <?php endforeach; ?>
         </tbody>
     </table>
+    </div>
 
     <!-- ── Request detail / action modals ─────────────────────────────── -->
     <?php foreach ($pendingRows as $req): ?>
@@ -190,6 +192,7 @@ $approvedStmt = $conn->query("
 		</div>
 
 	<div class="card-body">
+    	<div class="table-responsive">
     		<table class="table table-bordered">
         	<thead class="table-dark">
             	<tr>
@@ -205,14 +208,15 @@ $approvedStmt = $conn->query("
             <tr>
                 <td><?= htmlspecialchars($row['requester_name']) ?></td>
                 <td><?= htmlspecialchars($row['registration'] ?? 'Not Assigned') ?></td>
-                <td><?= htmlspecialchars($row['destination']) ?></td>
-                <td><?= htmlspecialchars($row['date_required']) ?></td>
-                <td><span class="badge bg-warning"><?= $row['status'] ?></span></td>
+                <td class="cell-truncate" title="<?= htmlspecialchars($row['destination']) ?>"><?= htmlspecialchars($row['destination']) ?></td>
+                <td class="col-nowrap"><?= htmlspecialchars($row['date_required']) ?></td>
+                <td class="col-nowrap"><span class="badge bg-warning"><?= $row['status'] ?></span></td>
 
             </tr>
             <?php endwhile; ?>
         </tbody>
     </table>
+    </div>
 </div>
 </div>
 </div>
