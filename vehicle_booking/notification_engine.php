@@ -104,7 +104,7 @@ function formatRequestDetails($request) {
         $details .= "<strong>Assigned Vehicle:</strong> {$vehicleLabel} ({$request['vehicle_registration']})<br>";
 
         if (!empty($request['driver_name'])) {
-            $details .= "<strong>Assigned Driver:</strong> {$request['driver_name']}<br>";
+            $details .= "<strong>Assigned By:</strong> {$request['driver_name']}<br>";
         }
     }
 
@@ -142,8 +142,8 @@ function notifyAllDrivers($conn, $subject, $message) {
  * Notify every active driver that a new request needs a vehicle assigned,
  * giving each their own reply-by-email token. The driver replies
  * "ASSIGN <registration>" (or "REJECT <reason>") from anywhere; the first to
- * assign wins and the request moves to supervisor approval. The email lists the
- * currently available vehicles so the driver knows which registrations are valid.
+ * assign wins and the request moves to supervisor approval. The email lists all
+ * vehicles on record so the driver knows which registrations are valid.
  */
 function notifyDriversForAssignment($conn, $request_id, $subjectBase, $intro, $requestDetails) {
     $replyTo   = emailActionReplyTo();
