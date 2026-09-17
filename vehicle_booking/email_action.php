@@ -390,12 +390,12 @@ function applyDriverEmailAction(PDO $conn, string $token, int $request_id, int $
 /** HTML list of currently available vehicles, for guidance in reply emails. */
 function availableVehiclesHtml(PDO $conn): string
 {
-    $rows = $conn->query("SELECT registration, make, model FROM vehicles WHERE status = 'available' ORDER BY registration")
+    $rows = $conn->query("SELECT registration, make, model FROM vehicles ORDER BY registration")
                  ->fetchAll(PDO::FETCH_ASSOC);
     if (!$rows) {
-        return "There are no available vehicles at the moment.";
+        return "There are no vehicles on record at the moment.";
     }
-    $out = "Available vehicles:<br>";
+    $out = "Vehicles:<br>";
     foreach ($rows as $r) {
         $label = trim("{$r['make']} {$r['model']}");
         $out .= "&nbsp;&nbsp;&bull; <strong>{$r['registration']}</strong>" . ($label !== '' ? " ({$label})" : '') . "<br>";
