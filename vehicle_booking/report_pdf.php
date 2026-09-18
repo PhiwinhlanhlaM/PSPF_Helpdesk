@@ -44,6 +44,11 @@ if (!empty($_GET['vehicle_id'])) {
     $params[] = $_GET['vehicle_id'];
 }
 
+if (!empty($_GET['status'])) {
+    $where[] = "vr.status = ?";
+    $params[] = $_GET['status'];
+}
+
 if (isset($_GET['mileage_min']) && $_GET['mileage_min'] !== '') {
     $where[] = "vr.mileage_out >= ?";
     $params[] = $_GET['mileage_min'];
@@ -74,7 +79,7 @@ $totalMileage = 0;
 $html = "<h3>Transport Report</h3><table border='1' width='100%' cellspacing='0' cellpadding='5'>
 <tr>
 <th>Date</th><th>Requester</th><th>Department</th><th>Destination</th>
-<th>Vehicle</th><th>Mileage In</th><th>Mileage Out</th><th>Trip Mileage</th>
+<th>Vehicle</th><th>Status</th><th>Mileage In</th><th>Mileage Out</th><th>Trip Mileage</th>
 </tr>";
 
 while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
@@ -87,6 +92,7 @@ while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
         <td>{$r['department']}</td>
         <td>{$r['destination']}</td>
         <td>{$r['registration']}</td>
+        <td>{$r['status']}</td>
         <td>{$r['mileage_in']}</td>
         <td>{$r['mileage_out']}</td>
         <td>{$trip}</td>
@@ -94,7 +100,7 @@ while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
 }
 
 $html .= "<tr>
-<td colspan='7'><strong>Total Mileage</strong></td>
+<td colspan='8'><strong>Total Mileage</strong></td>
 <td><strong>{$totalMileage} km</strong></td>
 </tr></table>";
 

@@ -34,6 +34,10 @@ function buildFilters(array $source, array &$params): array {
         $where[] = "vr.vehicle_id = ?";
         $params[] = $source['vehicle_id'];
     }
+    if (!empty($source['status'])) {
+        $where[] = "vr.status = ?";
+        $params[] = $source['status'];
+    }
     if (isset($source['mileage_min']) && $source['mileage_min'] !== '') {
         $where[] = "vr.mileage_out >= ?";
         $params[] = $source['mileage_min'];
@@ -73,6 +77,7 @@ echo "<table border='1'>
 <th>Department</th>
 <th>Destination</th>
 <th>Vehicle</th>
+<th>Status</th>
 <th>Mileage In</th>
 <th>Mileage Out</th>
 <th>Trip Mileage</th>
@@ -90,6 +95,7 @@ foreach ($rows as $r) {
         <td>{$r['department']}</td>
         <td>{$r['destination']}</td>
         <td>{$r['registration']}</td>
+        <td>{$r['status']}</td>
         <td>{$r['mileage_in']}</td>
         <td>{$r['mileage_out']}</td>
         <td>{$trip}</td>
@@ -97,7 +103,7 @@ foreach ($rows as $r) {
 }
 
 echo "<tr>
-    <td colspan='7'><strong>Total Mileage</strong></td>
+    <td colspan='8'><strong>Total Mileage</strong></td>
     <td><strong>{$totalMileage}</strong></td>
 </tr>";
 
