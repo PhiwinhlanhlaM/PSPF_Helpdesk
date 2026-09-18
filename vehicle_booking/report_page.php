@@ -138,6 +138,11 @@ function buildFilters(array $source, array &$params): array {
         $params[] = $source['vehicle_id'];
     }
 
+    if (!empty($source['status'])) {
+        $where[] = "vr.status = ?";
+        $params[] = $source['status'];
+    }
+
     if (($source['mileage_min'] ?? '') !== '') {
         $where[] = "vr.mileage_out >= ?";
         $params[] = $source['mileage_min'];
@@ -157,6 +162,16 @@ function buildFilters(array $source, array &$params): array {
 $vehicles = $conn->query(
     "SELECT vehicle_id, registration FROM vehicles ORDER BY registration ASC"
 )->fetchAll(PDO::FETCH_ASSOC);
+
+/**
+ * Distinct trip statuses actually present in the data, so the driver can
+ * filter the report (and its exports) by status — e.g. only "Completed"
+ * trips for a monthly report. Populated from the table so it always
+ * reflects the real values regardless of casing.
+ */
+$statuses = $conn->query(
+    "SELECT DISTINCT status FROM vehicle_requests WHERE status IS NOT NULL AND status <> '' ORDER BY status ASC"
+)->fetchAll(PDO::FETCH_COLUMN);
 
 /**
  * Canonical department list (must match the booking form).
@@ -327,6 +342,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                     <option value="">All Vehicles</option>
                     <?php foreach ($vehicles as $v): ?>
                         <option value="<?= htmlspecialchars($v['vehicle_id'], ENT_QUOTES) ?>"><?= htmlspecialchars($v['registration'], ENT_QUOTES) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label>Status</label>
+                <select name="status" class="form-control">
+                    <option value="">All Statuses</option>
+                    <?php foreach ($statuses as $s): ?>
+                        <option value="<?= htmlspecialchars($s, ENT_QUOTES) ?>"><?= htmlspecialchars($s, ENT_QUOTES) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
