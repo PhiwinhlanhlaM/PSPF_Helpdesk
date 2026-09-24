@@ -52,40 +52,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Change Password</title>
-
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="../vehicle_booking/style5.css" rel="stylesheet">
-
-    <style>
-        body {
-            background: linear-gradient(135deg, #3D5C80 0%, #7FC8F8 100%);
-            font-family: 'Titillium Web', sans-serif;
-        }
-        .change-card {
-            background: #fff;
-            border-radius: 15px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-            padding: 30px;
-            margin-top: 12%;
-        }
-        .btn-primary {
-            background-color: #F6AE2D;
-            border-color: #F6AE2D;
-            font-weight: 600;
-        }
-        .btn-primary:hover {
-            background-color: #C62E65;
-            border-color: #C62E65;
-        }
-    </style>
+    <?php $pageTitle = 'Change Password'; $legacyCss = false; require __DIR__ . '/partials/head.php'; ?>
 </head>
-<body>
+<body class="vb-auth">
 
 <div class="container">
     <div class="row justify-content-center">
-        <div class="col-md-5">
+        <div class="col-sm-10 col-md-7 col-lg-5 col-xl-4">
             <div class="change-card">
                 <h4 class="text-center mb-3">Change Your Password</h4>
                 <p class="text-muted text-center">

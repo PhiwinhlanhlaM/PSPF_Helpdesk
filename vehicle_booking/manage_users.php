@@ -38,10 +38,7 @@ $users = $conn->query("SELECT * FROM users ORDER BY role, name");
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Manage Users</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-        <link href="../vehicle_booking/style5.css" rel="stylesheet">
+    <?php $pageTitle = 'Manage Users'; require __DIR__ . '/partials/head.php'; ?>
 </head>
 <body>
 <?php include '../vehicle_booking/navbar.php'; ?>
@@ -103,6 +100,6 @@ $users = $conn->query("SELECT * FROM users ORDER BY role, name");
         </ul>
     </nav>
 </div>
-</body>
 <?php include '../vehicle_booking/footer.php'; ?>
+</body>
 </html>

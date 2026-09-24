@@ -28,10 +28,7 @@ exit();
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Add User</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-        <link href="../vehicle_booking/style5.css" rel="stylesheet">
+    <?php $pageTitle = 'Add User'; require __DIR__ . '/partials/head.php'; ?>
 </head>
 <body>
 <?php include '../vehicle_booking/navbar.php'; ?>
@@ -68,6 +65,6 @@ exit();
     </form>
 </div>
 
-</body>
 <?php include '../vehicle_booking/footer.php'; ?>
+</body>
 </html>

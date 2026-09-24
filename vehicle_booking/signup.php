@@ -68,172 +68,29 @@ exit();
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign Up - Vehicle Booking System</title>
-    
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@300;400;600&display=swap" rel="stylesheet">
-    <link href="../vehicle_booking/style5.css" rel="stylesheet">
-    
+    <?php $pageTitle = 'Sign Up'; $legacyCss = false; require __DIR__ . '/partials/head.php'; ?>
     <style>
-        body {
-            background: linear-gradient(135deg, #3D5C80 0%, #7FC8F8 100%);
-            font-family: 'Titillium Web', sans-serif;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .signup-container {
-            width: 100%;
-            max-width: 500px;
-            padding: 20px;
-        }
-        
-        .signup-card {
-            background: #fff;
-            border-radius: 15px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-            padding: 40px;
-            transition: transform 0.3s ease;
-        }
-        
-        .signup-card:hover {
-            transform: translateY(-5px);
-        }
-        
-        .signup-header {
-            text-align: center;
-            color: #3D5C80;
-            font-weight: 600;
-            margin-bottom: 30px;
-            font-size: 28px;
-        }
-        
-        .subheader {
-            text-align: center;
-            color: #666;
-            margin-bottom: 25px;
-            font-size: 14px;
-        }
-        
-        .form-label {
-            color: #3D5C80;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-        
-        .form-control {
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 10px 15px;
-            font-size: 14px;
-            transition: border-color 0.3s;
-        }
-        
-        .form-control:focus {
-            border-color: #3D5C80;
-            box-shadow: 0 0 0 0.2rem rgba(61, 92, 128, 0.15);
-        }
-        
-        .btn-signup {
-            background-color: #F6AE2D;
-            border: none;
-            color: white;
-            font-weight: 600;
-            padding: 12px;
-            border-radius: 8px;
-            width: 100%;
-            margin-top: 20px;
-            transition: background-color 0.3s;
-        }
-        
-        .btn-signup:hover {
-            background-color: #C62E65;
-            color: white;
-        }
-        
-        .login-link {
-            text-align: center;
-            margin-top: 20px;
-            font-size: 14px;
-            color: #666;
-        }
-        
-        .login-link a {
-            color: #3D5C80;
-            text-decoration: none;
-            font-weight: 600;
-            transition: color 0.3s;
-        }
-        
-        .login-link a:hover {
-            color: #C62E65;
-        }
-        
-        .alert {
-            border-radius: 8px;
-            border: none;
-            padding: 12px 15px;
-            margin-bottom: 20px;
-            font-size: 14px;
-        }
-        
-        .alert-danger {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-        
-        .alert-success {
-            background-color: #d4edda;
-            color: #155724;
-        }
-        
-        .footer {
-            text-align: center;
-            margin-top: 30px;
-            color: white;
-            font-size: 12px;
-        }
-        
+        .signup-container { width: 100%; max-width: 480px; }
+        .subheader { text-align: center; color: var(--ink-500); margin-bottom: 1.5rem; font-size: .92rem; }
+        .login-link { text-align: center; margin-top: 1.25rem; font-size: .9rem; color: var(--ink-500); }
         .password-requirements {
             font-size: 13px;
             margin-top: 10px;
             padding: 12px;
-            background-color: #f8f9fa;
-            border-radius: 6px;
-            border-left: 4px solid #e0e0e0;
+            background-color: var(--ink-50);
+            border-radius: 8px;
+            border-left: 4px solid var(--ink-200);
         }
-        
-        .password-requirement-item {
-            margin: 6px 0;
-            display: flex;
-            align-items: center;
-            color: #d32f2f;
-            font-size: 12px;
-        }
-        
-        .password-requirement-item.met {
-            color: #388e3c;
-        }
-        
-        .requirement-icon {
-            margin-right: 8px;
-            font-weight: bold;
-        }
-        
-        .requirement-icon.met {
-            content: '✓';
-        }
+        .password-requirement-item { margin: 6px 0; display: flex; align-items: center; color: #c92a2a; font-size: 12px; }
+        .password-requirement-item.met { color: #15915a; }
+        .requirement-icon { margin-right: 8px; font-weight: bold; }
     </style>
 </head>
-<body>
+<body class="vb-auth">
 
 <div class="signup-container">
     <div class="signup-card">
-        <h2 class="signup-header">Create Account</h2>
+        <h2 class="signup-header text-center mb-2">Create Account</h2>
         <p class="subheader">Join the Vehicle Booking System</p>
         
         <?php if (!empty($error)): ?>
@@ -304,7 +161,7 @@ exit();
                 <input type="password" name="confirm_password" class="form-control" placeholder="Confirm your password" required>
             </div>
             
-            <button type="submit" class="btn btn-signup">Create Account</button>
+            <button type="submit" class="btn btn-signup w-100 mt-3">Create Account</button>
         </form>
         
         <div class="login-link">

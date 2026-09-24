@@ -1,32 +1,21 @@
 <?php
-if (!isset($_SESSION)) { session_start(); }
+if (session_status() === PHP_SESSION_NONE) { session_start(); }
 
 // fallback name if no user info is available
-$displayName = $_SESSION['username'] 
-    ?? $_SESSION['name'] 
-    ?? $_SESSION['user_id'] 
+$displayName = $_SESSION['username']
+    ?? $_SESSION['name']
+    ?? $_SESSION['user_id']
     ?? 'Guest';
 ?>
-<footer class="footer">
-    <div class="footer-container">
+<footer class="footer vb-footer">
+    <div class="footer-container container">
+        <p>&copy; <?= date('Y') ?> PSPF Transport Booking &middot; Version 1.0.0</p>
 
-        <div class="logout-link">
-            <p>&copy; <?= date('Y') ?> PSPF Transport booking Form. All rights reserved.</p>
+        <?php if (isset($_SESSION['user_id'])): ?>
             <p>
-                Version 1.0.0
+                Logged in as <?= htmlspecialchars($displayName) ?>
+                &middot; <a href="logout.php">Logout</a>
             </p>
-
-            <?php if (isset($_SESSION['user_id'])): ?>
-                <p>
-                    <small>
-                        Logged in as <?= htmlspecialchars($displayName) ?> 
-                        | <a href="logout.php">Logout</a>
-                    </small>
-                </p>
-            <?php endif; ?>
-        </div>
-
-        
-
+        <?php endif; ?>
     </div>
 </footer>

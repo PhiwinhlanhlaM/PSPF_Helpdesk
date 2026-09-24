@@ -170,63 +170,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Login - Vehicle Booking System</title>
-
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@300;400;600&display=swap" rel="stylesheet">
-  <link href="../vehicle_booking/style.css" rel="stylesheet">
-
-  <style>
-    body {
-      background: linear-gradient(135deg, #3D5C80 0%, #7FC8F8 100%);
-      font-family: 'Titillium Web', sans-serif;
-    }
-    .login-card {
-      background: #fff;
-      border-radius: 15px;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-      padding: 30px;
-      margin-top: 10%;
-      transition: transform 0.3s ease;
-    }
-    .login-card:hover {
-      transform: translateY(-5px);
-    }
-    .login-header {
-      text-align: center;
-      color: #3D5C80;
-      font-weight: 600;
-      margin-bottom: 20px;
-    }
-    .btn-primary {
-      background-color: #F6AE2D;
-      border-color: #F6AE2D;
-      font-weight: 600;
-    }
-    .btn-primary:hover {
-      background-color: #C62E65;
-      border-color: #C62E65;
-    }
-    .footer {
-      text-align: center;
-      margin-top: 40px;
-      color: white;
-      font-size: 14px;
-    }
-    .form-label {
-      color: #3D5C80;
-      font-weight: 600;
-    }
-  </style>
+    <?php $pageTitle = 'Login'; $legacyCss = false; require __DIR__ . '/partials/head.php'; ?>
 </head>
-<body>
+<body class="vb-auth">
 
 <div class="container">
   <div class="row justify-content-center">
-    <div class="col-md-5">
+    <div class="col-sm-10 col-md-7 col-lg-5 col-xl-4">
       <div class="login-card">
-        <h3 class="login-header">Vehicle Booking System</h3>
+        <div class="vb-auth-brand">
+          <img src="PSPFlogo.png" alt="PSPF">
+          <h1>Transport Booking</h1>
+          <p>Sign in with your PSPF email to continue</p>
+        </div>
 
         <?php if (isset($_GET['timeout'])): ?>
           <div class="alert alert-warning">Your session expired due to inactivity. Please log in again.</div>
@@ -255,14 +211,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           </div>
 
           <button class="btn btn-primary w-100 mt-2" type="submit">
-            Login
+            Sign in
           </button>
         </form>
 
-        <hr style="margin: 20px 0; border: 1px solid #ddd;">
+        <hr class="my-4">
 
-        <div style="text-align: center; font-size: 14px; color: #666;">
-          Don't have an account? <a href="signup.php" style="color: #3D5C80; font-weight: 600; text-decoration: none;">Sign up here</a>
+        <div class="auth-switch text-center small text-muted">
+          Don't have an account? <a href="signup.php">Sign up here</a>
         </div>
       </div>
 

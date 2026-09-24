@@ -57,14 +57,10 @@ $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>My Vehicle Requests</title>
-
+    <?php $pageTitle = 'My Vehicle Requests'; require __DIR__ . '/partials/head.php'; ?>
     <!-- Bootstrap -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <!-- Custom Styles -->
-    <link href="../vehicle_booking/style5.css" rel="stylesheet">
 </head>
 
 <body class="page-bg bg-user">
@@ -231,7 +227,6 @@ $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <?php endif; ?>
 
 </div>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <?php if (!empty($activeEscalations)): ?>
 <div class="modal fade" id="escalationModal" tabindex="-1">
   <div class="modal-dialog modal-lg">
@@ -247,7 +242,7 @@ $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <strong>Request #<?= $e['request_id'] ?></strong><br>
                 Destination: <?= htmlspecialchars($e['destination']) ?><br>
                 Expected Return Date: <?= $e['expected_return_date'] ?><br><br>
-                <a href="return_vehicle.php?id=<?= $e['request_id'] ?>" 
+                <a href="return_form.php?id=<?= $e['request_id'] ?>" 
                    class="btn btn-danger btn-sm">
                    Submit Return Form
                 </a>
