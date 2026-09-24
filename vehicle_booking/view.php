@@ -10,10 +10,6 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'viewer') {
 }
 
 require_once 'db.php';
-// Optional site navbar if present
-if (file_exists(__DIR__ . '/navbar.php')) {
-    include 'navbar.php';
-}
 
 // Fetch requests and their logs (include user names and vehicle registration)
 $sql = "SELECT vr.*, 
@@ -73,11 +69,7 @@ foreach ($rows as $row) {
 <!doctype html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Request Logs - Viewer</title>
-    <link rel="stylesheet" href="style5.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <?php $pageTitle = 'Request Logs'; require __DIR__ . '/partials/head.php'; ?>
     <style>
         table { border-collapse: collapse; width: 100%; margin-top: 20px; }
         th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
@@ -102,6 +94,7 @@ foreach ($rows as $row) {
     </style>
 </head>
 <body>
+<?php include __DIR__ . '/navbar.php'; ?>
 <div class="container mt-5">
     <h2>Vehicle Request History</h2>
     <p class="small">Showing all requests. Click the 📋 icon to view full details and status trail.</p>
@@ -173,8 +166,6 @@ foreach ($rows as $row) {
         </div>
     </div>
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     const rowsPerPage = 8;
     let currentPage = 1;
@@ -263,6 +254,6 @@ foreach ($rows as $row) {
         modal.show();
     }
 </script>
-</body>
 <?php include '../vehicle_booking/footer.php'; ?>
+</body>
 </html>

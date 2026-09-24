@@ -40,10 +40,7 @@ $stmtProcessed = $conn->query("
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>HRM Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-        <link href="../vehicle_booking/style5.css" rel="stylesheet">
+    <?php $pageTitle = 'HRM Dashboard'; require __DIR__ . '/partials/head.php'; ?>
 </head>
 
 
@@ -190,9 +187,7 @@ $stmtProcessed = $conn->query("
 </div> 
 </div>  
 </div> 
-</body>
 <?php include '../vehicle_booking/footer.php'; ?>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
 
@@ -247,4 +242,5 @@ document.addEventListener("DOMContentLoaded", function () {
 </script>
 
 
+</body>
 </html>

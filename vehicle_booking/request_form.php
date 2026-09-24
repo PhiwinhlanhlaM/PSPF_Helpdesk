@@ -59,12 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Vehicle Request Form</title>
-
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="../vehicle_booking/style5.css" rel="stylesheet">
-
+    <?php $pageTitle = 'Vehicle Request Form'; require __DIR__ . '/partials/head.php'; ?>
 </head>
 <body class="bg-light">
 

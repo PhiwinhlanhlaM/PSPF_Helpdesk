@@ -13,10 +13,7 @@ $vehicles = $conn->query("SELECT * FROM vehicles ORDER BY status, registration")
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Manage Vehicles</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-        <link href="../vehicle_booking/style5.css" rel="stylesheet">
+    <?php $pageTitle = 'Manage Vehicles'; require __DIR__ . '/partials/head.php'; ?>
 </head>
 <body>
 <?php include '../vehicle_booking/navbar.php'; ?>
@@ -58,6 +55,6 @@ $vehicles = $conn->query("SELECT * FROM vehicles ORDER BY status, registration")
     </table>
     </div>
 </div>
-</body>
   <?php include '../vehicle_booking/footer.php'; ?>
+</body>
 </html>

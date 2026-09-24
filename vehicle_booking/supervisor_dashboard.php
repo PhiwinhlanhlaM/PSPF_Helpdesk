@@ -69,10 +69,7 @@ $statusBadge = [
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Supervisor Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="../vehicle_booking/style5.css" rel="stylesheet">
+    <?php $pageTitle = 'Supervisor Dashboard'; require __DIR__ . '/partials/head.php'; ?>
 </head>
 <body class="bg-light">
 <?php include '../vehicle_booking/navbar.php'; ?>
@@ -248,8 +245,6 @@ $statusBadge = [
     <?php endif; ?>
 
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     const rowsPerPage = 8;
