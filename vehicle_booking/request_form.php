@@ -4,7 +4,8 @@ require_once __DIR__ . '/session_timeout.php';
 require '../vehicle_booking/db.php';
 require '../vehicle_booking/notification_engine.php';
 
-if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['user', 'driver'], true)) {
+// Any signed-in staff role may raise a vehicle request.
+if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['user', 'driver', 'supervisor', 'hrm', 'admin'], true)) {
     header("Location: ../vehicle_booking/login.php");
     exit();
 }
@@ -50,7 +51,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Send notification to driver, all supervisors, and requester
     sendRequestEmail($conn, $request_id, 'request_submitted');
 
-    $redirect = ($_SESSION['role'] === 'driver') ? 'driver_dashboard.php' : 'user_dashboard.php';
+    $dashboards = [
+        'user'       => 'user_dashboard.php',
+        'driver'     => 'driver_dashboard.php',
+        'supervisor' => 'supervisor_dashboard.php',
+        'hrm'        => 'hrm_dashboard.php',
+        'admin'      => 'admin_dashboard.php',
+    ];
+    $redirect = $dashboards[$_SESSION['role']] ?? 'user_dashboard.php';
     echo "<script>alert('Vehicle request submitted successfully!'); window.location='$redirect';</script>";
     exit();
 }
