@@ -43,9 +43,14 @@ $total_pages = ceil($total_records / $records_per_page);
    FETCH PAGINATED RECORDS
 --------------------------------*/
 $stmt = $conn->prepare("
-    SELECT vr.*, v.registration
+    SELECT vr.*,
+           v.registration,
+           v.make  AS vehicle_make,
+           v.model AS vehicle_model,
+           d.name  AS driver_name
     FROM vehicle_requests vr
     LEFT JOIN vehicles v ON vr.vehicle_id = v.vehicle_id
+    LEFT JOIN users d ON d.user_id = vr.driver_id
     WHERE vr.requester_id = ?
     ORDER BY vr.created_at DESC
     LIMIT $records_per_page OFFSET $offset
@@ -171,6 +176,25 @@ $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
     ];
     foreach ($requests as $req):
         [$badgeColor, $badgeText] = $statusLabels[$req['status']] ?? ['light text-dark', 'Unknown'];
+
+        // Vehicle label: "Make Model (REG)" once assigned, else pending.
+        $vehicleLabel = trim(($req['vehicle_make'] ?? '') . ' ' . ($req['vehicle_model'] ?? ''));
+        if (!empty($req['registration'])) {
+            $vehicleLabel = $vehicleLabel !== '' ? "$vehicleLabel ({$req['registration']})" : $req['registration'];
+        }
+        if ($vehicleLabel === '') { $vehicleLabel = 'Pending Allocation'; }
+
+        // Trip completion figures (populated once the vehicle is returned / closed).
+        $isCompleted = ($req['status'] === 'closed') || !empty($req['actual_return_date']);
+        $duration = 'N/A';
+        if (!empty($req['time_out']) && !empty($req['time_in'])) {
+            $tOut = DateTime::createFromFormat('H:i:s', $req['time_out']) ?: DateTime::createFromFormat('H:i', $req['time_out']);
+            $tIn  = DateTime::createFromFormat('H:i:s', $req['time_in'])  ?: DateTime::createFromFormat('H:i', $req['time_in']);
+            if ($tOut && $tIn) { $duration = $tOut->diff($tIn)->format('%h hrs %i mins'); }
+        }
+        $distance = (is_numeric($req['mileage_in']) && is_numeric($req['mileage_out']))
+            ? ((int) $req['mileage_in'] - (int) $req['mileage_out']) . ' km'
+            : 'N/A';
     ?>
     <div class="modal fade" id="requestModal<?= $req['request_id'] ?>" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -189,9 +213,27 @@ $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
               <div class="col-md-6"><small class="text-muted">Date Required</small><div class="fw-semibold"><?= htmlspecialchars($req['date_required']) ?></div></div>
               <div class="col-md-6"><small class="text-muted">Time Required</small><div class="fw-semibold"><?= htmlspecialchars($req['time_required']) ?></div></div>
               <div class="col-md-6"><small class="text-muted">Expected Return</small><div class="fw-semibold"><?= htmlspecialchars($req['expected_return_date']) ?></div></div>
-              <div class="col-md-6"><small class="text-muted">Assigned Vehicle</small><div class="fw-semibold"><?= htmlspecialchars($req['registration'] ?? 'Pending Allocation') ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Assigned Vehicle</small><div class="fw-semibold"><?= htmlspecialchars($vehicleLabel) ?></div></div>
               <div class="col-md-6"><small class="text-muted">Date Requested</small><div class="fw-semibold"><?= htmlspecialchars(date('Y-m-d', strtotime($req['created_at']))) ?></div></div>
+              <?php if (!empty($req['driver_name'])): ?>
+              <div class="col-md-6"><small class="text-muted">Driver</small><div class="fw-semibold"><?= htmlspecialchars($req['driver_name']) ?></div></div>
+              <?php endif; ?>
             </div>
+
+            <?php if ($isCompleted): ?>
+            <hr class="my-3">
+            <h6 class="text-muted text-uppercase small mb-2"><i class="fa fa-flag-checkered me-1"></i>Trip Completion</h6>
+            <div class="row g-3">
+              <div class="col-md-6"><small class="text-muted">Time Out</small><div class="fw-semibold"><?= htmlspecialchars($req['time_out'] ?: 'N/A') ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Time In</small><div class="fw-semibold"><?= htmlspecialchars($req['time_in'] ?: 'N/A') ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Duration</small><div class="fw-semibold"><?= htmlspecialchars($duration) ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Actual Return</small><div class="fw-semibold"><?= htmlspecialchars($req['actual_return_date'] ?: 'N/A') ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Mileage Out</small><div class="fw-semibold"><?= is_numeric($req['mileage_out']) ? htmlspecialchars($req['mileage_out']) . ' km' : 'N/A' ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Mileage In</small><div class="fw-semibold"><?= is_numeric($req['mileage_in']) ? htmlspecialchars($req['mileage_in']) . ' km' : 'N/A' ?></div></div>
+              <div class="col-md-6"><small class="text-muted">Distance Travelled</small><div class="fw-semibold"><?= htmlspecialchars($distance) ?></div></div>
+            </div>
+            <?php endif; ?>
+
             <?php if ($req['status'] === 'rejected' && !empty($req['rejection_reason'])): ?>
             <div class="alert alert-danger mt-3 mb-0">
               <strong>Rejection Reason:</strong> <?= htmlspecialchars($req['rejection_reason']) ?>
