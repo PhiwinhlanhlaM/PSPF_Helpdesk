@@ -25,7 +25,7 @@ $roleLabels = [
 // Links shown in the bar: [href, icon, label, roles allowed (null = everyone)]
 $navLinks = [
     [$dashboard,           'fa-house',        'Dashboard',   null],
-    ['request_form.php',   'fa-circle-plus',  'New Request', ['user', 'driver']],
+    ['request_form.php',   'fa-circle-plus',  'New Request', ['user', 'driver', 'supervisor', 'hrm', 'admin']],
     ['manage_users.php',   'fa-users',        'Users',       ['admin']],
     ['manage_vehicles.php','fa-car',          'Vehicles',    ['admin']],
     ['report_page.php',    'fa-chart-line',   'Report',      ['driver', 'admin']],
