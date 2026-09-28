@@ -1,6 +1,8 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) { session_start(); }
+require_once __DIR__ . '/superuser.php';
 $role = $_SESSION['role'] ?? '';
+$isSuperuser = vbIsSuperuser();
 
 // Determine dashboard based on role
 $dashboardMap = [
@@ -25,7 +27,8 @@ $roleLabels = [
 // Links shown in the bar: [href, icon, label, roles allowed (null = everyone)]
 $navLinks = [
     [$dashboard,           'fa-house',        'Dashboard',   null],
-    ['request_form.php',   'fa-circle-plus',  'New Request', ['user', 'driver', 'supervisor', 'hrm', 'admin']],
+    // Superusers can always raise their own requests, whichever view they're in.
+    ['request_form.php',   'fa-circle-plus',  'New Request', $isSuperuser ? null : ['user', 'driver', 'supervisor', 'hrm', 'admin']],
     ['manage_users.php',   'fa-users',        'Users',       ['admin']],
     ['manage_vehicles.php','fa-car',          'Vehicles',    ['admin']],
     ['report_page.php',    'fa-chart-line',   'Report',      ['driver', 'admin']],
@@ -62,12 +65,33 @@ $userName    = $_SESSION['name'] ?? '';
                     </li>
                 <?php endforeach; ?>
 
+                <?php if ($isSuperuser): ?>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fa fa-repeat nav-icon"></i>Switch View
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><h6 class="dropdown-header">IT Superuser: view as</h6></li>
+                            <?php foreach (VB_SUPERUSER_VIEWS as $viewRole => [$viewHref, $viewLabel]): ?>
+                                <li>
+                                    <form method="post" action="switch_role.php">
+                                        <input type="hidden" name="view" value="<?= htmlspecialchars($viewRole) ?>">
+                                        <button type="submit" class="dropdown-item<?= $viewRole === $role ? ' active' : '' ?>">
+                                            <?= htmlspecialchars($viewLabel) ?>
+                                        </button>
+                                    </form>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </li>
+                <?php endif; ?>
+
                 <?php if ($userName !== ''): ?>
                     <li class="nav-item nav-user d-flex align-items-center">
                         <span class="nav-user-avatar" aria-hidden="true"><?= htmlspecialchars(strtoupper(mb_substr($userName, 0, 1))) ?></span>
                         <span class="nav-user-text">
                             <span class="nav-user-name"><?= htmlspecialchars($userName) ?></span>
-                            <span class="nav-user-role"><?= htmlspecialchars($roleLabels[$role] ?? ucfirst($role)) ?></span>
+                            <span class="nav-user-role"><?= htmlspecialchars(($isSuperuser ? 'IT Superuser · ' : '') . ($roleLabels[$role] ?? ucfirst($role))) ?></span>
                         </span>
                     </li>
                 <?php endif; ?>

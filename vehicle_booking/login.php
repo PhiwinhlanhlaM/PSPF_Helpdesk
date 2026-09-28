@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once __DIR__ . '/superuser.php';
 
 // ══════════════════════════════════════════════════════════════════
 //  AUTO-LOGIN via SSO cookie set by the CRM on login
@@ -32,6 +33,7 @@ if (!isset($_SESSION['user_id']) && !isset($_GET['logout']) && !isset($_GET['tim
                 $_SESSION['role']       = $vr_user['role'];
                 $_SESSION['email']      = $hd_email;
                 $_SESSION['department'] = $vr_user['department'];
+                vbStartSuperuserSession();
 
                 if ($vr_user['password_reset_required'] == 1) {
                     header("Location: force_change_password.php");
@@ -47,7 +49,7 @@ if (!isset($_SESSION['user_id']) && !isset($_GET['logout']) && !isset($_GET['tim
                     'viewer'     => 'view.php',
                 ];
 
-                header("Location: " . ($dashboards[$vr_user['role']] ?? 'login.php'));
+                header("Location: " . ($dashboards[$_SESSION['role']] ?? 'login.php'));
                 exit();
             }
 
@@ -139,13 +141,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['role']       = $vr_user['role'];
                     $_SESSION['email']      = $hd_user['Email'];
                     $_SESSION['department'] = $vr_user['department'];
+                    vbStartSuperuserSession();
 
                     if ($vr_user['password_reset_required'] == 1) {
                         header("Location: force_change_password.php");
                         exit();
                     }
 
-                    switch ($vr_user['role']) {
+                    switch ($_SESSION['role']) {
                         case 'user':        header("Location: user_dashboard.php");       break;
                         case 'driver':      header("Location: driver_dashboard.php");     break;
                         case 'supervisor':  header("Location: supervisor_dashboard.php"); break;

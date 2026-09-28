@@ -55,6 +55,7 @@ exit();
                 <option value="supervisor">Supervisor</option>
                 <option value="hrm">HRM</option>
                 <option value="admin">Admin</option>
+                <option value="superuser">IT Superuser (can switch between all dashboards)</option>
             </select>
         </div>
         <div class="mb-3">
