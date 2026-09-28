@@ -301,13 +301,12 @@ function applyEmailAction(PDO $conn, string $token, string $senderEmail, string 
 }
 
 /**
- * Apply a driver's emailed decision: assign a named vehicle (which also confirms
- * availability and moves the request to pending_supervisor) or reject it.
+ * Apply a driver's emailed decision: assign a named vehicle (which moves the
+ * request to pending_supervisor) or reject it.
  * Mirrors driver_approve_request.php / driver_reject_request.php.
  *
- * The vehicle is validated BEFORE the token is consumed, so a mistyped or
- * unavailable registration leaves the token usable and the driver can simply
- * reply again.
+ * The vehicle is looked up BEFORE the token is consumed, so a mistyped
+ * registration leaves the token usable and the driver can simply reply again.
  */
 function applyDriverEmailAction(PDO $conn, string $token, int $request_id, int $driver_id, array $cfg, string $action, string $reason, string $vehicle): array
 {
@@ -357,11 +356,9 @@ function applyDriverEmailAction(PDO $conn, string $token, int $request_id, int $
             "We couldn't find a vehicle with registration \"" . htmlspecialchars($vehicle) . "\" for request #{$request_id}.<br><br>" .
             availableVehiclesHtml($conn)];
     }
-    if (strtolower((string) $veh['status']) !== 'available') {
-        return ['status' => 'vehicle_unavailable', 'message' =>
-            "Vehicle {$veh['registration']} is not currently available for request #{$request_id}.<br><br>" .
-            availableVehiclesHtml($conn)];
-    }
+    // No status check: like the dashboard (driver_approve_request.php), any
+    // vehicle on record can be assigned. A vehicle stays 'allocated' until its
+    // return form is filled in, so that flag doesn't mean it's busy right now.
 
     // Everything checks out, claim the token, then assign.
     if (!markTokenUsed($conn, $token, 'assigned')) {
