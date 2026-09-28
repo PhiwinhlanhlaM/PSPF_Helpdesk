@@ -92,6 +92,7 @@ if (!empty($_POST['new_password']) || !empty($_POST['confirm_password'])) {
                     <option value="supervisor" <?= $user['role']=='supervisor'?'selected':'' ?>>Supervisor</option>
                     <option value="hrm" <?= $user['role']=='hrm'?'selected':'' ?>>HRM</option>
                     <option value="admin" <?= $user['role']=='admin'?'selected':'' ?>>Admin</option>
+                    <option value="superuser" <?= $user['role']=='superuser'?'selected':'' ?>>IT Superuser (can switch between all dashboards)</option>
                 </select>
             </div>
             <div class="mb-3">

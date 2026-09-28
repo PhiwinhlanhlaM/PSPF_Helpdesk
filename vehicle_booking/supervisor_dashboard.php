@@ -17,7 +17,13 @@ if (isset($_SESSION['message'])) {
     unset($_SESSION['message'], $_SESSION['message_type']);
 }
 
-$department = $_SESSION['department'] ?? '';
+require_once __DIR__ . '/superuser.php';
+
+// An IT superuser in the Supervisor view sees every department.
+$allDepartments = vbIsSuperuser();
+$department = $allDepartments ? 'All departments' : ($_SESSION['department'] ?? '');
+$deptFilter = $allDepartments ? '' : 'AND vr.department = ?';
+$deptArgs   = $allDepartments ? [] : [$department];
 
 // ── Requests awaiting THIS supervisor's action ─────────────────────────────
 $stmtPending = $conn->prepare("
@@ -26,10 +32,10 @@ $stmtPending = $conn->prepare("
     JOIN users u ON vr.requester_id = u.user_id
     LEFT JOIN vehicles v ON vr.vehicle_id = v.vehicle_id
     WHERE vr.status = 'pending_supervisor'
-      AND vr.department = ?
+      $deptFilter
     ORDER BY vr.date_required ASC
 ");
-$stmtPending->execute([$department]);
+$stmtPending->execute($deptArgs);
 $pendingRows = $stmtPending->fetchAll(PDO::FETCH_ASSOC);
 
 // ── Requests still waiting for driver confirmation (awareness only) ────────
@@ -38,10 +44,10 @@ $stmtDriver = $conn->prepare("
     FROM vehicle_requests vr
     JOIN users u ON vr.requester_id = u.user_id
     WHERE vr.status = 'pending_driver'
-      AND vr.department = ?
+      $deptFilter
     ORDER BY vr.date_required ASC
 ");
-$stmtDriver->execute([$department]);
+$stmtDriver->execute($deptArgs);
 $driverRows = $stmtDriver->fetchAll(PDO::FETCH_ASSOC);
 
 // ── Already processed requests ────────────────────────────────────────────
@@ -51,10 +57,10 @@ $stmtProcessed = $conn->prepare("
     JOIN users u ON vr.requester_id = u.user_id
     LEFT JOIN vehicles v ON vr.vehicle_id = v.vehicle_id
     WHERE vr.status IN ('pending_hrm', 'approved', 'rejected', 'completed')
-      AND vr.department = ?
+      $deptFilter
     ORDER BY vr.updated_at DESC
 ");
-$stmtProcessed->execute([$department]);
+$stmtProcessed->execute($deptArgs);
 $processedRows = $stmtProcessed->fetchAll(PDO::FETCH_ASSOC);
 
 $statusBadge = [
