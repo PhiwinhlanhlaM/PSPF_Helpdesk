@@ -432,10 +432,6 @@ function sendVehicleReturnEmail($conn, $request_id) {
         <hr>
         <h4>Trip Details</h4>
         <strong>Requester:</strong> {$data['requester_name']}<br>
-<<<<<<< HEAD
-=======
-        <strong>Driver:</strong> {$data['driver_name']}<br>
->>>>>>> 7e8c421bc28497e02f6e1ab9ba45cfe346dabfd7
         <strong>Vehicle:</strong> {$data['vehicle_name']} ({$data['registration_number']})<br>
         <strong>Destination:</strong> {$data['destination']}<br>
         <strong>Purpose:</strong> {$data['purpose']}<br>

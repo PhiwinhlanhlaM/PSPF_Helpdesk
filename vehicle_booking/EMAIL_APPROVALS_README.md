@@ -20,12 +20,11 @@ email that the dashboard buttons run.
 | `pending_supervisor` | Dept supervisors | `APPROVE` or `REJECT <reason>` |
 | `pending_hrm` | HRM | `APPROVE` or `REJECT <reason>` |
 
-The driver's email lists the currently **available** vehicles so they know which
-registrations are valid. `ASSIGN` also confirms the vehicle is free, marks it
+The driver's email lists all vehicles so they know which registrations are
+valid. `ASSIGN` accepts any vehicle on record (whatever its status), marks it
 `allocated`, records the driver, and moves the request to supervisor approval -
-exactly as the dashboard does. A mistyped or unavailable registration gets a
-reply with the valid list and the token stays usable, so the driver can just
-reply again.
+exactly as the dashboard does. A mistyped registration gets a reply with the
+vehicle list and the token stays usable, so the driver can just reply again.
 
 ### Security
 - The **token** is the anchor: single-use, tied to one approver + one stage,
@@ -108,10 +107,11 @@ Standard "let a service read one shared mailbox" pattern:
       or `php cron_process_email_replies.php` (IMAP). It should connect and print
       `processed 0 reply message(s).` A token/permission error here means the app
       registration or config needs a fix.
-- [ ] Submit a test request -> driver gets an email listing available vehicles.
+- [ ] Submit a test request -> driver gets an email listing all vehicles.
       Reply `ASSIGN <registration>` -> vehicle is marked allocated, request moves
-      to `pending_supervisor`, confirmation comes back.
-- [ ] Reply `ASSIGN <bad reg>` -> get the available-vehicle list back and the
+      to `pending_supervisor`, confirmation comes back. This works even when the
+      vehicle is already `allocated`.
+- [ ] Reply `ASSIGN <bad reg>` -> get the vehicle list back and the
       token still works (reply again with a valid one).
 - [ ] Reply `APPROVE` from the supervisor's address -> request moves to
       `pending_hrm`.
