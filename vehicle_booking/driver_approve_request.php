@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/trip_helpers.php';
 session_start();
 require_once __DIR__ . '/session_timeout.php';
 require '../vehicle_booking/db.php';
@@ -44,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Log action
     $conn->prepare("
         INSERT INTO request_logs (request_id, action_by, action, created_at)
-        VALUES (?, ?, 'Driver approved and assigned vehicle', NOW())
+        VALUES (?, ?, 'Vehicle assigned to request', NOW())
     ")->execute([$request_id, $_SESSION['user_id']]);
 
     // Notify supervisor
@@ -93,7 +94,7 @@ $request = $stmt->fetch(PDO::FETCH_ASSOC);
         <form method="POST">
             <div class="mb-3">
                 <label>Requester</label>
-                <input type="text" class="form-control" value="<?= htmlspecialchars($request['requester_name']) ?>" readonly>
+                <input type="text" class="form-control" value="<?= htmlspecialchars(vbName($request['requester_name'])) ?>" readonly>
             </div>
             <div class="mb-3">
                 <label>Department</label>

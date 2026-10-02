@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/trip_helpers.php';
 session_start();
 require_once __DIR__ . '/session_timeout.php';
 require '../vehicle_booking/db.php';
@@ -76,7 +77,7 @@ $request = $stmt->fetch(PDO::FETCH_ASSOC);
         <p><strong>Time Required:</strong> <?= htmlspecialchars($request['time_required']) ?></p>
         <p><strong>Passengers:</strong> <?= htmlspecialchars($request['passengers']) ?></p> 
         <p><strong>Department:</strong> <?= htmlspecialchars($request['department']) ?></p>
-        <p><strong>Requested By:</strong> <?= htmlspecialchars($request['requester_name']) ?></p>
+        <p><strong>Requested By:</strong> <?= htmlspecialchars(vbName($request['requester_name'])) ?></p>
         <div class="mb-3">
             <button type="submit" name="action" value="approve" class="btn btn-success">Approve</button>
             <button type="button" class="btn btn-danger" data-bs-toggle="collapse" data-bs-target="#rejectReason">Reject</button>

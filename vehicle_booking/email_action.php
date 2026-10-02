@@ -53,9 +53,9 @@ function emailActionStageConfig(): array
         // uses expected_status / reject_* from here.
         'driver' => [
             'expected_status' => 'pending_driver',
-            'reject_log'      => 'Driver rejected request (via email)',
+            'reject_log'      => 'Request rejected at vehicle assignment (via email)',
             'reject_stage'    => 'driver_rejected',
-            'assign_log'      => 'Driver approved and assigned vehicle (via email)',
+            'assign_log'      => 'Vehicle assigned to request (via email)',
             'assign_stage'    => 'driver_approved',
             'label'           => 'Driver',
         ],

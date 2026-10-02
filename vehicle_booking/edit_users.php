@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/trip_helpers.php';
 session_start();
 require_once __DIR__ . '/session_timeout.php';
 require '../vehicle_booking/db.php';
@@ -68,7 +69,7 @@ if (!empty($_POST['new_password']) || !empty($_POST['confirm_password'])) {
 
 <div class="container mt-5">
     <div class="card p-4 shadow">
-        <h4>Edit User - <?= htmlspecialchars($user['name']) ?></h4>
+        <h4>Edit User - <?= htmlspecialchars(vbName($user['name'])) ?></h4>
         <?php if (!empty($success)): ?><div class="alert alert-success"><?= $success ?></div><?php endif; ?>
         <?php if (!empty($reset_msg)): ?><div class="alert alert-info"><?= $reset_msg ?></div><?php endif; ?>
 <?php if (!empty($error)): ?>

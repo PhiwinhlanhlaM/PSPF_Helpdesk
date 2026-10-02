@@ -1,5 +1,6 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) { session_start(); }
+require_once __DIR__ . '/trip_helpers.php';
 
 // fallback name if no user info is available
 $displayName = $_SESSION['username']
@@ -13,7 +14,7 @@ $displayName = $_SESSION['username']
 
         <?php if (isset($_SESSION['user_id'])): ?>
             <p>
-                Logged in as <?= htmlspecialchars($displayName) ?>
+                Logged in as <?= htmlspecialchars(vbName((string)$displayName)) ?>
                 &middot; <a href="logout.php">Logout</a>
             </p>
         <?php endif; ?>

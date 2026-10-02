@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/trip_helpers.php';
 session_start();
 require_once __DIR__ . '/session_timeout.php';
 require '../vehicle_booking/db.php';
@@ -70,7 +71,7 @@ exit();
         <p>Are you sure you want to <strong><?= strtolower($actionType) ?></strong> this user?</p>
 
         <ul class="list-group mb-3">
-            <li class="list-group-item"><strong>Name:</strong> <?= htmlspecialchars($user['name']) ?></li>
+            <li class="list-group-item"><strong>Name:</strong> <?= htmlspecialchars(vbName($user['name'])) ?></li>
             <li class="list-group-item"><strong>Email:</strong> <?= htmlspecialchars($user['email']) ?></li>
             <li class="list-group-item"><strong>Department:</strong> <?= htmlspecialchars($user['department']) ?></li>
             <li class="list-group-item"><strong>Role:</strong> <?= htmlspecialchars($user['role']) ?></li>

@@ -68,14 +68,14 @@ try {
             <thead>
                 <tr>
                     <th>Request ID</th>
-                    <th>Requester</th>
+                    <th>Requester (Driver)</th>
                     <th>Department</th>
                     <th>Destination</th>
                     <th>Date Required</th>
                     <th>Time Required</th>
                     <th>Status</th>
                     <th>Vehicle</th>
-                    <th>Driver</th>
+                    <th>Vehicle Assigned By</th>
                     <th>Details</th>
                 </tr>
             </thead>
@@ -83,14 +83,14 @@ try {
             <?php foreach ($requests as $m): ?>
                 <tr class="request-row" data-request-id="<?= (int)$m['request_id'] ?>">
                     <td><?= htmlspecialchars($m['request_id']) ?></td>
-                    <td><?= htmlspecialchars($m['requester_name'] ?? '') ?></td>
+                    <td><?= htmlspecialchars(vbName($m['requester_name'] ?? '')) ?></td>
                     <td><?= htmlspecialchars($m['department'] ?? '') ?></td>
                     <td class="cell-truncate" title="<?= htmlspecialchars($m['destination']) ?>"><?= htmlspecialchars($m['destination']) ?></td>
                     <td class="col-nowrap"><?= htmlspecialchars($m['date_required']) ?></td>
                     <td class="col-nowrap"><?= htmlspecialchars(vbTime($m['time_required'])) ?></td>
                     <td class="col-nowrap"><?= vbStatusBadge($m) ?></td>
                     <td><?= htmlspecialchars($m['vehicle_registration'] ?? '') ?></td>
-                    <td><?= htmlspecialchars($m['driver_name'] ?? '') ?></td>
+                    <td><?= htmlspecialchars(vbName($m['driver_name'] ?? '')) ?></td>
                     <td style="text-align: center;">
                         <button type="button" class="btn btn-link p-0 details-icon text-decoration-none"
                                 onclick="vbShowRequestDetails(<?= (int)$m['request_id'] ?>)" title="View full details and history">

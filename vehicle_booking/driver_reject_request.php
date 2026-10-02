@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Log action
     $conn->prepare("
         INSERT INTO request_logs (request_id, action_by, action, created_at)
-        VALUES (?, ?, 'Driver rejected request', NOW())
+        VALUES (?, ?, 'Request rejected at vehicle assignment', NOW())
     ")->execute([$request_id, $_SESSION['user_id']]);
 
     // Notify requester
