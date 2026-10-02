@@ -33,7 +33,7 @@ echo "<table border='1'>
 <th>Request #</th>
 <th>Date Required</th>
 <th>Time Required</th>
-<th>Requester</th>
+<th>Requester (Driver)</th>
 <th>Department</th>
 <th>Destination</th>
 <th>Vehicle</th>
@@ -50,7 +50,7 @@ foreach ($rows as $r) {
     $totalMileage += $trip;
     $c = array_map(
         fn($v) => htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'),
-        $r + ['status_label' => vbStatusLabel(vbTripStatus($r)), 'time_label' => vbTime($r['time_required'])]
+        ['requester' => vbName($r['requester'])] + $r + ['status_label' => vbStatusLabel(vbTripStatus($r)), 'time_label' => vbTime($r['time_required'])]
     );
 
     echo "<tr>

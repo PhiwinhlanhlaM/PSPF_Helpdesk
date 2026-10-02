@@ -173,7 +173,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                 <th>Request #</th>
                 <th>Date Required</th>
                 <th>Time Required</th>
-                <th>Requester</th>
+                <th>Requester (Driver)</th>
                 <th>Department</th>
                 <th>Destination</th>
                 <th>Vehicle</th>
@@ -216,7 +216,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
         $vehId  = !empty($r['vehicle_id']) ? (int)$r['vehicle_id'] : '';
         $dateReq = $esc($r['date_required']);
         $timeReq = $esc(vbTime($r['time_required']));
-        $req    = $esc($r['requester']);
+        $req    = $esc(vbName($r['requester']));
         $dep    = $esc($r['department']);
         $des    = $esc($r['destination']);
         $reg    = $esc($r['registration']);

@@ -1,6 +1,7 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) { session_start(); }
 require_once __DIR__ . '/superuser.php';
+require_once __DIR__ . '/trip_helpers.php';
 $role = $_SESSION['role'] ?? '';
 $isSuperuser = vbIsSuperuser();
 
@@ -37,7 +38,7 @@ $navLinks = [
 ];
 
 $currentPage = basename($_SERVER['PHP_SELF'] ?? '');
-$userName    = $_SESSION['name'] ?? '';
+$userName    = vbName($_SESSION['name'] ?? '');
 ?>
 <nav class="navbar navbar-expand-lg navbar-dark main-navbar">
     <div class="container-fluid">

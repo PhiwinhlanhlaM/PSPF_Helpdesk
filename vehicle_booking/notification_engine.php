@@ -1,6 +1,7 @@
 <?php
 require_once 'mail_config.php';
 require_once 'email_action.php';
+require_once __DIR__ . '/trip_helpers.php';
 
 /**
  * Send email using PHPMailer.
@@ -87,8 +88,9 @@ function buildRequestLink($request_id) {
  * Format request details as HTML
  */
 function formatRequestDetails($request) {
+    $requesterName = vbName($request['requester_name']);
     $details = "
-        <strong>Requester:</strong> {$request['requester_name']}<br>
+        <strong>Requester (Driver):</strong> {$requesterName}<br>
         <strong>Date Requested:</strong> {$request['date_requested']}<br>
         <strong>Date &amp; Time Required:</strong> {$request['date_required']} {$request['time_required']}<br>
         <strong>Destination:</strong> {$request['destination']}<br>
@@ -97,14 +99,14 @@ function formatRequestDetails($request) {
         <strong>Department:</strong> {$request['department']}<br>
     ";
 
-    // Once the driver has assigned a vehicle, include it in every email so all
+    // Once a vehicle has been assigned (by a user with the driver role), include it in every email so all
     // parties can see which car was allocated to the trip.
     if (!empty($request['vehicle_id']) && !empty($request['vehicle_registration'])) {
         $vehicleLabel = trim("{$request['vehicle_make']} {$request['vehicle_model']}");
         $details .= "<strong>Assigned Vehicle:</strong> {$vehicleLabel} ({$request['vehicle_registration']})<br>";
 
         if (!empty($request['driver_name'])) {
-            $details .= "<strong>Assigned By:</strong> {$request['driver_name']}<br>";
+            $details .= "<strong>Vehicle Assigned By:</strong> " . vbName($request['driver_name']) . "<br>";
         }
     }
 
@@ -236,20 +238,20 @@ function sendRequestEmail($conn, $request_id, $stage) {
             sendMailTo(
                 $request['requester_email'],
                 "Vehicle Request Received (#$request_id)",
-                "Your vehicle request has been submitted successfully and is now pending driver availability.<br><br>" .
+                "Your vehicle request has been submitted successfully and is now pending vehicle assignment.<br><br>" .
                 $requestDetails .
                 "<br><a href='" . buildRequestLink($request_id) . "'>View Your Request</a>"
             );
             break;
 
-        // -- Driver approved -> now needs supervisor sign-off -----------
+        // -- Vehicle assigned -> now needs supervisor sign-off -----------
         case 'driver_approved':
 
             // Notify requester
             sendMailTo(
                 $request['requester_email'],
-                "Driver Confirmed - Awaiting Supervisor Approval (#$request_id)",
-                "The driver has confirmed availability for your request. It now awaits supervisor approval.<br><br>" .
+                "Vehicle Assigned - Awaiting Supervisor Approval (#$request_id)",
+                "A vehicle has been assigned to your request. It now awaits supervisor approval.<br><br>" .
                 $requestDetails .
                 "<br><a href='" . buildRequestLink($request_id) . "'>View Request</a>"
             );
@@ -261,17 +263,17 @@ function sendRequestEmail($conn, $request_id, $stage) {
                 $request_id,
                 $request['department'],
                 "Vehicle Request Requires Supervisor Approval (#$request_id)",
-                "A vehicle request has been confirmed by the driver and requires supervisor approval.<br><br>",
+                "A vehicle has been assigned to this request and it requires supervisor approval.<br><br>",
                 $requestDetails
             );
             break;
 
-        // -- Driver rejected --------------------------------------------
+        // -- Rejected at vehicle assignment -----------------------------
         case 'driver_rejected':
             sendMailTo(
                 $request['requester_email'],
-                "Driver Unavailable - Request Rejected (#$request_id)",
-                "Unfortunately the driver is unable to fulfil your request at this time.<br>" .
+                "Request Rejected - No Vehicle Assigned (#$request_id)",
+                "Unfortunately a vehicle could not be assigned to your request at this time.<br>" .
                 "Reason: {$request['rejection_reason']}<br><br>" .
                 $requestDetails .
                 "<br><a href='" . buildRequestLink($request_id) . "'>View Request</a>"
@@ -431,7 +433,7 @@ function sendVehicleReturnEmail($conn, $request_id) {
         <p>The vehicle has been returned and this request is now <strong>closed</strong>.</p>
         <hr>
         <h4>Trip Details</h4>
-        <strong>Requester:</strong> {$data['requester_name']}<br>
+        <strong>Requester (Driver):</strong> " . vbName($data['requester_name']) . "<br>
         <strong>Vehicle:</strong> {$data['vehicle_name']} ({$data['registration_number']})<br>
         <strong>Destination:</strong> {$data['destination']}<br>
         <strong>Purpose:</strong> {$data['purpose']}<br>

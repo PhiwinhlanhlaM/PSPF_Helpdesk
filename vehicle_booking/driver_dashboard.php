@@ -75,7 +75,7 @@ $inProgressRows = $inProgressStmt->fetchAll(PDO::FETCH_ASSOC);
 <div class="container mt-4">
 
 	<div class="settings-header">   
-          <h1 class="settings-title">Welcome, <?= $_SESSION['name'] ?> (Driver)</h1>
+          <h1 class="settings-title">Welcome, <?= htmlspecialchars(vbName($_SESSION['name'] ?? '')) ?> (Driver)</h1>
           <div class="settings-actions">
             <!-- New Request Button -->
               <a href="request_form.php" class="btn btn-primary">
@@ -113,7 +113,7 @@ $inProgressRows = $inProgressStmt->fetchAll(PDO::FETCH_ASSOC);
         <tbody>
             <?php foreach($pendingRows as $req): ?>
             <tr data-request-id="<?= $req['request_id'] ?>" data-vb-modal="#requestModal<?= $req['request_id'] ?>">
-                <td><?= htmlspecialchars($req['requester_name']) ?></td>
+                <td><?= htmlspecialchars(vbName($req['requester_name'])) ?></td>
                 <td><?= htmlspecialchars($req['department']) ?></td>
                 <td class="cell-truncate" title="<?= htmlspecialchars($req['destination']) ?>"><?= htmlspecialchars($req['destination']) ?></td>
                 <td class="col-nowrap"><?= htmlspecialchars($req['date_required']) ?></td>
@@ -211,7 +211,7 @@ $inProgressRows = $inProgressStmt->fetchAll(PDO::FETCH_ASSOC);
         <tbody>
             <?php while($row = $approvedStmt->fetch(PDO::FETCH_ASSOC)): ?>
             <tr data-request-id="<?= $row['request_id'] ?>">
-                <td><?= htmlspecialchars($row['requester_name']) ?></td>
+                <td><?= htmlspecialchars(vbName($row['requester_name'])) ?></td>
                 <td><?= htmlspecialchars($row['registration'] ?? 'Not Assigned') ?></td>
                 <td class="cell-truncate" title="<?= htmlspecialchars($row['destination']) ?>"><?= htmlspecialchars($row['destination']) ?></td>
                 <td class="col-nowrap"><?= htmlspecialchars($row['date_required']) ?></td>
@@ -255,7 +255,7 @@ $inProgressRows = $inProgressStmt->fetchAll(PDO::FETCH_ASSOC);
         <tbody>
             <?php foreach ($inProgressRows as $row): ?>
             <tr data-request-id="<?= $row['request_id'] ?>">
-                <td><?= htmlspecialchars($row['requester_name']) ?></td>
+                <td><?= htmlspecialchars(vbName($row['requester_name'])) ?></td>
                 <td><?= htmlspecialchars($row['registration'] ?? 'Not Assigned') ?></td>
                 <td class="cell-truncate" title="<?= htmlspecialchars($row['destination']) ?>"><?= htmlspecialchars($row['destination']) ?></td>
                 <td class="col-nowrap"><?= htmlspecialchars($row['date_required']) ?></td>

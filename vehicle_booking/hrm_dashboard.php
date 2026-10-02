@@ -50,7 +50,7 @@ $stmtProcessed = $conn->query("
 <div class="container mt-4">
 
 	<div class="settings-header">   
-          <h1 class="settings-title">Welcome, <?= htmlspecialchars($_SESSION['name']) ?> (HRM)</h1>
+          <h1 class="settings-title">Welcome, <?= htmlspecialchars(vbName($_SESSION['name'])) ?> (HRM)</h1>
           <div class="settings-actions">
             <!-- Back Button -->
               <button onclick="goBack()" class="btn btn-outline-secondary back-btn">
@@ -82,7 +82,7 @@ $stmtProcessed = $conn->query("
         <tbody>
             <?php foreach($pendingRows as $req): ?>
             <tr data-request-id="<?= $req['request_id'] ?>" data-vb-modal="#requestModal<?= $req['request_id'] ?>">
-                <td><?= htmlspecialchars($req['requester_name']) ?></td>
+                <td><?= htmlspecialchars(vbName($req['requester_name'])) ?></td>
                 <td><?= htmlspecialchars($req['department']) ?></td>
                 <td><?= htmlspecialchars($req['registration'] ?? '') ?></td>
                 <td class="cell-truncate" title="<?= htmlspecialchars($req['destination']) ?>"><?= htmlspecialchars($req['destination']) ?></td>
@@ -165,7 +165,7 @@ $stmtProcessed = $conn->query("
         <tbody>
             <?php while($r = $stmtProcessed->fetch(PDO::FETCH_ASSOC)): ?>
             <tr data-request-id="<?= $r['request_id'] ?>">
-                <td><?= htmlspecialchars($r['requester_name']) ?></td>
+                <td><?= htmlspecialchars(vbName($r['requester_name'])) ?></td>
                 <td><?= htmlspecialchars($r['registration'] ?? '') ?></td>
                 <td class="cell-truncate" title="<?= htmlspecialchars($r['destination']) ?>"><?= htmlspecialchars($r['destination']) ?></td>
                 <td class="col-nowrap"><?= htmlspecialchars($r['date_required']) ?></td>

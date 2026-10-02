@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/trip_helpers.php';
 session_start();
 require_once __DIR__ . '/session_timeout.php';
 require '../vehicle_booking/db.php';
@@ -62,7 +63,7 @@ $users = $conn->query("SELECT * FROM users ORDER BY role, name");
         <tbody>
         <?php while($u = $users->fetch(PDO::FETCH_ASSOC)): ?>
             <tr>
-                <td><?= htmlspecialchars($u['name']) ?></td>
+                <td><?= htmlspecialchars(vbName($u['name'])) ?></td>
                 <td class="cell-truncate" title="<?= htmlspecialchars($u['email']) ?>"><?= htmlspecialchars($u['email']) ?></td>
                 <td><?= htmlspecialchars($u['department']) ?></td>
                 <td class="col-nowrap"><span class="badge bg-info"><?= htmlspecialchars($u['role']) ?></span></td>

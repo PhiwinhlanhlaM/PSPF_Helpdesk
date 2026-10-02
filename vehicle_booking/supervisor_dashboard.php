@@ -39,7 +39,7 @@ $stmtPending = $conn->prepare("
 $stmtPending->execute($deptArgs);
 $pendingRows = $stmtPending->fetchAll(PDO::FETCH_ASSOC);
 
-// ── Requests still waiting for driver confirmation (awareness only) ────────
+// ── Requests still waiting for a vehicle to be assigned (awareness only) ───
 $stmtDriver = $conn->prepare("
     SELECT vr.*, u.name AS requester_name
     FROM vehicle_requests vr
@@ -75,7 +75,7 @@ $processedRows = $stmtProcessed->fetchAll(PDO::FETCH_ASSOC);
 
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3>Welcome, <?= htmlspecialchars($_SESSION['name']) ?> <span class="text-muted fs-5">(Supervisor – <?= htmlspecialchars($department) ?>)</span></h3>
+        <h3>Welcome, <?= htmlspecialchars(vbName($_SESSION['name'])) ?> <span class="text-muted fs-5">(Supervisor – <?= htmlspecialchars($department) ?>)</span></h3>
         <a href="../vehicle_booking/logout.php" class="btn btn-secondary btn-sm">Logout</a>
     </div>
 
@@ -106,7 +106,7 @@ $processedRows = $stmtProcessed->fetchAll(PDO::FETCH_ASSOC);
         <tbody>
             <?php foreach ($pendingRows as $req): ?>
             <tr data-request-id="<?= $req['request_id'] ?>" data-vb-modal="#requestModal<?= $req['request_id'] ?>">
-                <td><?= htmlspecialchars($req['requester_name']) ?></td>
+                <td><?= htmlspecialchars(vbName($req['requester_name'])) ?></td>
                 <td class="cell-truncate" title="<?= htmlspecialchars($req['destination']) ?>"><?= htmlspecialchars($req['destination']) ?></td>
                 <td class="col-nowrap"><?= htmlspecialchars($req['date_required']) ?></td>
                 <td class="col-nowrap"><?= htmlspecialchars(vbTime($req['time_required'])) ?></td>
@@ -165,10 +165,10 @@ $processedRows = $stmtProcessed->fetchAll(PDO::FETCH_ASSOC);
     <?php endforeach; ?>
     <?php endif; ?>
 
-    <!-- ── Awaiting driver confirmation (FYI) ────────────────────────── -->
+    <!-- ── Awaiting vehicle assignment (FYI) ─────────────────────────── -->
     <?php if (!empty($driverRows)): ?>
     <h4 class="mt-5 text-secondary">
-        Awaiting Driver Confirmation
+        Awaiting Vehicle Assignment
         <span class="badge bg-secondary ms-2"><?= count($driverRows) ?></span>
     </h4>
     <div class="table-responsive">
@@ -186,12 +186,12 @@ $processedRows = $stmtProcessed->fetchAll(PDO::FETCH_ASSOC);
         <tbody>
             <?php foreach ($driverRows as $req): ?>
             <tr data-request-id="<?= $req['request_id'] ?>">
-                <td><?= htmlspecialchars($req['requester_name']) ?></td>
+                <td><?= htmlspecialchars(vbName($req['requester_name'])) ?></td>
                 <td class="cell-truncate" title="<?= htmlspecialchars($req['destination']) ?>"><?= htmlspecialchars($req['destination']) ?></td>
                 <td class="col-nowrap"><?= htmlspecialchars($req['date_required']) ?></td>
                 <td class="col-nowrap"><?= htmlspecialchars(vbTime($req['time_required'])) ?></td>
                 <td class="cell-truncate" title="<?= htmlspecialchars($req['purpose']) ?>"><?= htmlspecialchars($req['purpose']) ?></td>
-                <td class="col-nowrap"><span class="badge bg-secondary">Waiting for driver</span></td>
+                <td class="col-nowrap"><span class="badge bg-secondary">Awaiting vehicle assignment</span></td>
             </tr>
             <?php endforeach; ?>
         </tbody>
@@ -220,7 +220,7 @@ $processedRows = $stmtProcessed->fetchAll(PDO::FETCH_ASSOC);
         <tbody>
             <?php foreach ($processedRows as $r): ?>
             <tr data-request-id="<?= $r['request_id'] ?>">
-                <td><?= htmlspecialchars($r['requester_name']) ?></td>
+                <td><?= htmlspecialchars(vbName($r['requester_name'])) ?></td>
                 <td class="cell-truncate" title="<?= htmlspecialchars($r['destination']) ?>"><?= htmlspecialchars($r['destination']) ?></td>
                 <td class="col-nowrap"><?= htmlspecialchars($r['date_required']) ?></td>
                 <td class="col-nowrap"><?= htmlspecialchars(vbTime($r['time_required'])) ?></td>

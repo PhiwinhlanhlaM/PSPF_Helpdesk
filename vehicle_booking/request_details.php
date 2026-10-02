@@ -79,19 +79,20 @@ $distance = (is_numeric($r['mileage_in']) && is_numeric($r['mileage_out']))
     ? ((int)$r['mileage_in'] - (int)$r['mileage_out']) . ' km'
     : null;
 
-$roleNames = ['user' => 'Staff', 'hrm' => 'HRM', 'superuser' => 'IT Superuser'];
+$roleNames = ['user' => 'Staff', 'driver' => 'Assigns Vehicles', 'hrm' => 'HRM', 'superuser' => 'IT Superuser'];
 
 $field = static function (string $label, string $valueHtml): string {
     return '<div class="col-sm-6 col-lg-4"><small class="text-muted d-block">' . $label
          . '</small><div class="fw-semibold text-break">' . $valueHtml . '</div></div>';
 };
 
-// Who actioned each approval stage. Driver approval stores driver_id;
-// supervisor and HRM approvals store supervisor_id / hrm_id.
+// Who actioned each approval stage. driver_id is the user with the driver
+// role who assigned the vehicle (not necessarily who drives: the requester
+// drives); supervisor and HRM approvals store supervisor_id / hrm_id.
 $stages = [
-    ['Driver (vehicle assigned)', $r['driver_name'],     !empty($r['driver_id'])],
-    ['Supervisor',                $r['supervisor_name'], !empty($r['supervisor_id'])],
-    ['HRM (final approval)',      $r['hrm_name'],        !empty($r['hrm_id'])],
+    ['Vehicle Assigned By',  $r['driver_name'],     !empty($r['driver_id'])],
+    ['Supervisor',           $r['supervisor_name'], !empty($r['supervisor_id'])],
+    ['HRM (final approval)', $r['hrm_name'],        !empty($r['hrm_id'])],
 ];
 ?>
 <div class="vb-request-details">
@@ -102,7 +103,7 @@ $stages = [
 
   <h6 class="text-muted text-uppercase small mb-2"><i class="fa fa-route me-1"></i>Trip</h6>
   <div class="row g-3 mb-3">
-    <?= $field('Requester', $e($r['requester_name']) . (!empty($r['requester_email']) ? '<div class="small text-muted fw-normal">' . $e($r['requester_email']) . '</div>' : '')) ?>
+    <?= $field('Requester (Driver)', $e(vbName($r['requester_name'])) . (!empty($r['requester_email']) ? '<div class="small text-muted fw-normal">' . $e($r['requester_email']) . '</div>' : '')) ?>
     <?= $field('Department', $e($r['department'])) ?>
     <?= $field('Destination', $e($r['destination'])) ?>
     <?= $field('Date Required', $e($r['date_required'])) ?>
@@ -117,10 +118,10 @@ $stages = [
   <h6 class="text-muted text-uppercase small mb-2"><i class="fa fa-user-check me-1"></i>Actioned By</h6>
   <div class="row g-3 mb-3">
     <?php foreach ($stages as [$label, $name, $done]): ?>
-      <?= $field($label, $done ? $e($name, 'Unknown user') : '<span class="text-muted fw-normal">Not yet actioned</span>') ?>
+      <?= $field($label, $done ? $e(vbName($name), 'Unknown user') : '<span class="text-muted fw-normal">Not yet actioned</span>') ?>
     <?php endforeach; ?>
     <?php if (!empty($r['selected_supervisor_name'])): ?>
-      <?= $field('Supervisor Chosen by Requester', $e($r['selected_supervisor_name'])) ?>
+      <?= $field('Supervisor Chosen by Requester', $e(vbName($r['selected_supervisor_name']))) ?>
     <?php endif; ?>
   </div>
 
@@ -152,7 +153,7 @@ $stages = [
         <tr>
           <td class="text-nowrap"><?= $e($log['created_at']) ?></td>
           <td><?= nl2br($e($log['action'])) ?></td>
-          <td><?= $e($log['action_by_name'], 'System') ?><?php if (!empty($log['action_by_role'])): ?> <span class="text-muted small">(<?= $e($roleNames[$log['action_by_role']] ?? ucfirst($log['action_by_role'])) ?>)</span><?php endif; ?></td>
+          <td><?= $e(vbName($log['action_by_name']), 'System') ?><?php if (!empty($log['action_by_role'])): ?> <span class="text-muted small">(<?= $e($roleNames[$log['action_by_role']] ?? ucfirst($log['action_by_role'])) ?>)</span><?php endif; ?></td>
         </tr>
       <?php endforeach; ?>
       </tbody>

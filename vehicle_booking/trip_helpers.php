@@ -1,8 +1,8 @@
 <?php
 // trip_helpers.php
 //
-// Shared trip status and report helpers used by the dashboards, reports and
-// the request details popup.
+// Shared display helpers (people's names, trip status) and report filters
+// used by the dashboards, reports, emails and the request details popup.
 //
 // "In Progress" is not stored in the database. A request is in progress when
 // it is fully approved and its date/time required has passed, i.e. the vehicle
@@ -10,7 +10,7 @@
 
 // status => [Bootstrap badge classes, label]
 const VB_STATUS_LABELS = [
-    'pending_driver'     => ['bg-secondary',        'Awaiting Driver'],
+    'pending_driver'     => ['bg-secondary',        'Awaiting Vehicle Assignment'],
     'pending_supervisor' => ['bg-info text-dark',   'Awaiting Supervisor'],
     'pending_hrm'        => ['bg-primary',          'Awaiting HRM'],
     'approved'           => ['bg-success',          'Approved'],
@@ -18,6 +18,20 @@ const VB_STATUS_LABELS = [
     'rejected'           => ['bg-danger',           'Rejected'],
     'closed'             => ['bg-dark',             'Trip Completed'],
 ];
+
+/**
+ * A person's name for display, with each word starting with a capital
+ * letter ("simphiwe dlamini" -> "Simphiwe Dlamini"). Only first letters are
+ * raised, so names such as "McDonald" keep their own casing.
+ */
+function vbName(?string $name): string
+{
+    return preg_replace_callback(
+        "/(^|[\\s\\-'])(\\p{Ll})/u",
+        static fn($m) => $m[1] . mb_strtoupper($m[2]),
+        trim((string)$name)
+    ) ?? (string)$name;
+}
 
 /** Current time as MySQL DATETIME, from PHP so display and filters agree. */
 function vbNow(): string

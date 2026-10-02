@@ -130,7 +130,7 @@ $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                         switch ($status) {
                             case 'pending_driver':
-                                echo '<span class="badge bg-secondary">Awaiting Driver Approval</span>';
+                                echo '<span class="badge bg-secondary">Awaiting Vehicle Assignment</span>';
                                 break;
 
                             case 'pending_supervisor':
