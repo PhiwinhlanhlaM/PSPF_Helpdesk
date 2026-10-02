@@ -5,7 +5,7 @@
  * The web dashboards remain the primary interface; this adds an out-of-office
  * path for supervisors and HRM, who often need to act while off the PSPF
  * network. Each approval email carries a single-use token in its subject line
- * (e.g. "[VBK-123-<32 hex>]"). The approver replies APPROVE or REJECT <reason>;
+ * (e.g. "[VBK-123-a1b2c3d4e5]"). The approver replies APPROVE or REJECT <reason>;
  * cron_process_email_replies.php polls the booking mailbox and calls
  * applyEmailAction() below, which runs the exact same DB updates + request_logs
  * inserts + notifications that supervisor_approve_request.php / hrm_approve_request.php
@@ -89,7 +89,15 @@ function emailActionReplyTo(): ?string
  */
 function issueEmailActionToken(PDO $conn, int $request_id, string $stage, int $approver_user_id): string
 {
-    $token = bin2hex(random_bytes(16)); // 32 hex chars
+    // Short, single-use code (10 lowercase alphanumerics). Kept unguessable as
+    // the security anchor, but far shorter than the old 32-char hex token so the
+    // email subject stays tidy. The request number is shown separately in the
+    // subject for humans.
+    $alphabet = '0123456789abcdefghijklmnopqrstuvwxyz';
+    $token = '';
+    for ($i = 0; $i < 10; $i++) {
+        $token .= $alphabet[random_int(0, 35)];
+    }
     $conn->prepare("
         INSERT INTO email_action_tokens
             (token, request_id, stage, approver_user_id, expires_at, created_at)
@@ -136,7 +144,8 @@ function emailActionInstructions(string $stage = 'supervisor'): string
  */
 function parseEmailActionSubject(string $subject): ?array
 {
-    if (preg_match('/\[VBK-(\d+)-([0-9a-fA-F]{32})\]/', $subject, $m)) {
+    // Accepts the new short codes and any older 32-char hex tokens still in flight.
+    if (preg_match('/\[VBK-(\d+)-([0-9A-Za-z]{6,40})\]/', $subject, $m)) {
         return ['request_id' => (int) $m[1], 'token' => strtolower($m[2])];
     }
     return null;
