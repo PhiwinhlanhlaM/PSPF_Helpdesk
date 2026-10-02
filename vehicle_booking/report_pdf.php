@@ -2,6 +2,7 @@
 session_start();
 require_once __DIR__ . '/session_timeout.php';
 require '../vehicle_booking/db.php';
+require_once __DIR__ . '/trip_helpers.php';
 require '../vendor/autoload.php';
 
 use Dompdf\Dompdf;
@@ -10,55 +11,9 @@ if (!isset($_SESSION['user_id'])) {
     exit('Unauthorized');
 }
 
-/* Build filters (SAME AS EXCEL) */
-$where = [];
+/* Filters (shared with the report page and Excel export) */
 $params = [];
-
-if (!empty($_GET['from_date'])) {
-    $where[] = "vr.created_at >= ?";
-    $params[] = $_GET['from_date'] . " 00:00:00";
-}
-
-if (!empty($_GET['to_date'])) {
-    $where[] = "vr.created_at <= ?";
-    $params[] = $_GET['to_date'] . " 23:59:59";
-}
-
-if (!empty($_GET['requester'])) {
-    $where[] = "u.name LIKE ?";
-    $params[] = "%" . $_GET['requester'] . "%";
-}
-
-if (!empty($_GET['department'])) {
-    $where[] = "vr.department LIKE ?";
-    $params[] = "%" . $_GET['department'] . "%";
-}
-
-if (!empty($_GET['destination'])) {
-    $where[] = "vr.destination LIKE ?";
-    $params[] = "%" . $_GET['destination'] . "%";
-}
-
-if (!empty($_GET['vehicle_id'])) {
-    $where[] = "vr.vehicle_id = ?";
-    $params[] = $_GET['vehicle_id'];
-}
-
-if (!empty($_GET['status'])) {
-    $where[] = "vr.status = ?";
-    $params[] = $_GET['status'];
-}
-
-if (isset($_GET['mileage_min']) && $_GET['mileage_min'] !== '') {
-    $where[] = "vr.mileage_out >= ?";
-    $params[] = $_GET['mileage_min'];
-}
-
-if (isset($_GET['mileage_max']) && $_GET['mileage_max'] !== '') {
-    $where[] = "vr.mileage_in <= ?";
-    $params[] = $_GET['mileage_max'];
-}
-
+$where = vbReportFilters($_GET, $params);
 $whereSQL = $where ? "WHERE " . implode(" AND ", $where) : "";
 
 /* Query */
@@ -78,29 +33,35 @@ $stmt->execute($params);
 $totalMileage = 0;
 $html = "<h3>Transport Report</h3><table border='1' width='100%' cellspacing='0' cellpadding='5'>
 <tr>
-<th>Date</th><th>Requester</th><th>Department</th><th>Destination</th>
+<th>Request #</th><th>Date Required</th><th>Time Required</th><th>Requester</th><th>Department</th><th>Destination</th>
 <th>Vehicle</th><th>Status</th><th>Mileage In</th><th>Mileage Out</th><th>Trip Mileage</th>
 </tr>";
 
 while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
-    $trip = max(0, $r['mileage_in'] - $r['mileage_out']);
+    $trip = max(0, (int)$r['mileage_in'] - (int)$r['mileage_out']);
     $totalMileage += $trip;
+    $c = array_map(
+        fn($v) => htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'),
+        $r + ['status_label' => vbStatusLabel(vbTripStatus($r)), 'time_label' => vbTime($r['time_required'])]
+    );
 
     $html .= "<tr>
-        <td>{$r['created_at']}</td>
-        <td>{$r['requester']}</td>
-        <td>{$r['department']}</td>
-        <td>{$r['destination']}</td>
-        <td>{$r['registration']}</td>
-        <td>{$r['status']}</td>
-        <td>{$r['mileage_in']}</td>
-        <td>{$r['mileage_out']}</td>
+        <td>{$c['request_id']}</td>
+        <td>{$c['date_required']}</td>
+        <td>{$c['time_label']}</td>
+        <td>{$c['requester']}</td>
+        <td>{$c['department']}</td>
+        <td>{$c['destination']}</td>
+        <td>{$c['registration']}</td>
+        <td>{$c['status_label']}</td>
+        <td>{$c['mileage_in']}</td>
+        <td>{$c['mileage_out']}</td>
         <td>{$trip}</td>
     </tr>";
 }
 
 $html .= "<tr>
-<td colspan='8'><strong>Total Mileage</strong></td>
+<td colspan='10'><strong>Total Mileage</strong></td>
 <td><strong>{$totalMileage} km</strong></td>
 </tr></table>";
 

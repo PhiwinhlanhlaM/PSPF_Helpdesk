@@ -3,6 +3,7 @@ session_start();
 require_once __DIR__ . '/session_timeout.php';
 require '../vehicle_booking/db.php';
 require '../vehicle_booking/mail_config.php';
+require_once __DIR__ . '/trip_helpers.php';
 
 if (isset($_SESSION['message'])) {
     echo "<div class='alert alert-{$_SESSION['message_type']} alert-dismissible fade show mt-3' role='alert'>
@@ -33,7 +34,7 @@ $stmtProcessed = $conn->query("
     FROM vehicle_requests vr
     JOIN users u ON vr.requester_id = u.user_id
     LEFT JOIN vehicles v ON vr.vehicle_id = v.vehicle_id
-    WHERE vr.status IN ('approved','rejected')
+    WHERE vr.status IN ('approved','rejected','closed')
     ORDER BY vr.updated_at DESC
 ");
 ?>
@@ -73,18 +74,20 @@ $stmtProcessed = $conn->query("
                 <th>Department</th>
                 <th>Vehicle</th>
                 <th>Destination</th>
-                <th>Date</th>
+                <th>Date Required</th>
+                <th>Time Required</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             <?php foreach($pendingRows as $req): ?>
-            <tr>
+            <tr data-request-id="<?= $req['request_id'] ?>" data-vb-modal="#requestModal<?= $req['request_id'] ?>">
                 <td><?= htmlspecialchars($req['requester_name']) ?></td>
                 <td><?= htmlspecialchars($req['department']) ?></td>
-                <td><?= htmlspecialchars($req['registration']) ?></td>
+                <td><?= htmlspecialchars($req['registration'] ?? '') ?></td>
                 <td class="cell-truncate" title="<?= htmlspecialchars($req['destination']) ?>"><?= htmlspecialchars($req['destination']) ?></td>
                 <td class="col-nowrap"><?= htmlspecialchars($req['date_required']) ?></td>
+                <td class="col-nowrap"><?= htmlspecialchars(vbTime($req['time_required'])) ?></td>
                 <td class="text-center col-nowrap">
                     <button type="button" class="btn btn-outline-primary btn-sm"
                             data-bs-toggle="modal" data-bs-target="#requestModal<?= $req['request_id'] ?>"
@@ -108,17 +111,7 @@ $stmtProcessed = $conn->query("
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <div class="row g-3">
-              <div class="col-md-6"><small class="text-muted">Requester</small><div class="fw-semibold"><?= htmlspecialchars($req['requester_name']) ?></div></div>
-              <div class="col-md-6"><small class="text-muted">Department</small><div class="fw-semibold"><?= htmlspecialchars($req['department']) ?></div></div>
-              <div class="col-md-6"><small class="text-muted">Destination</small><div class="fw-semibold"><?= htmlspecialchars($req['destination']) ?></div></div>
-              <div class="col-md-6"><small class="text-muted">Purpose</small><div class="fw-semibold"><?= htmlspecialchars($req['purpose']) ?></div></div>
-              <div class="col-md-6"><small class="text-muted">Date Required</small><div class="fw-semibold"><?= htmlspecialchars($req['date_required']) ?></div></div>
-              <div class="col-md-6"><small class="text-muted">Time Required</small><div class="fw-semibold"><?= htmlspecialchars($req['time_required']) ?></div></div>
-              <div class="col-md-6"><small class="text-muted">Passengers</small><div class="fw-semibold"><?= htmlspecialchars($req['passengers']) ?></div></div>
-              <div class="col-md-6"><small class="text-muted">Expected Return</small><div class="fw-semibold"><?= htmlspecialchars($req['expected_return_date']) ?></div></div>
-              <div class="col-md-6"><small class="text-muted">Assigned Vehicle</small><div class="fw-semibold"><?= htmlspecialchars($req['registration'] ?? '—') ?></div></div>
-            </div>
+            <div data-vb-details="<?= $req['request_id'] ?>"></div>
 
             <!-- Rejection reason (revealed on demand) -->
             <div class="collapse mt-4" id="rejectBox<?= $req['request_id'] ?>">
@@ -164,20 +157,20 @@ $stmtProcessed = $conn->query("
                 <th>Requester</th>
                 <th>Vehicle</th>
                 <th>Destination</th>
+                <th>Date Required</th>
+                <th>Time Required</th>
                 <th>Status</th>
             </tr>
         </thead>
         <tbody>
             <?php while($r = $stmtProcessed->fetch(PDO::FETCH_ASSOC)): ?>
-            <tr>
+            <tr data-request-id="<?= $r['request_id'] ?>">
                 <td><?= htmlspecialchars($r['requester_name']) ?></td>
-                <td><?= htmlspecialchars($r['registration']) ?></td>
+                <td><?= htmlspecialchars($r['registration'] ?? '') ?></td>
                 <td class="cell-truncate" title="<?= htmlspecialchars($r['destination']) ?>"><?= htmlspecialchars($r['destination']) ?></td>
-                <td class="col-nowrap">
-                    <span class="badge bg-<?= $r['status']=='approved'?'success':'danger' ?>">
-                        <?= ucfirst($r['status']) ?>
-                    </span>
-                </td>
+                <td class="col-nowrap"><?= htmlspecialchars($r['date_required']) ?></td>
+                <td class="col-nowrap"><?= htmlspecialchars(vbTime($r['time_required'])) ?></td>
+                <td class="col-nowrap"><?= vbStatusBadge($r) ?></td>
             </tr>
             <?php endwhile; ?>
         </tbody>

@@ -18,6 +18,7 @@ if (isset($_SESSION['message'])) {
 }
 
 require_once __DIR__ . '/superuser.php';
+require_once __DIR__ . '/trip_helpers.php';
 
 // An IT superuser in the Supervisor view sees every department.
 $allDepartments = vbIsSuperuser();
@@ -56,21 +57,13 @@ $stmtProcessed = $conn->prepare("
     FROM vehicle_requests vr
     JOIN users u ON vr.requester_id = u.user_id
     LEFT JOIN vehicles v ON vr.vehicle_id = v.vehicle_id
-    WHERE vr.status IN ('pending_hrm', 'approved', 'rejected', 'completed')
+    WHERE vr.status IN ('pending_hrm', 'approved', 'rejected', 'closed')
       $deptFilter
     ORDER BY vr.updated_at DESC
 ");
 $stmtProcessed->execute($deptArgs);
 $processedRows = $stmtProcessed->fetchAll(PDO::FETCH_ASSOC);
 
-$statusBadge = [
-    'pending_driver'     => 'secondary',
-    'pending_supervisor' => 'warning',
-    'pending_hrm'        => 'info',
-    'approved'           => 'success',
-    'rejected'           => 'danger',
-    'completed'          => 'primary',
-];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -104,7 +97,7 @@ $statusBadge = [
                 <th>Requester</th>
                 <th>Destination</th>
                 <th>Date Required</th>
-                <th>Time</th>
+                <th>Time Required</th>
                 <th>Vehicle</th>
                 <th>Purpose</th>
                 <th>Actions</th>
@@ -112,11 +105,11 @@ $statusBadge = [
         </thead>
         <tbody>
             <?php foreach ($pendingRows as $req): ?>
-            <tr>
+            <tr data-request-id="<?= $req['request_id'] ?>" data-vb-modal="#requestModal<?= $req['request_id'] ?>">
                 <td><?= htmlspecialchars($req['requester_name']) ?></td>
                 <td class="cell-truncate" title="<?= htmlspecialchars($req['destination']) ?>"><?= htmlspecialchars($req['destination']) ?></td>
                 <td class="col-nowrap"><?= htmlspecialchars($req['date_required']) ?></td>
-                <td class="col-nowrap"><?= htmlspecialchars($req['time_required']) ?></td>
+                <td class="col-nowrap"><?= htmlspecialchars(vbTime($req['time_required'])) ?></td>
                 <td><?= htmlspecialchars($req['registration'] ?? '—') ?></td>
                 <td class="cell-truncate" title="<?= htmlspecialchars($req['purpose']) ?>"><?= htmlspecialchars($req['purpose']) ?></td>
                 <td class="text-center col-nowrap">
@@ -142,17 +135,7 @@ $statusBadge = [
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <div class="row g-3">
-              <div class="col-md-6"><small class="text-muted">Requester</small><div class="fw-semibold"><?= htmlspecialchars($req['requester_name']) ?></div></div>
-              <div class="col-md-6"><small class="text-muted">Department</small><div class="fw-semibold"><?= htmlspecialchars($req['department']) ?></div></div>
-              <div class="col-md-6"><small class="text-muted">Destination</small><div class="fw-semibold"><?= htmlspecialchars($req['destination']) ?></div></div>
-              <div class="col-md-6"><small class="text-muted">Purpose</small><div class="fw-semibold"><?= htmlspecialchars($req['purpose']) ?></div></div>
-              <div class="col-md-6"><small class="text-muted">Date Required</small><div class="fw-semibold"><?= htmlspecialchars($req['date_required']) ?></div></div>
-              <div class="col-md-6"><small class="text-muted">Time Required</small><div class="fw-semibold"><?= htmlspecialchars($req['time_required']) ?></div></div>
-              <div class="col-md-6"><small class="text-muted">Passengers</small><div class="fw-semibold"><?= htmlspecialchars($req['passengers']) ?></div></div>
-              <div class="col-md-6"><small class="text-muted">Expected Return</small><div class="fw-semibold"><?= htmlspecialchars($req['expected_return_date']) ?></div></div>
-              <div class="col-md-6"><small class="text-muted">Vehicle</small><div class="fw-semibold"><?= htmlspecialchars($req['registration'] ?? '—') ?></div></div>
-            </div>
+            <div data-vb-details="<?= $req['request_id'] ?>"></div>
 
             <!-- Rejection reason (revealed on demand) -->
             <div class="collapse mt-4" id="rejectBox<?= $req['request_id'] ?>">
@@ -195,16 +178,18 @@ $statusBadge = [
                 <th>Requester</th>
                 <th>Destination</th>
                 <th>Date Required</th>
+                <th>Time Required</th>
                 <th>Purpose</th>
                 <th>Status</th>
             </tr>
         </thead>
         <tbody>
             <?php foreach ($driverRows as $req): ?>
-            <tr>
+            <tr data-request-id="<?= $req['request_id'] ?>">
                 <td><?= htmlspecialchars($req['requester_name']) ?></td>
                 <td class="cell-truncate" title="<?= htmlspecialchars($req['destination']) ?>"><?= htmlspecialchars($req['destination']) ?></td>
                 <td class="col-nowrap"><?= htmlspecialchars($req['date_required']) ?></td>
+                <td class="col-nowrap"><?= htmlspecialchars(vbTime($req['time_required'])) ?></td>
                 <td class="cell-truncate" title="<?= htmlspecialchars($req['purpose']) ?>"><?= htmlspecialchars($req['purpose']) ?></td>
                 <td class="col-nowrap"><span class="badge bg-secondary">Waiting for driver</span></td>
             </tr>
@@ -227,22 +212,20 @@ $statusBadge = [
                 <th>Requester</th>
                 <th>Destination</th>
                 <th>Date Required</th>
+                <th>Time Required</th>
                 <th>Vehicle</th>
                 <th>Status</th>
             </tr>
         </thead>
         <tbody>
             <?php foreach ($processedRows as $r): ?>
-            <tr>
+            <tr data-request-id="<?= $r['request_id'] ?>">
                 <td><?= htmlspecialchars($r['requester_name']) ?></td>
                 <td class="cell-truncate" title="<?= htmlspecialchars($r['destination']) ?>"><?= htmlspecialchars($r['destination']) ?></td>
                 <td class="col-nowrap"><?= htmlspecialchars($r['date_required']) ?></td>
+                <td class="col-nowrap"><?= htmlspecialchars(vbTime($r['time_required'])) ?></td>
                 <td><?= htmlspecialchars($r['registration'] ?? '—') ?></td>
-                <td class="col-nowrap">
-                    <span class="badge bg-<?= $statusBadge[$r['status']] ?? 'secondary' ?>">
-                        <?= str_replace('_', ' ', $r['status']) ?>
-                    </span>
-                </td>
+                <td class="col-nowrap"><?= vbStatusBadge($r) ?></td>
             </tr>
             <?php endforeach; ?>
         </tbody>
