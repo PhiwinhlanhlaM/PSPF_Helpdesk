@@ -1,6 +1,7 @@
 ﻿<?php
 session_start();
 require '../vehicle_booking/db.php';
+require_once __DIR__ . '/trip_helpers.php';
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: ../vehicle_booking/login.php");
@@ -55,6 +56,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_row'])) {
                 ]);
                 exit;
             }
+        } elseif ($col === 'status') {
+            // Only real stored statuses; "In Progress" is derived, not saved.
+            if (!array_key_exists($val, VB_STATUS_LABELS) || $val === 'in_progress') {
+                echo json_encode(['success' => false, 'error' => 'Invalid status']);
+                exit;
+            }
         } elseif (in_array($col, $intForeign, true)) {
             if ($val === '') {
                 $val = null;
@@ -86,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_row'])) {
         $stmt->execute($vals);
 
         // Recalculate trip mileage so the UI can update the row instantly
-        $tm = $conn->prepare("SELECT mileage_in, mileage_out FROM vehicle_requests WHERE $PK = ?");
+        $tm = $conn->prepare("SELECT mileage_in, mileage_out, status, date_required, time_required FROM vehicle_requests WHERE $PK = ?");
         $tm->execute([$id]);
         $row = $tm->fetch(PDO::FETCH_ASSOC);
 
@@ -95,65 +102,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_row'])) {
               ? ($row['mileage_in'] - $row['mileage_out'])
               : 0;
 
-        echo json_encode(['success' => true, 'trip_mileage' => $trip]);
+        echo json_encode([
+            'success'      => true,
+            'trip_mileage' => $trip,
+            'status_badge' => vbStatusBadge($row),
+        ]);
     } catch (Throwable $e) {
         echo json_encode(['success' => false, 'error' => 'Database error']);
     }
     exit;
-}
-
-/**
- * Build WHERE clause from filters
- */
-function buildFilters(array $source, array &$params): array {
-    $where = [];
-
-    if (!empty($source['from_date'])) {
-        $where[] = "vr.created_at >= ?";
-        $params[] = $source['from_date'] . " 00:00:00";
-    }
-
-    if (!empty($source['to_date'])) {
-        $where[] = "vr.created_at <= ?";
-        $params[] = $source['to_date'] . " 23:59:59";
-    }
-
-    if (!empty($source['department'])) {
-        $where[] = "vr.department LIKE ?";
-        $params[] = "%" . $source['department'] . "%";
-    }
-
-    if (!empty($source['destination'])) {
-        $where[] = "vr.destination LIKE ?";
-        $params[] = "%" . $source['destination'] . "%";
-    }
-
-    if (!empty($source['requester'])) {
-        $where[] = "u.name LIKE ?";
-        $params[] = "%" . $source['requester'] . "%";
-    }
-
-    if (!empty($source['vehicle_id'])) {
-        $where[] = "vr.vehicle_id = ?";
-        $params[] = $source['vehicle_id'];
-    }
-
-    if (!empty($source['status'])) {
-        $where[] = "vr.status = ?";
-        $params[] = $source['status'];
-    }
-
-    if (($source['mileage_min'] ?? '') !== '') {
-        $where[] = "vr.mileage_out >= ?";
-        $params[] = $source['mileage_min'];
-    }
-
-    if (($source['mileage_max'] ?? '') !== '') {
-        $where[] = "vr.mileage_in <= ?";
-        $params[] = $source['mileage_max'];
-    }
-
-    return $where;
 }
 
 /**
@@ -164,14 +121,10 @@ $vehicles = $conn->query(
 )->fetchAll(PDO::FETCH_ASSOC);
 
 /**
- * Distinct trip statuses actually present in the data, so the driver can
- * filter the report (and its exports) by status — e.g. only "Completed"
- * trips for a monthly report. Populated from the table so it always
- * reflects the real values regardless of casing.
+ * Status filter options (includes the derived "In Progress" status for
+ * approved trips whose departure time has passed).
  */
-$statuses = $conn->query(
-    "SELECT DISTINCT status FROM vehicle_requests WHERE status IS NOT NULL AND status <> '' ORDER BY status ASC"
-)->fetchAll(PDO::FETCH_COLUMN);
+$statuses = VB_STATUS_LABELS;
 
 /**
  * Canonical department list (must match the booking form).
@@ -198,7 +151,7 @@ $departmentOptions = [
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
 
     $params = [];
-    $where = buildFilters($_POST, $params);
+    $where = vbReportFilters($_POST, $params);
     $whereSQL = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
     $sql = "
@@ -217,7 +170,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
     $table = '<table class="table table-bordered table-striped">
         <thead>
              <tr>
-                <th>Date</th>
+                <th>Request #</th>
+                <th>Date Required</th>
+                <th>Time Required</th>
                 <th>Requester</th>
                 <th>Department</th>
                 <th>Destination</th>
@@ -233,6 +188,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
 
     $totalMileage = 0;
     $perVehicle = [];
+    $inProgress = 0;
 
     // small helper to keep output safe (prevents XSS + broken edit inputs)
     $esc = function ($v) {
@@ -258,26 +214,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
 
         $id     = (int)($r[$PK] ?? 0);
         $vehId  = !empty($r['vehicle_id']) ? (int)$r['vehicle_id'] : '';
-        $dt     = $esc(trim(($r['date_required'] ?? '') . ' ' . ($r['time_required'] ?? '')));
+        $dateReq = $esc($r['date_required']);
+        $timeReq = $esc(vbTime($r['time_required']));
         $req    = $esc($r['requester']);
         $dep    = $esc($r['department']);
         $des    = $esc($r['destination']);
         $reg    = $esc($r['registration']);
-        $sta    = $esc($r['status']);
+        $staVal = $esc($r['status']);
+        $staBadge = vbStatusBadge($r);
+        if (vbTripStatus($r) === 'in_progress') {
+            $inProgress++;
+        }
         $min    = $esc($r['mileage_in']);
         $mout   = $esc($r['mileage_out']);
 
-        $table .= "<tr data-id=\"{$id}\">
-            <td>{$dt}</td>
+        $table .= "<tr data-id=\"{$id}\" data-request-id=\"{$id}\" title=\"Click to view full request details\">
+            <td>#{$id}</td>
+            <td class=\"text-nowrap\">{$dateReq}</td>
+            <td class=\"text-nowrap\">{$timeReq}</td>
             <td>{$req}</td>
             <td data-field=\"department\">{$dep}</td>
             <td data-field=\"destination\">{$des}</td>
             <td data-field=\"vehicle_id\" data-value=\"{$vehId}\">{$reg}</td>
-            <td data-field=\"status\">{$sta}</td>
+            <td data-field=\"status\" data-value=\"{$staVal}\">{$staBadge}</td>
             <td data-field=\"mileage_in\">{$min}</td>
             <td data-field=\"mileage_out\">{$mout}</td>
             <td class=\"trip-cell\">{$tripMileage}</td>
             <td class=\"text-nowrap\">
+                <button class=\"btn btn-sm btn-outline-primary view-btn\" onclick=\"vbShowRequestDetails({$id})\">View</button>
                 <button class=\"btn btn-sm btn-primary edit-btn\" onclick=\"editRow(this)\">Edit</button>
                 <button class=\"btn btn-sm btn-success save-btn d-none\" onclick=\"saveRow(this)\">Save</button>
                 <button class=\"btn btn-sm btn-secondary cancel-btn d-none\" onclick=\"cancelRow(this)\">Cancel</button>
@@ -287,7 +251,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
 
     $table .= '</tbody></table>';
 
-    $totals = "<h5>Total Trip Mileage: <strong id=\"totalTripValue\">{$totalMileage} km</strong></h5>
+    $totals = "<h5>Trips In Progress: <strong>{$inProgress}</strong></h5>
+               <h5>Total Trip Mileage: <strong id=\"totalTripValue\">{$totalMileage} km</strong></h5>
                <h6>Mileage per Vehicle</h6><ul>";
 
     foreach ($perVehicle as $v) {
@@ -346,8 +311,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                 <label>Status</label>
                 <select name="status" class="form-control">
                     <option value="">All Statuses</option>
-                    <?php foreach ($statuses as $s): ?>
-                        <option value="<?= htmlspecialchars($s, ENT_QUOTES) ?>"><?= htmlspecialchars($s, ENT_QUOTES) ?></option>
+                    <?php foreach ($statuses as $value => [, $label]): ?>
+                        <option value="<?= htmlspecialchars($value, ENT_QUOTES) ?>"><?= htmlspecialchars($label, ENT_QUOTES) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -380,6 +345,18 @@ const VEHICLES = <?= json_encode(
 ) ?>;
 
 /**
+ * Stored request statuses for the Status dropdown ("In Progress" is derived
+ * from Approved + departure time, so it is not offered here).
+ */
+const STATUSES = <?= json_encode(
+    array_map(
+        fn($value) => ['value' => $value, 'label' => vbStatusLabel($value)],
+        array_keys(array_diff_key(VB_STATUS_LABELS, ['in_progress' => true]))
+    ),
+    JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP
+) ?>;
+
+/**
  * Fixed Department options (mirrors the booking form).
  */
 const DEPARTMENTS = <?= json_encode(
@@ -398,7 +375,7 @@ const EDITABLE = {
     department:   { type: 'select', options: DEPARTMENTS },
     destination:  { type: 'text' },
     vehicle_id:   { type: 'fk', options: VEHICLES },
-    status:       { type: 'select', options: ['Pending', 'Approved', 'Completed', 'Cancelled'] },
+    status:       { type: 'fk', options: STATUSES },
     mileage_in:   { type: 'number' },
     mileage_out:  { type: 'number' }
 };
@@ -446,6 +423,7 @@ function editRow(btn) {
         const field = td.dataset.field;
         const val = td.textContent.trim();
         td.dataset.original = val;
+        td.dataset.originalHtml = td.innerHTML;
 
         const cfg = EDITABLE[field] || { type: 'text' };
 
@@ -473,17 +451,20 @@ function editRow(btn) {
             td.innerHTML = `<input type="${cfg.type}" class="form-control form-control-sm" value="${escapeHtml(val)}">`;
         }
     });
+    tr.classList.add('editing');
     toggleButtons(tr, true);
 }
 
 function cancelRow(btn) {
     const tr = btn.closest('tr');
     tr.querySelectorAll('td[data-field]').forEach(td => {
-        if (td.dataset.original !== undefined) {
-            td.textContent = td.dataset.original;
+        if (td.dataset.originalHtml !== undefined) {
+            td.innerHTML = td.dataset.originalHtml;
             delete td.dataset.original;
+            delete td.dataset.originalHtml;
         }
     });
+    tr.classList.remove('editing');
     toggleButtons(tr, false);
 }
 
@@ -520,13 +501,18 @@ function saveRow(btn) {
                     td.textContent = input ? input.value : (td.dataset.original ?? '');
                 }
                 delete td.dataset.original;
+                delete td.dataset.originalHtml;
             });
+            // status shows as a badge (may be "In Progress" for approved trips)
+            const statusCell = tr.querySelector('td[data-field="status"]');
+            if (statusCell && data.status_badge) statusCell.innerHTML = data.status_badge;
             // update trip mileage + grand total
             if (data.trip_mileage !== undefined) {
                 const tripCell = tr.querySelector('.trip-cell');
                 if (tripCell) tripCell.textContent = data.trip_mileage;
             }
             recalcTotal();
+            tr.classList.remove('editing');
             toggleButtons(tr, false);
         })
         .catch(() => {
@@ -537,6 +523,7 @@ function saveRow(btn) {
 
 function toggleButtons(tr, editing) {
     tr.querySelector('.edit-btn').classList.toggle('d-none', editing);
+    tr.querySelector('.view-btn').classList.toggle('d-none', editing);
     tr.querySelector('.save-btn').classList.toggle('d-none', !editing);
     tr.querySelector('.cancel-btn').classList.toggle('d-none', !editing);
 }

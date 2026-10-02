@@ -3,6 +3,7 @@ session_start();
 require_once __DIR__ . '/session_timeout.php';
 require '../vehicle_booking/db.php';
 require '../vehicle_booking/mail_config.php';
+require_once __DIR__ . '/trip_helpers.php';
 
 if (isset($_SESSION['message'])) {
     echo "<div class='alert alert-{$_SESSION['message_type']} alert-dismissible fade show mt-3' role='alert'>
@@ -49,6 +50,19 @@ $approvedStmt = $conn->query("
     WHERE vr.status = 'pending_supervisor'
     ORDER BY vr.updated_at DESC
 ");
+
+// Trips under way: fully approved and past their date/time required, not yet returned.
+$inProgressStmt = $conn->prepare("
+    SELECT vr.*, u.name AS requester_name, v.registration
+    FROM vehicle_requests vr
+    JOIN users u ON vr.requester_id = u.user_id
+    LEFT JOIN vehicles v ON vr.vehicle_id = v.vehicle_id
+    WHERE vr.status = 'approved'
+      AND TIMESTAMP(vr.date_required, COALESCE(vr.time_required, '00:00:00')) <= ?
+    ORDER BY vr.date_required ASC, vr.time_required ASC
+");
+$inProgressStmt->execute([vbNow()]);
+$inProgressRows = $inProgressStmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -91,17 +105,19 @@ $approvedStmt = $conn->query("
                 <th>Department</th>
                 <th>Destination</th>
                 <th>Date Required</th>
+                <th>Time Required</th>
                 <th>Purpose</th>
                 <th>Action</th>
             </tr>
         </thead>
         <tbody>
             <?php foreach($pendingRows as $req): ?>
-            <tr>
+            <tr data-request-id="<?= $req['request_id'] ?>" data-vb-modal="#requestModal<?= $req['request_id'] ?>">
                 <td><?= htmlspecialchars($req['requester_name']) ?></td>
                 <td><?= htmlspecialchars($req['department']) ?></td>
                 <td class="cell-truncate" title="<?= htmlspecialchars($req['destination']) ?>"><?= htmlspecialchars($req['destination']) ?></td>
                 <td class="col-nowrap"><?= htmlspecialchars($req['date_required']) ?></td>
+                <td class="col-nowrap"><?= htmlspecialchars(vbTime($req['time_required'])) ?></td>
                 <td class="cell-truncate" title="<?= htmlspecialchars($req['purpose']) ?>"><?= htmlspecialchars($req['purpose']) ?></td>
                 <td class="text-center col-nowrap">
                     <button type="button" class="btn btn-outline-primary btn-sm"
@@ -126,16 +142,7 @@ $approvedStmt = $conn->query("
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <div class="row g-3">
-              <div class="col-md-6"><small class="text-muted">Requester</small><div class="fw-semibold"><?= htmlspecialchars($req['requester_name']) ?></div></div>
-              <div class="col-md-6"><small class="text-muted">Department</small><div class="fw-semibold"><?= htmlspecialchars($req['department']) ?></div></div>
-              <div class="col-md-6"><small class="text-muted">Destination</small><div class="fw-semibold"><?= htmlspecialchars($req['destination']) ?></div></div>
-              <div class="col-md-6"><small class="text-muted">Purpose</small><div class="fw-semibold"><?= htmlspecialchars($req['purpose']) ?></div></div>
-              <div class="col-md-6"><small class="text-muted">Date Required</small><div class="fw-semibold"><?= htmlspecialchars($req['date_required']) ?></div></div>
-              <div class="col-md-6"><small class="text-muted">Time Required</small><div class="fw-semibold"><?= htmlspecialchars($req['time_required']) ?></div></div>
-              <div class="col-md-6"><small class="text-muted">Passengers</small><div class="fw-semibold"><?= htmlspecialchars($req['passengers']) ?></div></div>
-              <div class="col-md-6"><small class="text-muted">Expected Return</small><div class="fw-semibold"><?= htmlspecialchars($req['expected_return_date']) ?></div></div>
-            </div>
+            <div data-vb-details="<?= $req['request_id'] ?>"></div>
 
             <hr>
             <!-- Approve & assign a vehicle -->
@@ -197,23 +204,70 @@ $approvedStmt = $conn->query("
                 <th>Vehicle</th>
                 <th>Destination</th>
                 <th>Date Required</th>
+                <th>Time Required</th>
                 <th>Status</th>
             </tr>
         </thead>
         <tbody>
             <?php while($row = $approvedStmt->fetch(PDO::FETCH_ASSOC)): ?>
-            <tr>
+            <tr data-request-id="<?= $row['request_id'] ?>">
                 <td><?= htmlspecialchars($row['requester_name']) ?></td>
                 <td><?= htmlspecialchars($row['registration'] ?? 'Not Assigned') ?></td>
                 <td class="cell-truncate" title="<?= htmlspecialchars($row['destination']) ?>"><?= htmlspecialchars($row['destination']) ?></td>
                 <td class="col-nowrap"><?= htmlspecialchars($row['date_required']) ?></td>
-                <td class="col-nowrap"><span class="badge bg-warning"><?= $row['status'] ?></span></td>
+                <td class="col-nowrap"><?= htmlspecialchars(vbTime($row['time_required'])) ?></td>
+                <td class="col-nowrap"><?= vbStatusBadge($row) ?></td>
 
             </tr>
             <?php endwhile; ?>
         </tbody>
     </table>
     </div>
+</div>
+</div>
+</div>
+</div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+	<div class="card border-0 shadow-sm">
+  		<div class="card-header card-color text-white d-flex justify-content-between align-items-center">
+    		<h4>Trips In Progress (Vehicles Out)</h4>
+		</div>
+
+	<div class="card-body">
+    	<?php if (empty($inProgressRows)): ?>
+    	    <div class="text-muted">No vehicles are out on a trip right now.</div>
+    	<?php else: ?>
+    	<div class="table-responsive">
+    		<table class="table table-bordered">
+        	<thead class="table-dark">
+            	<tr>
+                <th>Requester</th>
+                <th>Vehicle</th>
+                <th>Destination</th>
+                <th>Date Required</th>
+                <th>Time Required</th>
+                <th>Expected Return</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ($inProgressRows as $row): ?>
+            <tr data-request-id="<?= $row['request_id'] ?>">
+                <td><?= htmlspecialchars($row['requester_name']) ?></td>
+                <td><?= htmlspecialchars($row['registration'] ?? 'Not Assigned') ?></td>
+                <td class="cell-truncate" title="<?= htmlspecialchars($row['destination']) ?>"><?= htmlspecialchars($row['destination']) ?></td>
+                <td class="col-nowrap"><?= htmlspecialchars($row['date_required']) ?></td>
+                <td class="col-nowrap"><?= htmlspecialchars(vbTime($row['time_required'])) ?></td>
+                <td class="col-nowrap"><?= htmlspecialchars($row['expected_return_date'] ?? '') ?></td>
+                <td class="col-nowrap"><?= vbStatusBadge($row) ?></td>
+            </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+    </div>
+    	<?php endif; ?>
 </div>
 </div>
 </div>
