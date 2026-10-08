@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once __DIR__ . '/superuser.php';
+require_once __DIR__ . '/admin_stats.php';
 
 // ══════════════════════════════════════════════════════════════════
 //  AUTO-LOGIN via SSO cookie set by the CRM on login
@@ -34,6 +35,7 @@ if (!isset($_SESSION['user_id']) && !isset($_GET['logout']) && !isset($_GET['tim
                 $_SESSION['email']      = $hd_email;
                 $_SESSION['department'] = $vr_user['department'];
                 vbStartSuperuserSession();
+                vbRecordLogin($vehicle_conn, (int)$vr_user['user_id'], 'sso');
 
                 if ($vr_user['password_reset_required'] == 1) {
                     header("Location: force_change_password.php");
@@ -142,6 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['email']      = $hd_user['Email'];
                     $_SESSION['department'] = $vr_user['department'];
                     vbStartSuperuserSession();
+                    vbRecordLogin($vehicle_conn, (int)$vr_user['user_id'], 'password');
 
                     if ($vr_user['password_reset_required'] == 1) {
                         header("Location: force_change_password.php");
