@@ -2,6 +2,7 @@
 session_start();
 require '../vehicle_booking/db.php';
 require_once __DIR__ . '/trip_helpers.php';
+require_once __DIR__ . '/admin_stats.php';
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: ../vehicle_booking/login.php");
@@ -288,6 +289,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
           </div>
         </div>
 
+    <?php $statsView = vbStatsViewFor($_SESSION['role'] ?? '', 'driver'); ?>
+    <?php if ($statsView !== null): ?>
+    <ul class="nav nav-tabs mb-4 no-print" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tab-records" data-bs-toggle="tab" data-bs-target="#pane-records" type="button" role="tab">
+                <i class="fa fa-table-list me-1"></i>Trip Records
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-stats" data-bs-toggle="tab" data-bs-target="#pane-stats" type="button" role="tab">
+                <i class="fa fa-chart-column me-1"></i>Statistics
+            </button>
+        </li>
+    </ul>
+    <?php endif; ?>
+
+    <div class="tab-content">
+    <div class="tab-pane fade show active" id="pane-records" role="tabpanel">
+
     <div class="card p-3 mb-4">
         <h5>Filters</h5>
         <form id="filterForm" class="row g-3">
@@ -333,7 +353,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
 
     <div id="reportTable" class="table-responsive"></div>
     <div id="totalsSection" class="mt-4"></div>
+    </div><!-- /#pane-records -->
+
+    <?php if ($statsView !== null): ?>
+    <div class="tab-pane fade" id="pane-stats" role="tabpanel">
+        <?php
+        $statsTitle = 'Fleet Statistics';
+        require __DIR__ . '/partials/stats_section.php';
+        ?>
+    </div>
+    <?php endif; ?>
+    </div><!-- /.tab-content -->
 </div>
+
+<script>
+// Open the Statistics tab when the URL asks for it (period links and the
+// period form return to #statistics).
+if (location.hash === '#statistics' && document.getElementById('tab-stats')) {
+    bootstrap.Tab.getOrCreateInstance(document.getElementById('tab-stats')).show();
+}
+</script>
 
 <script>
 /**
