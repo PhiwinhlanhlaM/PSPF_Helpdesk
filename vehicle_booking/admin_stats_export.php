@@ -1,8 +1,9 @@
 <?php
-// admin_stats_export.php?from=YYYY-MM-DD&to=YYYY-MM-DD&view=admin|driver|hrm
+// admin_stats_export.php?from=YYYY-MM-DD&to=YYYY-MM-DD&view=admin|driver|hrm|supervisor
 //
 // Downloads the statistics shown on the Administrator dashboard, the
-// driver's Transport Report or the HRM Report as a CSV file (opens in
+// driver's Transport Report, the HRM Report or the Supervisor Report
+// (the supervisor's own department only) as a CSV file (opens in
 // Excel) for pasting into reports: summary figures, each chart's numbers
 // and, for administrators, the full activity log for the period.
 
@@ -11,7 +12,7 @@ require_once __DIR__ . '/session_timeout.php';
 require '../vehicle_booking/db.php';
 require_once __DIR__ . '/admin_stats.php';
 
-// Admins get any view; drivers and HRM get their own report's figures.
+// Admins get any view; drivers, supervisors and HRM get their own report's figures.
 $view = isset($_SESSION['user_id']) ? vbStatsViewFor($_SESSION['role'] ?? '', $_GET['view'] ?? null) : null;
 if ($view === null) {
     http_response_code(403);
@@ -21,7 +22,8 @@ $show = VB_STATS_VIEWS[$view];
 $has  = static fn(string $group, string $key): bool => in_array($key, $show[$group], true);
 
 [$from, $to] = vbStatsPeriod($_GET);
-$s = vbCollectStats($conn, $from, $to);
+$department = vbStatsDepartmentFor($view);
+$s = vbCollectStats($conn, $from, $to, $department);
 
 header('Content-Type: text/csv; charset=utf-8');
 header('Content-Disposition: attachment; filename="transport_statistics_' . $view . '_' . $from . '_to_' . $to . '.csv"');
@@ -43,8 +45,11 @@ $section = static function (string $title, array $header) use ($row) {
     $row($header);
 };
 
-$row(['PSPF Transport Booking System - Statistics (' . ['admin' => 'Administrator', 'driver' => 'Fleet', 'hrm' => 'HRM'][$view] . ')']);
+$row(['PSPF Transport Booking System - Statistics (' . ['admin' => 'Administrator', 'driver' => 'Fleet', 'hrm' => 'HRM', 'supervisor' => 'Supervisor'][$view] . ')']);
 $row(['Reporting period', $from . ' to ' . $to]);
+if ($department !== null) {
+    $row(['Department', $department !== '' ? $department : 'Not specified']);
+}
 $row(['Generated', date('Y-m-d H:i'), 'by', vbName($_SESSION['name'] ?? '')]);
 
 $section('Summary', ['Measure', 'Value']);
@@ -52,6 +57,9 @@ $row(['Requests raised', $s['requests_total']]);
 $row(['Requests still awaiting a decision', $s['pending']]);
 if ($has('tiles', 'pending')) {
     $row(['  of which awaiting HRM', $s['by_status']['pending_hrm']]);
+}
+if ($has('tiles', 'pending_supervisor')) {
+    $row(['  of which awaiting supervisor', $s['by_status']['pending_supervisor']]);
 }
 if ($has('tiles', 'approval_rate')) {
     $row(['Requests approved', $s['approved_requests']]);
@@ -124,6 +132,14 @@ if ($has('tables', 'department_summary')) {
 } elseif ($has('charts', 'department')) {
     $section('Requests by department', ['Department', 'Requests']);
     foreach ($s['by_department'] as $d) $row([$d['label'], $d['value']]);
+}
+
+if ($has('tables', 'requester_summary')) {
+    $section('Staff summary', ['Staff member', 'Requests', 'Approved', 'Rejected', 'Pending', 'Trips completed', 'Km', 'Share of requests']);
+    foreach ($s['requester_summary'] as $r) {
+        $row([vbName($r['requester']), $r['requests'], $r['approved'], $r['rejected'], $r['pending'], $r['completed'], $r['km'],
+              vbPct((int)$r['requests'], $s['requests_total'])]);
+    }
 }
 
 if ($has('tables', 'vehicle_usage') || $has('charts', 'vehicle_trips')) {

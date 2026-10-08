@@ -16,6 +16,7 @@
 // dashboard (defaults to the current month).
 
 require_once __DIR__ . '/trip_helpers.php';
+require_once __DIR__ . '/superuser.php';
 
 /**
  * Reporting period from the query string. Returns [from 'Y-m-d', to 'Y-m-d'].
@@ -142,8 +143,9 @@ function vbStatsBuckets(string $from, string $to): array
 
 /**
  * Which parts of the statistics section each role's report shows.
- * admin_dashboard.php uses 'admin', report_page.php 'driver' and
- * hrm_report.php 'hrm'. The CSV export follows the same lists.
+ * admin_dashboard.php uses 'admin', report_page.php 'driver',
+ * hrm_report.php 'hrm' and supervisor_report.php 'supervisor'. The CSV
+ * export follows the same lists.
  */
 const VB_STATS_VIEWS = [
     'admin' => [
@@ -161,11 +163,17 @@ const VB_STATS_VIEWS = [
         'charts' => ['timeline', 'channel', 'department', 'status', 'vehicle_trips', 'vehicle_km'],
         'tables' => ['department_summary', 'vehicle_usage'],
     ],
+    // Figures are limited to the supervisor's own department (see vbStatsDepartmentFor()).
+    'supervisor' => [
+        'tiles'  => ['requests', 'approval_rate', 'pending_supervisor', 'avg_approval', 'actioned', 'email', 'trips', 'km'],
+        'charts' => ['timeline', 'channel', 'status', 'requesters', 'vehicle_trips', 'vehicle_km'],
+        'tables' => ['requester_summary', 'vehicle_usage'],
+    ],
 ];
 
 /**
  * The statistics view the signed-in user may see. Admins may ask for any
- * view (so they can preview the driver and HRM reports); everyone else only
+ * view (so they can preview the other reports); everyone else only
  * gets their own role's view, or null if their role has none.
  */
 function vbStatsViewFor(string $role, ?string $requested = null): ?string
@@ -176,13 +184,38 @@ function vbStatsViewFor(string $role, ?string $requested = null): ?string
     return isset(VB_STATS_VIEWS[$role]) ? $role : null;
 }
 
-/** Every figure the dashboard and export show, for one period. */
-function vbCollectStats(PDO $conn, string $from, string $to): array
+/**
+ * Department a statistics view is limited to, or null for all departments.
+ * Supervisors only see their own department, as on their dashboard; an IT
+ * superuser in the Supervisor view and admins previewing it see everything.
+ */
+function vbStatsDepartmentFor(string $view): ?string
+{
+    if ($view !== 'supervisor' || ($_SESSION['role'] ?? '') !== 'supervisor' || vbIsSuperuser()) {
+        return null;
+    }
+    return (string)($_SESSION['department'] ?? '');
+}
+
+/**
+ * Every figure the dashboard and export show, for one period. With a
+ * $department, request figures cover only that department's requests;
+ * account-wide figures (users, sign-ins) are not limited.
+ */
+function vbCollectStats(PDO $conn, string $from, string $to, ?string $department = null): array
 {
     $fromTs = $from . ' 00:00:00';
     $toTs   = $to . ' 23:59:59';
-    $range  = [$fromTs, $toTs];
-    $stats  = ['from' => $from, 'to' => $to];
+    $stats  = ['from' => $from, 'to' => $to, 'department' => $department];
+
+    // Department filter: $vrDept for queries on vehicle_requests vr, and
+    // $inDept('col') for request_logs / tokens rows via their request id.
+    // Each placeholder list below ends with the department when it applies.
+    $vrDept = $department === null ? '' : ' AND vr.department = ?';
+    $inDept = static fn(string $col): string => $department === null ? ''
+        : " AND $col IN (SELECT request_id FROM vehicle_requests WHERE department = ?)";
+    $d      = static fn(array $params): array => $department === null ? $params : array_merge($params, [$department]);
+    $range  = $d([$fromTs, $toTs]);
 
     $one = static function (string $sql, array $params = []) use ($conn) {
         $st = $conn->prepare($sql);
@@ -197,14 +230,14 @@ function vbCollectStats(PDO $conn, string $from, string $to): array
 
     // ---- Requests raised in the period ---------------------------------
     $stats['requests_total'] = (int)$one(
-        "SELECT COUNT(*) FROM vehicle_requests vr WHERE vr.created_at BETWEEN ? AND ?", $range
+        "SELECT COUNT(*) FROM vehicle_requests vr WHERE vr.created_at BETWEEN ? AND ?$vrDept", $range
     );
 
     $statusCounts = array_fill_keys(array_keys(VB_STATUS_LABELS), 0);
     $rows = $all("
         SELECT vr.status, vr.date_required, vr.time_required
         FROM vehicle_requests vr
-        WHERE vr.created_at BETWEEN ? AND ?
+        WHERE vr.created_at BETWEEN ? AND ?$vrDept
     ", $range);
     foreach ($rows as $r) {
         $s = vbTripStatus($r);
@@ -221,8 +254,8 @@ function vbCollectStats(PDO $conn, string $from, string $to): array
     $stats['on_road_now'] = (int)$one("
         SELECT COUNT(*) FROM vehicle_requests vr
         WHERE vr.status = 'approved'
-          AND TIMESTAMP(vr.date_required, COALESCE(vr.time_required, '00:00:00')) <= ?
-    ", [vbNow()]);
+          AND TIMESTAMP(vr.date_required, COALESCE(vr.time_required, '00:00:00')) <= ?$vrDept
+    ", $d([vbNow()]));
 
     // Per-department breakdown: requests, outcome and distance driven.
     $stats['department_summary'] = $all("
@@ -235,15 +268,32 @@ function vbCollectStats(PDO $conn, string $from, string $to): array
                COALESCE(SUM(CASE WHEN vr.mileage_in >= vr.mileage_out
                                  THEN vr.mileage_in - vr.mileage_out END), 0) AS km
         FROM vehicle_requests vr
-        WHERE vr.created_at BETWEEN ? AND ?
+        WHERE vr.created_at BETWEEN ? AND ?$vrDept
         GROUP BY department
         ORDER BY requests DESC, department
+    ", $range);
+
+    // Same breakdown per person who raised the requests.
+    $stats['requester_summary'] = $all("
+        SELECT u.name AS requester,
+               COUNT(*) AS requests,
+               SUM(vr.status IN ('approved', 'closed')) AS approved,
+               SUM(vr.status = 'rejected') AS rejected,
+               SUM(vr.status IN ('pending_driver', 'pending_supervisor', 'pending_hrm')) AS pending,
+               SUM(vr.status = 'closed') AS completed,
+               COALESCE(SUM(CASE WHEN vr.mileage_in >= vr.mileage_out
+                                 THEN vr.mileage_in - vr.mileage_out END), 0) AS km
+        FROM vehicle_requests vr
+        JOIN users u ON u.user_id = vr.requester_id
+        WHERE vr.created_at BETWEEN ? AND ?$vrDept
+        GROUP BY u.user_id, u.name
+        ORDER BY requests DESC, u.name
     ", $range);
 
     $stats['by_department'] = $all("
         SELECT COALESCE(NULLIF(TRIM(vr.department), ''), 'Not specified') AS label, COUNT(*) AS value
         FROM vehicle_requests vr
-        WHERE vr.created_at BETWEEN ? AND ?
+        WHERE vr.created_at BETWEEN ? AND ?$vrDept
         GROUP BY label
         ORDER BY value DESC, label
     ", $range);
@@ -259,7 +309,7 @@ function vbCollectStats(PDO $conn, string $from, string $to): array
     foreach ($all("
         SELECT $keySql AS k, COUNT(*) AS n
         FROM vehicle_requests vr
-        WHERE vr.created_at BETWEEN ? AND ?
+        WHERE vr.created_at BETWEEN ? AND ?$vrDept
         GROUP BY k
     ", $range) as $r) {
         if (array_key_exists($r['k'], $series)) {
@@ -283,7 +333,7 @@ function vbCollectStats(PDO $conn, string $from, string $to): array
                COUNT(DISTINCT rl.request_id) AS requests
         FROM request_logs rl
         WHERE rl.created_at BETWEEN ? AND ?
-          AND rl.request_id IS NOT NULL
+          AND rl.request_id IS NOT NULL{$inDept('rl.request_id')}
         GROUP BY stage, outcome, via_email
     ", $range);
 
@@ -317,12 +367,12 @@ function vbCollectStats(PDO $conn, string $from, string $to): array
         FROM request_logs rl
         WHERE rl.created_at BETWEEN ? AND ?
           AND rl.request_id IS NOT NULL
-          AND ($stage) IS NOT NULL
+          AND ($stage) IS NOT NULL{$inDept('rl.request_id')}
     ", $range);
 
     $stats['trips_completed'] = (int)$one("
         SELECT COUNT(*) FROM request_logs rl
-        WHERE rl.created_at BETWEEN ? AND ? AND rl.action = 'Vehicle returned'
+        WHERE rl.created_at BETWEEN ? AND ? AND rl.action = 'Vehicle returned'{$inDept('rl.request_id')}
     ", $range);
 
     // Average time from submission to final HRM approval, for requests
@@ -332,7 +382,7 @@ function vbCollectStats(PDO $conn, string $from, string $to): array
         FROM (
             SELECT request_id, MAX(created_at) AS approved_at
             FROM request_logs
-            WHERE action LIKE 'HRM approved%' AND created_at BETWEEN ? AND ?
+            WHERE action LIKE 'HRM approved%' AND created_at BETWEEN ? AND ?{$inDept('request_id')}
             GROUP BY request_id
         ) fin
         JOIN (
@@ -352,8 +402,8 @@ function vbCollectStats(PDO $conn, string $from, string $to): array
                    SUM(used_at IS NOT NULL) AS used,
                    SUM(used_at IS NULL AND expires_at < ?) AS expired
             FROM email_action_tokens
-            WHERE created_at BETWEEN ? AND ?
-        ", [vbNow(), $fromTs, $toTs])[0];
+            WHERE created_at BETWEEN ? AND ?{$inDept('request_id')}
+        ", $d([vbNow(), $fromTs, $toTs]))[0];
         $stats['email_tokens'] = [
             'sent'    => (int)$t['sent'],
             'used'    => (int)$t['used'],
@@ -364,7 +414,7 @@ function vbCollectStats(PDO $conn, string $from, string $to): array
     // ---- Users -----------------------------------------------------------
     $stats['users_total']  = (int)$one("SELECT COUNT(*) FROM users");
     $stats['users_active'] = (int)$one("SELECT COUNT(*) FROM users WHERE active = 1");
-    $stats['users_new']    = (int)$one("SELECT COUNT(*) FROM users WHERE created_at BETWEEN ? AND ?", $range);
+    $stats['users_new']    = (int)$one("SELECT COUNT(*) FROM users WHERE created_at BETWEEN ? AND ?", [$fromTs, $toTs]);
     $stats['users_by_role'] = $all("
         SELECT role AS label, COUNT(*) AS value
         FROM users WHERE active = 1
@@ -375,12 +425,12 @@ function vbCollectStats(PDO $conn, string $from, string $to): array
     $stats['users_engaged'] = (int)$one("
         SELECT COUNT(DISTINCT uid) FROM (
             SELECT rl.action_by AS uid FROM request_logs rl
-            WHERE rl.created_at BETWEEN ? AND ? AND rl.action_by IS NOT NULL
+            WHERE rl.created_at BETWEEN ? AND ? AND rl.action_by IS NOT NULL{$inDept('rl.request_id')}
             UNION
             SELECT vr.requester_id FROM vehicle_requests vr
-            WHERE vr.created_at BETWEEN ? AND ?
+            WHERE vr.created_at BETWEEN ? AND ?$vrDept
         ) x
-    ", [$fromTs, $toTs, $fromTs, $toTs]);
+    ", array_merge($range, $range));
 
     $stats['top_users'] = $all("
         SELECT u.name, u.role, u.department,
@@ -390,7 +440,7 @@ function vbCollectStats(PDO $conn, string $from, string $to): array
                COUNT(*) AS total
         FROM request_logs rl
         JOIN users u ON u.user_id = rl.action_by
-        WHERE rl.created_at BETWEEN ? AND ? AND rl.request_id IS NOT NULL
+        WHERE rl.created_at BETWEEN ? AND ? AND rl.request_id IS NOT NULL{$inDept('rl.request_id')}
         GROUP BY u.user_id, u.name, u.role, u.department
         ORDER BY total DESC, u.name
         LIMIT 10
@@ -404,7 +454,7 @@ function vbCollectStats(PDO $conn, string $from, string $to): array
                    SUM(method = 'sso') AS sso
             FROM login_logs
             WHERE logged_in_at BETWEEN ? AND ?
-        ", $range)[0];
+        ", [$fromTs, $toTs])[0];
         $stats['logins'] = [
             'total' => (int)$l['total'],
             'users' => (int)$l['users'],
@@ -422,7 +472,7 @@ function vbCollectStats(PDO $conn, string $from, string $to): array
         LEFT JOIN vehicle_requests vr
                ON vr.vehicle_id = v.vehicle_id
               AND vr.status IN ('approved', 'closed')
-              AND vr.created_at BETWEEN ? AND ?
+              AND vr.created_at BETWEEN ? AND ?$vrDept
         GROUP BY v.vehicle_id, v.registration, v.make, v.model
         ORDER BY trips DESC, km DESC, v.registration
     ", $range);
@@ -433,12 +483,12 @@ function vbCollectStats(PDO $conn, string $from, string $to): array
         SELECT rl.created_at, rl.request_id, rl.action, u.name
         FROM request_logs rl
         LEFT JOIN users u ON u.user_id = rl.action_by
-        WHERE rl.created_at BETWEEN ? AND ?
+        WHERE rl.created_at BETWEEN ? AND ?{$inDept('rl.request_id')}
         ORDER BY rl.created_at DESC, rl.log_id DESC
         LIMIT 25
     ", $range);
     $stats['logs_total'] = (int)$one(
-        "SELECT COUNT(*) FROM request_logs rl WHERE rl.created_at BETWEEN ? AND ?", $range
+        "SELECT COUNT(*) FROM request_logs rl WHERE rl.created_at BETWEEN ? AND ?{$inDept('rl.request_id')}", $range
     );
 
     return $stats;

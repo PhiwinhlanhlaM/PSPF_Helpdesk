@@ -8,7 +8,8 @@
  *     $statsTitle = 'Fleet Statistics';       // optional heading
  *     require __DIR__ . '/partials/stats_section.php';
  *
- * Needs $conn (db.php). The reporting period comes from ?from=&to= in the
+ * Needs $conn (db.php). Supervisors' figures are limited to their own
+ * department (vbStatsDepartmentFor). The reporting period comes from ?from=&to= in the
  * URL (default: this month). Any other query-string values are kept when
  * the period changes.
  */
@@ -20,7 +21,8 @@ $show = VB_STATS_VIEWS[$statsView];
 $has  = static fn(string $group, string $key): bool => in_array($key, $show[$group], true);
 
 [$from, $to] = vbStatsPeriod($_GET);
-$stats = vbCollectStats($conn, $from, $to);
+$statsDepartment = vbStatsDepartmentFor($statsView);
+$stats = vbCollectStats($conn, $from, $to, $statsDepartment);
 
 // Links keep any other query-string values the page uses.
 $keepQuery = array_diff_key($_GET, ['from' => 1, 'to' => 1]);
@@ -48,6 +50,8 @@ if (count($stats['by_department']) > 8) {
 $vehicleTrips = array_map(static fn($v) => ['label' => trim($v['label']), 'value' => $v['trips']], $stats['vehicle_usage']);
 $vehicleKm    = array_map(static fn($v) => ['label' => trim($v['label']), 'value' => $v['km']], $stats['vehicle_usage']);
 usort($vehicleKm, static fn($a, $b) => $b['value'] <=> $a['value']);
+$requesterRows = array_map(static fn($r) => ['label' => vbName($r['requester']), 'value' => $r['requests']],
+                          array_slice($stats['requester_summary'], 0, 10));
 $tokens = $stats['email_tokens'];
 
 // Headline tiles: key => [icon, label, value HTML, sub-line HTML]
@@ -73,6 +77,8 @@ $tiles = [
     'on_road' => ['fa-car-side', 'On the road now', number_format($stats['on_road_now']),
         'approved trips that have left and are not yet returned'],
     'pending' => ['fa-hourglass-half', 'Awaiting HRM', number_format($stats['by_status']['pending_hrm']),
+        number_format($stats['pending']) . ' awaiting a decision at any stage'],
+    'pending_supervisor' => ['fa-hourglass-half', 'Awaiting supervisor', number_format($stats['by_status']['pending_supervisor']),
         number_format($stats['pending']) . ' awaiting a decision at any stage'],
     'approval_rate' => ['fa-circle-check', 'Approval rate', $stats['approval_rate'],
         number_format($stats['approved_requests']) . ' approved · ' . number_format($stats['by_status']['rejected']) . ' rejected'],
@@ -106,6 +112,8 @@ $charts = [
                         static fn() => vbChartBars($vehicleTrips, '', 'No vehicles registered.')],
     'vehicle_km'    => ['col-lg-6', 'Distance per vehicle', 'Km driven (mileage in − mileage out)',
                         static fn() => vbChartBars($vehicleKm, 'km', 'No vehicles registered.')],
+    'requesters'    => ['col-lg-6', 'Requests by staff member', 'Who raised the most requests in the period',
+                        static fn() => vbChartBars($requesterRows)],
     'roles'         => ['col-lg-6', 'Active accounts by role', 'All active user accounts (not limited to the period)',
                         static fn() => vbChartBars($roleRows)],
 ];
@@ -199,6 +207,9 @@ if (!$has('charts', 'timeline')) $charts['channel'][0] = 'col-lg-6';
         <div>
             <h4 class="mb-0"><?= $e($statsTitle) ?></h4>
             <div class="text-muted">Reporting period: <strong><?= $e($periodLabel) ?></strong></div>
+            <?php if ($statsDepartment !== null): ?>
+                <div class="text-muted">Department: <strong><?= $e($statsDepartment !== '' ? $statsDepartment : 'Not specified') ?></strong></div>
+            <?php endif; ?>
         </div>
         <div class="no-print">
             <form class="stats-filter" method="get" action="#statistics">
@@ -255,22 +266,30 @@ if (!$has('charts', 'timeline')) $charts['channel'][0] = 'col-lg-6';
 
     <!-- Tables -->
     <div class="row g-3 mt-1">
-        <?php if ($has('tables', 'department_summary')): ?>
+        <?php
+        // Outcome tables: key => [title, sub-title, name column, column heading]
+        $summaryTables = [
+            'department_summary' => ['Department summary', 'Requests raised in the period by department, their outcome and distance driven', 'department', 'Department'],
+            'requester_summary'  => ['Staff summary', 'Requests raised in the period by each staff member, their outcome and distance driven', 'requester', 'Staff member'],
+        ];
+        foreach ($summaryTables as $tableKey => [$tTitle, $tSub, $nameCol, $nameHead]):
+            if (!$has('tables', $tableKey)) continue;
+        ?>
         <div class="col-12">
             <div class="chart-card">
-                <h5>Department summary</h5>
-                <div class="chart-sub">Requests raised in the period by department, their outcome and distance driven</div>
-                <?php if (!$stats['department_summary']): ?>
+                <h5><?= $e($tTitle) ?></h5>
+                <div class="chart-sub"><?= $e($tSub) ?></div>
+                <?php if (!$stats[$tableKey]): ?>
                     <p class="vb-chart-empty">No requests were raised in this period.</p>
                 <?php else: $sum = ['requests' => 0, 'approved' => 0, 'rejected' => 0, 'pending' => 0, 'completed' => 0, 'km' => 0]; ?>
                 <div class="table-responsive">
                     <table class="table table-sm stats-table mb-0">
-                        <thead><tr><th>Department</th><th class="num">Requests</th><th class="num">Approved</th><th class="num">Rejected</th>
+                        <thead><tr><th><?= $e($nameHead) ?></th><th class="num">Requests</th><th class="num">Approved</th><th class="num">Rejected</th>
                             <th class="num">Pending</th><th class="num">Trips completed</th><th class="num">Km</th><th class="num">Share of requests</th></tr></thead>
                         <tbody>
-                        <?php foreach ($stats['department_summary'] as $d): foreach ($sum as $k => $_) $sum[$k] += (int)$d[$k]; ?>
+                        <?php foreach ($stats[$tableKey] as $d): foreach ($sum as $k => $_) $sum[$k] += (int)$d[$k]; ?>
                             <tr>
-                                <td><?= $e($d['department']) ?></td>
+                                <td><?= $e($nameCol === 'requester' ? vbName($d[$nameCol]) : $d[$nameCol]) ?></td>
                                 <td class="num"><?= number_format((int)$d['requests']) ?></td>
                                 <td class="num"><?= number_format((int)$d['approved']) ?></td>
                                 <td class="num"><?= number_format((int)$d['rejected']) ?></td>
@@ -289,7 +308,7 @@ if (!$has('charts', 'timeline')) $charts['channel'][0] = 'col-lg-6';
                 <?php endif; ?>
             </div>
         </div>
-        <?php endif; ?>
+        <?php endforeach; ?>
 
         <?php if ($has('tables', 'top_users')): ?>
         <div class="col-lg-6">

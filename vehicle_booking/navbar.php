@@ -34,6 +34,7 @@ $navLinks = [
     ['manage_vehicles.php','fa-car',          'Vehicles',    ['admin']],
     ['report_page.php',    'fa-chart-line',   'Report',      ['driver', 'admin']],
     ['hrm_report.php',     'fa-chart-pie',    'Report',      ['hrm']],
+    ['supervisor_report.php', 'fa-chart-pie', 'Report',      ['supervisor']],
     // Relative link so it follows whichever host/folder the app is served from.
     ['../api/signin/index.php', 'fa-headset', 'Helpdesk',   null],
 ];
