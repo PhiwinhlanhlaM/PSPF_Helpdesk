@@ -140,6 +140,42 @@ function vbStatsBuckets(string $from, string $to): array
     return ['month', $buckets];
 }
 
+/**
+ * Which parts of the statistics section each role's report shows.
+ * admin_dashboard.php uses 'admin', report_page.php 'driver' and
+ * hrm_report.php 'hrm'. The CSV export follows the same lists.
+ */
+const VB_STATS_VIEWS = [
+    'admin' => [
+        'tiles'  => ['requests', 'actioned', 'email', 'users', 'logins', 'trips', 'avg_approval', 'logs'],
+        'charts' => ['timeline', 'channel', 'status', 'department', 'vehicle_trips', 'roles'],
+        'tables' => ['department_summary', 'top_users', 'vehicle_usage', 'activity'],
+    ],
+    'driver' => [
+        'tiles'  => ['requests', 'on_road', 'trips', 'km'],
+        'charts' => ['timeline', 'vehicle_trips', 'vehicle_km', 'department'],
+        'tables' => ['vehicle_usage'],
+    ],
+    'hrm' => [
+        'tiles'  => ['requests', 'approval_rate', 'actioned', 'avg_approval', 'email', 'pending', 'trips', 'km'],
+        'charts' => ['timeline', 'channel', 'department', 'status', 'vehicle_trips', 'vehicle_km'],
+        'tables' => ['department_summary', 'vehicle_usage'],
+    ],
+];
+
+/**
+ * The statistics view the signed-in user may see. Admins may ask for any
+ * view (so they can preview the driver and HRM reports); everyone else only
+ * gets their own role's view, or null if their role has none.
+ */
+function vbStatsViewFor(string $role, ?string $requested = null): ?string
+{
+    if ($role === 'admin') {
+        return isset(VB_STATS_VIEWS[$requested]) ? $requested : 'admin';
+    }
+    return isset(VB_STATS_VIEWS[$role]) ? $role : null;
+}
+
 /** Every figure the dashboard and export show, for one period. */
 function vbCollectStats(PDO $conn, string $from, string $to): array
 {
@@ -176,6 +212,33 @@ function vbCollectStats(PDO $conn, string $from, string $to): array
     }
     $stats['by_status'] = $statusCounts;
     $stats['pending']   = $statusCounts['pending_driver'] + $statusCounts['pending_supervisor'] + $statusCounts['pending_hrm'];
+    $decided = $statusCounts['approved'] + $statusCounts['in_progress'] + $statusCounts['closed'];
+    $stats['approved_requests'] = $decided;
+    $stats['approval_rate']     = vbPct($decided, $decided + $statusCounts['rejected']);
+
+    // Trips on the road right now (approved, departure time passed, not yet
+    // returned), whatever period is picked.
+    $stats['on_road_now'] = (int)$one("
+        SELECT COUNT(*) FROM vehicle_requests vr
+        WHERE vr.status = 'approved'
+          AND TIMESTAMP(vr.date_required, COALESCE(vr.time_required, '00:00:00')) <= ?
+    ", [vbNow()]);
+
+    // Per-department breakdown: requests, outcome and distance driven.
+    $stats['department_summary'] = $all("
+        SELECT COALESCE(NULLIF(TRIM(vr.department), ''), 'Not specified') AS department,
+               COUNT(*) AS requests,
+               SUM(vr.status IN ('approved', 'closed')) AS approved,
+               SUM(vr.status = 'rejected') AS rejected,
+               SUM(vr.status IN ('pending_driver', 'pending_supervisor', 'pending_hrm')) AS pending,
+               SUM(vr.status = 'closed') AS completed,
+               COALESCE(SUM(CASE WHEN vr.mileage_in >= vr.mileage_out
+                                 THEN vr.mileage_in - vr.mileage_out END), 0) AS km
+        FROM vehicle_requests vr
+        WHERE vr.created_at BETWEEN ? AND ?
+        GROUP BY department
+        ORDER BY requests DESC, department
+    ", $range);
 
     $stats['by_department'] = $all("
         SELECT COALESCE(NULLIF(TRIM(vr.department), ''), 'Not specified') AS label, COUNT(*) AS value
