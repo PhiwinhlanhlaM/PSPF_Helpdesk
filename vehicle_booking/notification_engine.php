@@ -89,8 +89,10 @@ function buildRequestLink($request_id) {
  */
 function formatRequestDetails($request) {
     $requesterName = vbName($request['requester_name']);
+    $driverName    = !empty($request['trip_driver_name']) ? htmlspecialchars($request['trip_driver_name']) : $requesterName;
     $details = "
-        <strong>Requester (Driver):</strong> {$requesterName}<br>
+        <strong>Requester:</strong> {$requesterName}<br>
+        <strong>Driver:</strong> {$driverName}<br>
         <strong>Date Requested:</strong> {$request['date_requested']}<br>
         <strong>Date &amp; Time Required:</strong> {$request['date_required']} {$request['time_required']}<br>
         <strong>Destination:</strong> {$request['destination']}<br>

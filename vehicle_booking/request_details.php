@@ -103,7 +103,8 @@ $stages = [
 
   <h6 class="text-muted text-uppercase small mb-2"><i class="fa fa-route me-1"></i>Trip</h6>
   <div class="row g-3 mb-3">
-    <?= $field('Requester (Driver)', $e(vbName($r['requester_name'])) . (!empty($r['requester_email']) ? '<div class="small text-muted fw-normal">' . $e($r['requester_email']) . '</div>' : '')) ?>
+    <?= $field('Requester', $e(vbName($r['requester_name'])) . (!empty($r['requester_email']) ? '<div class="small text-muted fw-normal">' . $e($r['requester_email']) . '</div>' : '')) ?>
+    <?= $field('Driver', $e($r['trip_driver_name'] ?? null, $e(vbName($r['requester_name'])))) ?>
     <?= $field('Department', $e($r['department'])) ?>
     <?= $field('Destination', $e($r['destination'])) ?>
     <?= $field('Date Required', $e($r['date_required'])) ?>
