@@ -57,25 +57,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt = $conn->prepare("
         INSERT INTO vehicle_requests
         (requester_id, department, purpose, destination, passengers, date_requested,
-         date_required, time_required, expected_return_date, selected_supervisor, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'pending_driver')
+         date_required, time_required, expected_return_date, selected_supervisor, status,
+         trip_driver_id, trip_driver_name)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'pending_driver', ?, ?)
     ");
 
     $stmt->execute([
         $user_id, $department, $purpose, $destination, $passengers,
-        $date_requested, $date_required, $time_required, $expected_return_date
+        $date_requested, $date_required, $time_required, $expected_return_date,
+        $trip_driver_id, $trip_driver_name
     ]);
 
     $request_id = $conn->lastInsertId();
-
-    // Driver is stored separately so the request still saves if
-    // sql/trip_driver_name.sql has not been run yet.
-    try {
-        $conn->prepare("UPDATE vehicle_requests SET trip_driver_id = ?, trip_driver_name = ? WHERE request_id = ?")
-             ->execute([$trip_driver_id, $trip_driver_name, $request_id]);
-    } catch (PDOException $e) {
-        error_log("request_form: driver not saved (run sql/trip_driver_name.sql): " . $e->getMessage());
-    }
 
     // Log action
     $conn->prepare("

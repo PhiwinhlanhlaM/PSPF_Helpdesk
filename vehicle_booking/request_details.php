@@ -22,6 +22,7 @@ $id = (int)($_GET['id'] ?? 0);
 $stmt = $conn->prepare("
     SELECT vr.*,
            u.name  AS requester_name, u.email AS requester_email,
+           td.name AS trip_driver_user_name,
            v.registration, v.make AS vehicle_make, v.model AS vehicle_model,
            d.name  AS driver_name,
            s.name  AS supervisor_name,
@@ -29,6 +30,7 @@ $stmt = $conn->prepare("
            h.name  AS hrm_name
     FROM vehicle_requests vr
     LEFT JOIN users u    ON u.user_id  = vr.requester_id
+    LEFT JOIN users td   ON td.user_id = vr.trip_driver_id
     LEFT JOIN vehicles v ON v.vehicle_id = vr.vehicle_id
     LEFT JOIN users d    ON d.user_id  = vr.driver_id
     LEFT JOIN users s    ON s.user_id  = vr.supervisor_id
