@@ -33,7 +33,7 @@ $stmt->execute($params);
 $totalMileage = 0;
 $html = "<h3>Transport Report</h3><table border='1' width='100%' cellspacing='0' cellpadding='5'>
 <tr>
-<th>Request #</th><th>Date Required</th><th>Time Required</th><th>Requester (Driver)</th><th>Department</th><th>Destination</th>
+<th>Request #</th><th>Date Required</th><th>Time Required</th><th>Requester</th><th>Driver</th><th>Department</th><th>Destination</th>
 <th>Vehicle</th><th>Status</th><th>Mileage In</th><th>Mileage Out</th><th>Trip Mileage</th>
 </tr>";
 
@@ -42,7 +42,7 @@ while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
     $totalMileage += $trip;
     $c = array_map(
         fn($v) => htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'),
-        ['requester' => vbName($r['requester'])] + $r + ['status_label' => vbStatusLabel(vbTripStatus($r)), 'time_label' => vbTime($r['time_required'])]
+        ['requester' => vbName($r['requester']), 'driver' => vbTripDriver($r, 'requester')] + $r + ['status_label' => vbStatusLabel(vbTripStatus($r)), 'time_label' => vbTime($r['time_required'])]
     );
 
     $html .= "<tr>
@@ -50,6 +50,7 @@ while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
         <td>{$c['date_required']}</td>
         <td>{$c['time_label']}</td>
         <td>{$c['requester']}</td>
+        <td>{$c['driver']}</td>
         <td>{$c['department']}</td>
         <td>{$c['destination']}</td>
         <td>{$c['registration']}</td>
@@ -61,7 +62,7 @@ while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
 }
 
 $html .= "<tr>
-<td colspan='10'><strong>Total Mileage</strong></td>
+<td colspan='11'><strong>Total Mileage</strong></td>
 <td><strong>{$totalMileage} km</strong></td>
 </tr></table>";
 

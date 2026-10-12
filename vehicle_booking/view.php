@@ -68,7 +68,8 @@ try {
             <thead>
                 <tr>
                     <th>Request ID</th>
-                    <th>Requester (Driver)</th>
+                    <th>Requester</th>
+                    <th>Driver</th>
                     <th>Department</th>
                     <th>Destination</th>
                     <th>Date Required</th>
@@ -84,6 +85,7 @@ try {
                 <tr class="request-row" data-request-id="<?= (int)$m['request_id'] ?>">
                     <td><?= htmlspecialchars($m['request_id']) ?></td>
                     <td><?= htmlspecialchars(vbName($m['requester_name'] ?? '')) ?></td>
+                    <td><?= htmlspecialchars(vbTripDriver($m)) ?></td>
                     <td><?= htmlspecialchars($m['department'] ?? '') ?></td>
                     <td class="cell-truncate" title="<?= htmlspecialchars($m['destination']) ?>"><?= htmlspecialchars($m['destination']) ?></td>
                     <td class="col-nowrap"><?= htmlspecialchars($m['date_required']) ?></td>

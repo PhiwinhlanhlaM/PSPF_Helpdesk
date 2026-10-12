@@ -87,8 +87,8 @@ $field = static function (string $label, string $valueHtml): string {
 };
 
 // Who actioned each approval stage. driver_id is the user with the driver
-// role who assigned the vehicle (not necessarily who drives: the requester
-// drives); supervisor and HRM approvals store supervisor_id / hrm_id.
+// role who assigned the vehicle (not who drives: that is the Driver's Name
+// on the request); supervisor and HRM approvals store supervisor_id / hrm_id.
 $stages = [
     ['Vehicle Assigned By',  $r['driver_name'],     !empty($r['driver_id'])],
     ['Supervisor',           $r['supervisor_name'], !empty($r['supervisor_id'])],
@@ -106,7 +106,7 @@ $stages = [
     <?= $field('Date Requested', $e($r['created_at'])) ?>
     <?= $field('Requester', $e(vbName($r['requester_name'])) . (!empty($r['requester_email']) ? '<div class="small text-muted fw-normal">' . $e($r['requester_email']) . '</div>' : '')) ?>
     <?= $field('Department', $e($r['department'])) ?>
-    <?= $field('Driver', $e($r['trip_driver_name'] ?? null, $e(vbName($r['requester_name'])))) ?>
+    <?= $field('Driver', $e(vbTripDriver($r))) ?>
     <?= $field('Passengers', $e($r['passengers'])) ?>
     <?= $field('Destination', $e($r['destination'])) ?>
     <?= $field('Date Required', $e($r['date_required'])) ?>
