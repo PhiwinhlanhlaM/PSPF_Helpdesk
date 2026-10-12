@@ -111,13 +111,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <div class="mb-3">
-                <label>Purpose of Trip</label>
-                <textarea name="purpose" class="form-control" required></textarea>
-            </div>
-
-            <div class="mb-3">
-                <label>Destination</label>
-                <input type="text" name="destination" class="form-control" required>
+                <label for="trip_driver_name">Driver's Name</label>
+                <input type="text" id="trip_driver_name" name="trip_driver_name" class="form-control"
+                       maxlength="255" placeholder="Full name of the person who will drive" required>
+                <div class="form-text">
+                    <i class="fa fa-circle-info me-1"></i>This should be the name of the driver: the person who will be driving the vehicle on this trip.
+                </div>
             </div>
 
             <div class="mb-3">
@@ -126,12 +125,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <div class="mb-3">
-                <label for="trip_driver_name">Driver's Name</label>
-                <input type="text" id="trip_driver_name" name="trip_driver_name" class="form-control"
-                       maxlength="255" placeholder="Full name of the person who will drive" required>
-                <div class="form-text">
-                    <i class="fa fa-circle-info me-1"></i>This should be the name of the driver: the person who will be driving the vehicle on this trip.
-                </div>
+                <label>Destination</label>
+                <input type="text" name="destination" class="form-control" required>
+            </div>
+
+            <div class="mb-3">
+                <label>Purpose of Trip</label>
+                <textarea name="purpose" class="form-control" required></textarea>
             </div>
 
             <div class="row mb-3">

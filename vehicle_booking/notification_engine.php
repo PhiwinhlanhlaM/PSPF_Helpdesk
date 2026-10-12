@@ -91,14 +91,14 @@ function formatRequestDetails($request) {
     $requesterName = vbName($request['requester_name']);
     $driverName    = !empty($request['trip_driver_name']) ? htmlspecialchars($request['trip_driver_name']) : $requesterName;
     $details = "
-        <strong>Requester:</strong> {$requesterName}<br>
-        <strong>Driver:</strong> {$driverName}<br>
         <strong>Date Requested:</strong> {$request['date_requested']}<br>
-        <strong>Date &amp; Time Required:</strong> {$request['date_required']} {$request['time_required']}<br>
+        <strong>Requester:</strong> {$requesterName}<br>
+        <strong>Department:</strong> {$request['department']}<br>
+        <strong>Driver:</strong> {$driverName}<br>
+        <strong>Passengers:</strong> {$request['passengers']}<br>
         <strong>Destination:</strong> {$request['destination']}<br>
         <strong>Purpose:</strong> {$request['purpose']}<br>
-	<strong>Passengers:</strong> {$request['passengers']}<br>
-        <strong>Department:</strong> {$request['department']}<br>
+        <strong>Date &amp; Time Required:</strong> {$request['date_required']} {$request['time_required']}<br>
     ";
 
     // Once a vehicle has been assigned (by a user with the driver role), include it in every email so all
