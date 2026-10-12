@@ -25,6 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $purpose           = $_POST['purpose'];
     $destination       = $_POST['destination'];
     $passengers        = $_POST['passengers'];
+    $trip_driver_name  = trim($_POST['trip_driver_name'] ?? '');
     $date_required     = $_POST['date_required'];
     $time_required     = $_POST['time_required'];
     $expected_return_date = $_POST['expected_return_date'];
@@ -43,6 +44,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ]);
 
     $request_id = $conn->lastInsertId();
+
+    // Driver's name is stored separately so the request still saves if
+    // sql/trip_driver_name.sql has not been run yet.
+    if ($trip_driver_name !== '') {
+        try {
+            $conn->prepare("UPDATE vehicle_requests SET trip_driver_name = ? WHERE request_id = ?")
+                 ->execute([$trip_driver_name, $request_id]);
+        } catch (PDOException $e) {
+            error_log("request_form: trip_driver_name not saved (run sql/trip_driver_name.sql): " . $e->getMessage());
+        }
+    }
 
     // Log action
     $conn->prepare("
@@ -111,6 +123,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="mb-3">
                 <label>Passengers</label>
                 <input type="text" name="passengers" class="form-control" placeholder="Comma-separated names" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="trip_driver_name">Driver's Name</label>
+                <input type="text" id="trip_driver_name" name="trip_driver_name" class="form-control"
+                       maxlength="255" placeholder="Full name of the person who will drive" required>
+                <div class="form-text">
+                    <i class="fa fa-circle-info me-1"></i>This should be the name of the driver: the person who will be driving the vehicle on this trip.
+                </div>
             </div>
 
             <div class="row mb-3">
