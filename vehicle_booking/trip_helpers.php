@@ -34,13 +34,20 @@ function vbName(?string $name): string
 }
 
 /**
- * Name of the person driving the trip: the Driver's Name captured on the
- * request form, or the requester for older requests made before that field.
+ * Name of the person driving the trip. In order: the driver's current name
+ * from their user account (query joins it as trip_driver_user_name), the name
+ * saved on the request (typed in for "Other" drivers), or the requester for
+ * older requests made before the Driver's Name field.
  */
 function vbTripDriver(array $r, string $requesterKey = 'requester_name'): string
 {
-    $name = trim((string)($r['trip_driver_name'] ?? ''));
-    return $name !== '' ? $name : vbName($r[$requesterKey] ?? '');
+    foreach (['trip_driver_user_name', 'trip_driver_name', $requesterKey] as $key) {
+        $name = trim((string)($r[$key] ?? ''));
+        if ($name !== '') {
+            return vbName($name);
+        }
+    }
+    return '';
 }
 
 /** Current time as MySQL DATETIME, from PHP so display and filters agree. */

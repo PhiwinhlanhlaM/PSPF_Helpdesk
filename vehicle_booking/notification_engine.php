@@ -182,12 +182,14 @@ function sendRequestEmail($conn, $request_id, $stage) {
         SELECT vr.*,
                u.email AS requester_email,
                u.name  AS requester_name,
+               td.name AS trip_driver_user_name,
                d.name  AS driver_name,
                v.registration AS vehicle_registration,
                v.make  AS vehicle_make,
                v.model AS vehicle_model
         FROM vehicle_requests vr
         JOIN users u ON u.user_id = vr.requester_id
+        LEFT JOIN users td ON td.user_id = vr.trip_driver_id
         LEFT JOIN users d ON d.user_id = vr.driver_id
         LEFT JOIN vehicles v ON v.vehicle_id = vr.vehicle_id
         WHERE vr.request_id = ?
@@ -401,6 +403,7 @@ function sendVehicleReturnEmail($conn, $request_id) {
             vr.mileage_in,
             u.name  AS requester_name,
             u.email AS requester_email,
+            td.name AS trip_driver_user_name,
             vr.department,
             d.name  AS driver_name,
             d.email AS driver_email,
@@ -408,6 +411,7 @@ function sendVehicleReturnEmail($conn, $request_id) {
             v.registration AS registration_number
         FROM vehicle_requests vr
         JOIN users u ON u.user_id = vr.requester_id
+        LEFT JOIN users td ON td.user_id = vr.trip_driver_id
         LEFT JOIN users d ON d.user_id = vr.driver_id
         JOIN vehicles v ON v.vehicle_id = vr.vehicle_id
         WHERE vr.request_id = ?

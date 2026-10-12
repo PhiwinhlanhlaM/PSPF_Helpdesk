@@ -18,9 +18,10 @@ $whereSQL = $where ? "WHERE " . implode(" AND ", $where) : "";
 
 /* Query */
 $sql = "
-    SELECT vr.*, u.name AS requester, v.registration
+    SELECT vr.*, u.name AS requester, td.name AS trip_driver_user_name, v.registration
     FROM vehicle_requests vr
     LEFT JOIN users u ON u.user_id = vr.requester_id
+    LEFT JOIN users td ON td.user_id = vr.trip_driver_id
     LEFT JOIN vehicles v ON v.vehicle_id = vr.vehicle_id
     $whereSQL
     ORDER BY vr.created_at DESC

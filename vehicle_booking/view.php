@@ -16,10 +16,12 @@ require_once __DIR__ . '/trip_helpers.php';
 // when a row is clicked.
 $sql = "SELECT vr.*,
                u.name AS requester_name,
+               td.name AS trip_driver_user_name,
                d.name AS driver_name,
                v.registration AS vehicle_registration
         FROM vehicle_requests vr
         LEFT JOIN users u ON vr.requester_id = u.user_id
+        LEFT JOIN users td ON td.user_id = vr.trip_driver_id
         LEFT JOIN users d ON vr.driver_id = d.user_id
         LEFT JOIN vehicles v ON vr.vehicle_id = v.vehicle_id
         ORDER BY vr.created_at DESC";
