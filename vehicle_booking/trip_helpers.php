@@ -33,6 +33,16 @@ function vbName(?string $name): string
     ) ?? (string)$name;
 }
 
+/**
+ * Name of the person driving the trip: the Driver's Name captured on the
+ * request form, or the requester for older requests made before that field.
+ */
+function vbTripDriver(array $r, string $requesterKey = 'requester_name'): string
+{
+    $name = trim((string)($r['trip_driver_name'] ?? ''));
+    return $name !== '' ? $name : vbName($r[$requesterKey] ?? '');
+}
+
 /** Current time as MySQL DATETIME, from PHP so display and filters agree. */
 function vbNow(): string
 {

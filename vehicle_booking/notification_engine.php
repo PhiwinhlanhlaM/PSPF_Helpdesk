@@ -89,16 +89,16 @@ function buildRequestLink($request_id) {
  */
 function formatRequestDetails($request) {
     $requesterName = vbName($request['requester_name']);
-    $driverName    = !empty($request['trip_driver_name']) ? htmlspecialchars($request['trip_driver_name']) : $requesterName;
+    $driverName    = htmlspecialchars(vbTripDriver($request));
     $details = "
-        <strong>Requester:</strong> {$requesterName}<br>
-        <strong>Driver:</strong> {$driverName}<br>
         <strong>Date Requested:</strong> {$request['date_requested']}<br>
-        <strong>Date &amp; Time Required:</strong> {$request['date_required']} {$request['time_required']}<br>
+        <strong>Requester:</strong> {$requesterName}<br>
+        <strong>Department:</strong> {$request['department']}<br>
+        <strong>Driver:</strong> {$driverName}<br>
+        <strong>Passengers:</strong> {$request['passengers']}<br>
         <strong>Destination:</strong> {$request['destination']}<br>
         <strong>Purpose:</strong> {$request['purpose']}<br>
-	<strong>Passengers:</strong> {$request['passengers']}<br>
-        <strong>Department:</strong> {$request['department']}<br>
+        <strong>Date &amp; Time Required:</strong> {$request['date_required']} {$request['time_required']}<br>
     ";
 
     // Once a vehicle has been assigned (by a user with the driver role), include it in every email so all
@@ -389,6 +389,7 @@ function sendVehicleReturnEmail($conn, $request_id) {
 
     $stmt = $conn->prepare("
         SELECT
+            vr.*,
             vr.request_id,
             vr.destination,
             vr.purpose,
@@ -435,7 +436,8 @@ function sendVehicleReturnEmail($conn, $request_id) {
         <p>The vehicle has been returned and this request is now <strong>closed</strong>.</p>
         <hr>
         <h4>Trip Details</h4>
-        <strong>Requester (Driver):</strong> " . vbName($data['requester_name']) . "<br>
+        <strong>Requester:</strong> " . vbName($data['requester_name']) . "<br>
+        <strong>Driver:</strong> " . htmlspecialchars(vbTripDriver($data)) . "<br>
         <strong>Vehicle:</strong> {$data['vehicle_name']} ({$data['registration_number']})<br>
         <strong>Destination:</strong> {$data['destination']}<br>
         <strong>Purpose:</strong> {$data['purpose']}<br>

@@ -174,7 +174,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                 <th>Request #</th>
                 <th>Date Required</th>
                 <th>Time Required</th>
-                <th>Requester (Driver)</th>
+                <th>Requester</th>
+                <th>Driver</th>
                 <th>Department</th>
                 <th>Destination</th>
                 <th>Vehicle</th>
@@ -218,6 +219,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
         $dateReq = $esc($r['date_required']);
         $timeReq = $esc(vbTime($r['time_required']));
         $req    = $esc(vbName($r['requester']));
+        $drv    = $esc(vbTripDriver($r, 'requester'));
         $dep    = $esc($r['department']);
         $des    = $esc($r['destination']);
         $reg    = $esc($r['registration']);
@@ -234,6 +236,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
             <td class=\"text-nowrap\">{$dateReq}</td>
             <td class=\"text-nowrap\">{$timeReq}</td>
             <td>{$req}</td>
+            <td>{$drv}</td>
             <td data-field=\"department\">{$dep}</td>
             <td data-field=\"destination\">{$des}</td>
             <td data-field=\"vehicle_id\" data-value=\"{$vehId}\">{$reg}</td>

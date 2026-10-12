@@ -87,8 +87,8 @@ $field = static function (string $label, string $valueHtml): string {
 };
 
 // Who actioned each approval stage. driver_id is the user with the driver
-// role who assigned the vehicle (not necessarily who drives: the requester
-// drives); supervisor and HRM approvals store supervisor_id / hrm_id.
+// role who assigned the vehicle (not who drives: that is the Driver's Name
+// on the request); supervisor and HRM approvals store supervisor_id / hrm_id.
 $stages = [
     ['Vehicle Assigned By',  $r['driver_name'],     !empty($r['driver_id'])],
     ['Supervisor',           $r['supervisor_name'], !empty($r['supervisor_id'])],
@@ -103,15 +103,15 @@ $stages = [
 
   <h6 class="text-muted text-uppercase small mb-2"><i class="fa fa-route me-1"></i>Trip</h6>
   <div class="row g-3 mb-3">
+    <?= $field('Date Requested', $e($r['created_at'])) ?>
     <?= $field('Requester', $e(vbName($r['requester_name'])) . (!empty($r['requester_email']) ? '<div class="small text-muted fw-normal">' . $e($r['requester_email']) . '</div>' : '')) ?>
-    <?= $field('Driver', $e($r['trip_driver_name'] ?? null, $e(vbName($r['requester_name'])))) ?>
     <?= $field('Department', $e($r['department'])) ?>
+    <?= $field('Driver', $e(vbTripDriver($r))) ?>
+    <?= $field('Passengers', $e($r['passengers'])) ?>
     <?= $field('Destination', $e($r['destination'])) ?>
     <?= $field('Date Required', $e($r['date_required'])) ?>
     <?= $field('Time Required', $e(vbTime($r['time_required']))) ?>
     <?= $field('Expected Return', $e($r['expected_return_date'])) ?>
-    <?= $field('Passengers', $e($r['passengers'])) ?>
-    <?= $field('Date Requested', $e($r['created_at'])) ?>
     <?= $field('Assigned Vehicle', $e($vehicle, 'Not yet assigned')) ?>
     <div class="col-12"><small class="text-muted d-block">Purpose</small><div class="fw-semibold text-break"><?= nl2br($e($r['purpose'])) ?></div></div>
   </div>
