@@ -4,6 +4,7 @@ require_once __DIR__ . '/superuser.php';
 require_once __DIR__ . '/trip_helpers.php';
 $role = $_SESSION['role'] ?? '';
 $isSuperuser = vbIsSuperuser();
+$switchViews = vbSwitchableViews();
 
 // Determine dashboard based on role
 $dashboardMap = [
@@ -67,14 +68,14 @@ $userName    = vbName($_SESSION['name'] ?? '');
                     </li>
                 <?php endforeach; ?>
 
-                <?php if ($isSuperuser): ?>
+                <?php if ($switchViews): ?>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fa fa-repeat nav-icon"></i>Switch View
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li><h6 class="dropdown-header">IT Superuser: view as</h6></li>
-                            <?php foreach (VB_SUPERUSER_VIEWS as $viewRole => [$viewHref, $viewLabel]): ?>
+                            <li><h6 class="dropdown-header"><?= $isSuperuser ? 'IT Superuser: view as' : 'View as' ?></h6></li>
+                            <?php foreach ($switchViews as $viewRole => [$viewHref, $viewLabel]): ?>
                                 <li>
                                     <form method="post" action="switch_role.php">
                                         <input type="hidden" name="view" value="<?= htmlspecialchars($viewRole) ?>">
