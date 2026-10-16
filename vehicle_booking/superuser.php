@@ -27,20 +27,53 @@ const VB_SUPERUSER_VIEWS = [
 // The view a superuser lands on after signing in.
 const VB_SUPERUSER_DEFAULT_VIEW = 'user';
 
+// Other roles that may switch between a limited set of views. Drivers also
+// raise their own trips, so they can flip to the Staff view to close them.
+// The first view listed is the one they land on after signing in.
+const VB_ROLE_VIEWS = [
+    'driver' => ['driver', 'user'],
+];
+
 function vbIsSuperuser(): bool
 {
     return ($_SESSION['real_role'] ?? '') === 'superuser';
 }
 
 /**
+ * The views the signed-in user may switch between, as role => [dashboard, label].
+ * Empty when their role has no other views.
+ */
+function vbSwitchableViews(): array
+{
+    // Sessions started before driver switching existed have no real_role yet.
+    if (!isset($_SESSION['real_role']) && isset(VB_ROLE_VIEWS[$_SESSION['role'] ?? ''])) {
+        $_SESSION['real_role'] = $_SESSION['role'];
+    }
+
+    $realRole = $_SESSION['real_role'] ?? '';
+    if ($realRole === 'superuser') {
+        return VB_SUPERUSER_VIEWS;
+    }
+    if (!isset(VB_ROLE_VIEWS[$realRole])) {
+        return [];
+    }
+    return array_intersect_key(VB_SUPERUSER_VIEWS, array_flip(VB_ROLE_VIEWS[$realRole]));
+}
+
+/**
  * Call right after a login sets $_SESSION['role'] from the database. For a
- * superuser it records the real role and starts them in the default view.
+ * superuser, or a role that can switch views, it records the real role and
+ * starts them in their default view.
  */
 function vbStartSuperuserSession(): void
 {
-    if (($_SESSION['role'] ?? '') === 'superuser') {
+    $role = $_SESSION['role'] ?? '';
+    if ($role === 'superuser') {
         $_SESSION['real_role'] = 'superuser';
         $_SESSION['role']      = VB_SUPERUSER_DEFAULT_VIEW;
+    } elseif (isset(VB_ROLE_VIEWS[$role])) {
+        $_SESSION['real_role'] = $role;
+        $_SESSION['role']      = VB_ROLE_VIEWS[$role][0];
     } else {
         unset($_SESSION['real_role']);
     }
