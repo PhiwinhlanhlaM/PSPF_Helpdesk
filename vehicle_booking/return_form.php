@@ -15,13 +15,16 @@ if (!$request_id) {
     exit();
 }
 
-// Fetch vehicle linked to request
+// Fetch vehicle linked to request. Only the requester or the trip's driver
+// may return it, and only while the trip is still open.
 $stmt = $conn->prepare("
     SELECT vehicle_id 
     FROM vehicle_requests 
     WHERE request_id = ?
+      AND (requester_id = ? OR driver_id = ?)
+      AND status IN ('approved', 'in_progress')
 ");
-$stmt->execute([$request_id]);
+$stmt->execute([$request_id, $_SESSION['user_id'], $_SESSION['user_id']]);
 $req = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$req) {
