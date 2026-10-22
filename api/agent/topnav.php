@@ -176,17 +176,20 @@ if (empty($UserDept) && isset($conn) && !empty($_SESSION['user']['id'])) {
                         <i class="bi bi-journal-bookmark-fill me-1"></i> Self Service
                     </a>
                 </li>-->
-                <!-- Reports (SuperAdmin only) -->
-                <?php if($isSuperAdmin): ?>
+                <!-- Reports (SuperAdmin; Admin gets the user tickets report only) -->
+                <?php if($isSuperAdmin || $isAdmin): ?>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="bi bi-bar-chart me-1"></i> Reports
                     </a>
                     <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="/pspf_crm/api/reports/user_tickets_report.php"><i class="bi bi-person-lines-fill me-2"></i>Tickets by User</a></li>
+                        <?php if($isSuperAdmin): ?>
                         <li><a class="dropdown-item" href="/pspf_crm/api/ticket/report_queries.php"><i class="bi bi-journal-text me-2"></i>Query Logs</a></li>
                         <li><a class="dropdown-item" href="/pspf_crm/api/reports/ticket_status_logs.php"><i class="bi bi-clock-history me-2"></i>Activity Logs</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="/pspf_crm/api/ticket/ticket_status_summary.php"><i class="bi bi-file-pdf me-2"></i>Export PDF</a></li>
+                        <?php endif ?>
                     </ul>
                 </li>
                 <?php endif ?>
